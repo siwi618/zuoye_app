@@ -1,0 +1,50 @@
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Env / Secrets =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ===== Node / Frontend =====
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+backend/node_modules/
+backend/.wrangler/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Python / Backend =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ===== Supabase =====
+supabase/.branches
+supabase/.temp
+
+# ===== Docker / Cloudflare =====
+.wrangler/
+.dev.vars

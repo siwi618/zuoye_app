@@ -1,0 +1,45 @@
+name: Deploy backend
+
+# CLOUDFLARE_API_TOKEN must be an *account-owned* token (Manage Account →
+# Account API Tokens, "Edit Cloudflare Workers" template, which includes
+# Workers Containers: Edit). A user-owned token gets 403 on
+# GET /accounts/.../containers/me even with Cloudchamber: Edit.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:  # allow manual trigger from Actions tab
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install wrangler + worker deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy Worker + Container
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          command: deploy

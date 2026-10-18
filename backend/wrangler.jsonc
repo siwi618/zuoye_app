@@ -1,0 +1,45 @@
+{
+  // Cloudflare Worker that wraps the FastAPI container.
+  // Docs: https://developers.cloudflare.com/containers/
+  "name": "zuoyebang-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "containers": [
+    {
+      "class_name": "ZuoyebangBackend",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "basic"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CONTAINER",
+        "class_name": "ZuoyebangBackend"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ZuoyebangBackend"]
+    }
+  ],
+
+  // Non-secret env vars exposed to the container.
+  // CORS_ORIGINS is a comma-separated list — pydantic-settings splits it
+  // into list[str] when JSON-decoding fails. Plain commas survive the
+  // Worker→Container env-var hop unmangled.
+  "vars": {
+    "ENVIRONMENT": "production",
+    "CORS_ORIGINS": "https://zuoyebang-app.pages.dev,http://localhost:3000"
+  }
+
+  // Secrets (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
+  // are set via `wrangler secret put` — never committed.
+}

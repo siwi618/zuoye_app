@@ -1,0 +1,31 @@
+# Cloud Build / Cloud Run upload exclusions.
+# Mirrors .gitignore + skips files only used by the Cloudflare Worker wrapper
+# (not needed inside the Python container).
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Cloudflare Worker wrapper (TS) — not used by Cloud Run
+node_modules/
+.wrangler/
+src/
+wrangler.jsonc
+package.json
+package-lock.json
+tsconfig.json
+
+# Secrets / examples
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
