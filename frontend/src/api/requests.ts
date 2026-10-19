@@ -1,4 +1,5 @@
 import { apiFetch } from './client'
+import type { MediaRead } from './media'
 
 export type RequestStatus = 'open' | 'accepted' | 'completed' | 'cancelled'
 export type RequestMode = 'online' | 'offline' | 'either'
@@ -17,6 +18,7 @@ export interface RequestRead {
   subject: string
   topic: string | null
   description: string
+  media: MediaRead[]
   mode: RequestMode
   status: RequestStatus
   scheduled_at: string | null
@@ -32,6 +34,7 @@ export interface RequestCreate {
   topic?: string | null
   description: string
   mode: RequestMode
+  media_ids?: string[]
 }
 
 export interface ListRequestsParams {

@@ -15,6 +15,8 @@ from app.schemas.forum import (
     TimeRange,
 )
 from app.schemas.request import ProfileSummary
+from app.schemas.media import MediaRead
+from app.services import media as media_svc
 from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
@@ -71,12 +73,15 @@ def _liked_ids(table: str, key: str, user_id: str, ids: list[str]) -> set[str]:
     return {r[key] for r in rows}
 
 
-def _hydrate_post(row: dict, profiles: dict[str, dict], liked: set[str]) -> PostRead:
+def _hydrate_post(
+    row: dict, profiles: dict[str, dict], liked: set[str], media_by_id: dict[str, MediaRead]
+) -> PostRead:
     return PostRead(
         id=row["id"],
         author=ProfileSummary(**profiles[row["author_id"]]),
         title=row["title"],
         body=row["body"],
+        media=media_svc.attached(row, media_by_id),
         tag=row["tag"],
         view_count=row["view_count"],
         like_count=row["like_count"],
@@ -86,12 +91,15 @@ def _hydrate_post(row: dict, profiles: dict[str, dict], liked: set[str]) -> Post
     )
 
 
-def _hydrate_comment(row: dict, profiles: dict[str, dict], liked: set[str]) -> CommentRead:
+def _hydrate_comment(
+    row: dict, profiles: dict[str, dict], liked: set[str], media_by_id: dict[str, MediaRead]
+) -> CommentRead:
     return CommentRead(
         id=row["id"],
         post_id=row["post_id"],
         author=ProfileSummary(**profiles[row["author_id"]]),
         body=row["body"],
+        media=media_svc.attached(row, media_by_id),
         like_count=row["like_count"],
         liked_by_me=row["id"] in liked,
         created_at=row["created_at"],
@@ -165,18 +173,20 @@ def list_posts(
 
     profiles = _fetch_profiles({r["author_id"] for r in rows})
     liked = _liked_ids("forum_post_likes", "post_id", user_id, [r["id"] for r in rows])
-    return [_hydrate_post(r, profiles, liked) for r in rows]
+    media_by_id = media_svc.fetch(media_svc.all_ids(rows))
+    return [_hydrate_post(r, profiles, liked, media_by_id) for r in rows]
 
 
 def get_post(user_id: str, post_id: str) -> PostRead:
     row = _get_post_row(post_id)
     profiles = _fetch_profiles({row["author_id"]})
     liked = _liked_ids("forum_post_likes", "post_id", user_id, [row["id"]])
-    return _hydrate_post(row, profiles, liked)
+    return _hydrate_post(row, profiles, liked, media_svc.fetch(media_svc.all_ids([row])))
 
 
 def create_post(user_id: str, payload: PostCreate) -> PostRead:
     moderated = ensure_allowed(payload.title, payload.body)
+    media_ids = media_svc.validate_attachments(user_id, payload.media_ids)
     inserted = (
         get_supabase()
         .table("forum_posts")
@@ -185,6 +195,7 @@ def create_post(user_id: str, payload: PostCreate) -> PostRead:
             "title": payload.title,
             "body": payload.body,
             "tag": payload.tag.value,
+            "media_ids": media_ids,
             "moderated": moderated,
         })
         .execute()
@@ -197,7 +208,7 @@ def create_post(user_id: str, payload: PostCreate) -> PostRead:
             detail="Failed to create post",
         )
     profiles = _fetch_profiles({user_id})
-    return _hydrate_post(row, profiles, set())
+    return _hydrate_post(row, profiles, set(), media_svc.fetch(set(media_ids)))
 
 
 def delete_post(user_id: str, post_id: str) -> None:
@@ -207,7 +218,13 @@ def delete_post(user_id: str, post_id: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the author can delete this post",
         )
+    comments = (
+        get_supabase().table("forum_comments").select("media_ids").eq("post_id", post_id)
+        .execute().data
+        or []
+    )
     get_supabase().table("forum_posts").delete().eq("id", post_id).execute()
+    media_svc.delete(list(media_svc.all_ids([row, *comments])))
 
 
 def record_view(post_id: str) -> None:
@@ -271,12 +288,14 @@ def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort
 
     profiles = _fetch_profiles({r["author_id"] for r in rows})
     liked = _liked_ids("forum_comment_likes", "comment_id", user_id, [r["id"] for r in rows])
-    return [_hydrate_comment(r, profiles, liked) for r in rows]
+    media_by_id = media_svc.fetch(media_svc.all_ids(rows))
+    return [_hydrate_comment(r, profiles, liked, media_by_id) for r in rows]
 
 
 def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> CommentRead:
     _get_post_row(post_id)
     moderated = ensure_allowed(payload.body)
+    media_ids = media_svc.validate_attachments(user_id, payload.media_ids)
     inserted = (
         get_supabase()
         .table("forum_comments")
@@ -284,6 +303,7 @@ def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> Commen
             "post_id": post_id,
             "author_id": user_id,
             "body": payload.body,
+            "media_ids": media_ids,
             "moderated": moderated,
         })
         .execute()
@@ -296,7 +316,7 @@ def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> Commen
             detail="Failed to create comment",
         )
     profiles = _fetch_profiles({user_id})
-    return _hydrate_comment(row, profiles, set())
+    return _hydrate_comment(row, profiles, set(), media_svc.fetch(set(media_ids)))
 
 
 def delete_comment(user_id: str, comment_id: str) -> None:
@@ -307,6 +327,7 @@ def delete_comment(user_id: str, comment_id: str) -> None:
             detail="Only the author can delete this comment",
         )
     get_supabase().table("forum_comments").delete().eq("id", comment_id).execute()
+    media_svc.delete(row.get("media_ids") or [])
 
 
 def toggle_comment_like(user_id: str, comment_id: str) -> LikeResult:

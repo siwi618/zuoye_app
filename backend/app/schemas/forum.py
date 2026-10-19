@@ -2,7 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
+
+from app.schemas.media import MAX_ATTACHMENTS, MediaRead
 
 from app.schemas.request import ProfileSummary
 
@@ -43,6 +45,7 @@ class PostCreate(BaseModel):
     title: TitleStr
     body: PostBodyStr
     tag: ForumTag
+    media_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
 
 class PostRead(BaseModel):
@@ -50,6 +53,7 @@ class PostRead(BaseModel):
     author: ProfileSummary
     title: str
     body: str
+    media: list[MediaRead] = []
     tag: str
     view_count: int
     like_count: int
@@ -60,6 +64,7 @@ class PostRead(BaseModel):
 
 class CommentCreate(BaseModel):
     body: CommentBodyStr
+    media_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
 
 class CommentRead(BaseModel):
@@ -67,6 +72,7 @@ class CommentRead(BaseModel):
     post_id: str
     author: ProfileSummary
     body: str
+    media: list[MediaRead] = []
     like_count: int
     liked_by_me: bool
     created_at: datetime

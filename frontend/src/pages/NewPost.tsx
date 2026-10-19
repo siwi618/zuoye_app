@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createPost } from '@/api/forum'
+import type { MediaRead } from '@/api/media'
+import { MediaUploader } from '@/components/MediaUploader'
 import { FORUM_TAG_OPTIONS } from '@/lib/constants'
 
 export function NewPost() {
@@ -27,6 +29,8 @@ export function NewPost() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [tag, setTag] = useState('')
+  const [media, setMedia] = useState<MediaRead[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const mutation = useMutation({
     mutationFn: createPost,
@@ -42,7 +46,7 @@ export function NewPost() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
-    mutation.mutate({ title: title.trim(), body: body.trim(), tag })
+    mutation.mutate({ title: title.trim(), body: body.trim(), tag, media_ids: media.map((m) => m.id) })
   }
 
   return (
@@ -111,6 +115,7 @@ export function NewPost() {
                 placeholder={t('forum.bodyPlaceholder')}
               />
               <p className="text-right text-xs text-muted-foreground">{body.length} / 5000</p>
+              <MediaUploader value={media} onChange={setMedia} onUploadingChange={setUploading} />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -119,7 +124,7 @@ export function NewPost() {
               </Button>
               <Button
                 type="submit"
-                disabled={mutation.isPending || !title.trim() || !body.trim() || !tag}
+                disabled={mutation.isPending || uploading || !title.trim() || !body.trim() || !tag}
               >
                 {mutation.isPending ? '…' : t('forum.submit')}
               </Button>

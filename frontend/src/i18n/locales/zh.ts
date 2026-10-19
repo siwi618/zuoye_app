@@ -187,6 +187,22 @@ export const zh: Translations = {
     University: '大学',
     Other: '其他',
   },
+  media: {
+    add: '图片 / 视频',
+    hint: '最多 {{count}} 个 · 图片 ≤ 5 MB，视频 ≤ 20 MB',
+    uploading: '上传并审核中…',
+    remove: '移除',
+    max: '最多只能附 {{count}} 个文件',
+    tooLarge: '文件太大（图片 ≤ 5 MB，视频 ≤ 20 MB）',
+    unsupported: '不支持这种文件格式',
+    unreadable: '这个视频无法读取',
+  },
+  moderation: {
+    alertTitle: '网络不是法外之地！！TT',
+    rejected: '你发布的内容不符合社区规范，没有发布成功。',
+    takenDown: '你有 {{count}} 条内容因违反社区规范被下架了。',
+    ok: '我知道了',
+  },
   common: {
     loading: '加载中…',
     error: '出错了',

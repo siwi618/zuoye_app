@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createRequest, type RequestMode } from '@/api/requests'
+import type { MediaRead } from '@/api/media'
+import { MediaUploader } from '@/components/MediaUploader'
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '@/lib/constants'
 
 export function NewRequest() {
@@ -28,6 +30,8 @@ export function NewRequest() {
   const [subject, setSubject] = useState('')
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
+  const [media, setMedia] = useState<MediaRead[]>([])
+  const [uploading, setUploading] = useState(false)
   const [mode, setMode] = useState<RequestMode>('either')
 
   const mutation = useMutation({
@@ -50,6 +54,7 @@ export function NewRequest() {
       topic: topic.trim() || null,
       description,
       mode,
+      media_ids: media.map((m) => m.id),
     })
   }
 
@@ -136,6 +141,7 @@ export function NewRequest() {
                 placeholder={t('request.descriptionPlaceholder')}
               />
               <p className="text-right text-xs text-muted-foreground">{description.length} / 2000</p>
+              <MediaUploader value={media} onChange={setMedia} onUploadingChange={setUploading} />
             </div>
 
             <div className="space-y-2">
@@ -158,7 +164,7 @@ export function NewRequest() {
               </Button>
               <Button
                 type="submit"
-                disabled={mutation.isPending || !grade || !subject || !description}
+                disabled={mutation.isPending || uploading || !grade || !subject || !description}
               >
                 {mutation.isPending ? '…' : t('request.submit')}
               </Button>

@@ -42,6 +42,7 @@ import {
 } from '@/api/requests'
 import { useAuthStore } from '@/store/auth'
 import { FeedbackSection } from '@/components/FeedbackSection'
+import { MediaGallery } from '@/components/MediaGallery'
 
 const statusMeta: Record<
   RequestStatus,
@@ -190,6 +191,7 @@ export function RequestDetail() {
 
         <CardContent className="space-y-6 pt-6">
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{req.description}</p>
+          <MediaGallery media={req.media} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoRow Icon={Users} label={t('request.requester')}>

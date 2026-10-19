@@ -10,6 +10,8 @@ from app.schemas.request import (
     RequestUpdate,
     ScheduleRequest,
 )
+from app.schemas.media import MediaRead
+from app.services import media as media_svc
 from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
@@ -18,7 +20,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _hydrate_request(row: dict, profiles_by_id: dict[str, dict]) -> RequestRead:
+def _hydrate_request(
+    row: dict, profiles_by_id: dict[str, dict], media_by_id: dict[str, MediaRead]
+) -> RequestRead:
     requester_row = profiles_by_id.get(row["requester_id"])
     if not requester_row:
         # Should never happen — requester FK is NOT NULL.
@@ -37,6 +41,7 @@ def _hydrate_request(row: dict, profiles_by_id: dict[str, dict]) -> RequestRead:
         subject=row["subject"],
         topic=row.get("topic"),
         description=row["description"],
+        media=media_svc.attached(row, media_by_id),
         mode=row["mode"],
         status=row["status"],
         scheduled_at=row.get("scheduled_at"),
@@ -110,7 +115,9 @@ def list_requests(
             user_ids.add(r["helper_id"])
 
     profiles = _fetch_profiles(user_ids)
-    return [_hydrate_request(r, profiles) for r in rows if not _is_hidden(r, profiles)]
+    rows = [r for r in rows if not _is_hidden(r, profiles)]
+    media_by_id = media_svc.fetch(media_svc.all_ids(rows))
+    return [_hydrate_request(r, profiles, media_by_id) for r in rows]
 
 
 def get_request(request_id: str) -> RequestRead:
@@ -134,11 +141,12 @@ def get_request(request_id: str) -> RequestRead:
     profiles = _fetch_profiles(user_ids)
     if _is_hidden(row, profiles):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
-    return _hydrate_request(row, profiles)
+    return _hydrate_request(row, profiles, media_svc.fetch(media_svc.all_ids([row])))
 
 
 def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
     moderated = ensure_allowed(payload.topic, payload.description)
+    media_ids = media_svc.validate_attachments(user_id, payload.media_ids)
     insert = (
         get_supabase()
         .table("requests")
@@ -149,6 +157,7 @@ def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
             "topic": payload.topic,
             "description": payload.description,
             "mode": payload.mode.value,
+            "media_ids": media_ids,
             "moderated": moderated,
         })
         .execute()
@@ -159,8 +168,7 @@ def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create request",
         )
-    profiles = _fetch_profiles({row["requester_id"]})
-    return _hydrate_request(row, profiles)
+    return get_request(row["id"])
 
 
 def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> RequestRead:
@@ -191,6 +199,8 @@ def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> Req
     updates = payload.model_dump(exclude_none=True, mode="json")
     if not updates:
         return get_request(request_id)
+    if "media_ids" in updates:
+        updates["media_ids"] = media_svc.validate_attachments(user_id, updates["media_ids"])
     merged = {**existing, **updates}
     updates["moderated"] = ensure_allowed(
         merged.get("topic"), merged.get("description"), merged.get("meeting_info")

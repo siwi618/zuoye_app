@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import type { ProfileSummary } from './requests'
+import type { MediaRead } from './media'
 
 export type PostSort = 'hot' | 'new'
 export type TimeRange = 'all' | 'day' | 'week' | 'month'
@@ -10,6 +11,7 @@ export interface PostRead {
   author: ProfileSummary
   title: string
   body: string
+  media: MediaRead[]
   tag: string
   view_count: number
   like_count: number
@@ -22,6 +24,7 @@ export interface PostCreate {
   title: string
   body: string
   tag: string
+  media_ids?: string[]
 }
 
 export interface CommentRead {
@@ -29,6 +32,7 @@ export interface CommentRead {
   post_id: string
   author: ProfileSummary
   body: string
+  media: MediaRead[]
   like_count: number
   liked_by_me: boolean
   created_at: string
@@ -86,10 +90,14 @@ export function listComments(postId: string, sort: CommentSort = 'top'): Promise
   return apiFetch<CommentRead[]>(`/forum/posts/${postId}/comments?sort=${sort}`)
 }
 
-export function createComment(postId: string, body: string): Promise<CommentRead> {
+export function createComment(
+  postId: string,
+  body: string,
+  mediaIds: string[] = [],
+): Promise<CommentRead> {
   return apiFetch<CommentRead>(`/forum/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, media_ids: mediaIds }),
   })
 }
 

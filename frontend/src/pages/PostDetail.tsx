@@ -20,6 +20,9 @@ import {
   type CommentRead,
   type CommentSort,
 } from '@/api/forum'
+import type { MediaRead } from '@/api/media'
+import { MediaGallery } from '@/components/MediaGallery'
+import { MediaUploader } from '@/components/MediaUploader'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
 
@@ -122,6 +125,7 @@ export function PostDetail() {
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/90">
           {p.body}
         </p>
+        <MediaGallery media={p.media} className="mt-4" />
 
         <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/60 pt-4 text-sm text-muted-foreground">
           <Button
@@ -170,6 +174,8 @@ function CommentsSection({ postId }: { postId: string }) {
   const userId = useAuthStore((s) => s.user?.id)
   const [sort, setSort] = useState<CommentSort>('top')
   const [body, setBody] = useState('')
+  const [media, setMedia] = useState<MediaRead[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const comments = useQuery({
     queryKey: ['forum-comments', postId, sort],
@@ -183,9 +189,10 @@ function CommentsSection({ postId }: { postId: string }) {
   }
 
   const submit = useMutation({
-    mutationFn: () => createComment(postId, body.trim()),
+    mutationFn: () => createComment(postId, body.trim(), media.map((m) => m.id)),
     onSuccess: () => {
       setBody('')
+      setMedia([])
       refresh()
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
@@ -229,8 +236,9 @@ function CommentsSection({ postId }: { postId: string }) {
           maxLength={2000}
           rows={3}
         />
-        <div className="flex justify-end">
-          <Button type="submit" size="sm" disabled={submit.isPending || !body.trim()}>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <MediaUploader value={media} onChange={setMedia} onUploadingChange={setUploading} />
+          <Button type="submit" size="sm" disabled={submit.isPending || uploading || !body.trim()}>
             {submit.isPending ? '…' : t('forum.commentSubmit')}
           </Button>
         </div>
@@ -322,6 +330,7 @@ function CommentItem({
         </div>
       </div>
       <p className="mt-3 whitespace-pre-wrap pl-11 text-sm text-foreground/90">{comment.body}</p>
+      <MediaGallery media={comment.media} className="mt-3 pl-11" />
     </div>
   )
 }

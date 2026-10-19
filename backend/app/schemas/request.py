@@ -4,6 +4,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.schemas.media import MAX_ATTACHMENTS, MediaRead
+
 
 class RequestStatus(str, Enum):
     open = "open"
@@ -37,6 +39,7 @@ class RequestCreate(BaseModel):
     topic: str | None = Field(default=None, max_length=120)
     description: DescriptionStr
     mode: RequestMode = RequestMode.either
+    media_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
 
 class RequestUpdate(BaseModel):
@@ -46,6 +49,7 @@ class RequestUpdate(BaseModel):
     topic: str | None = Field(default=None, max_length=120)
     description: DescriptionStr | None = None
     mode: RequestMode | None = None
+    media_ids: list[str] | None = Field(default=None, max_length=MAX_ATTACHMENTS)
 
 
 class ScheduleRequest(BaseModel):
@@ -61,6 +65,7 @@ class RequestRead(BaseModel):
     subject: str
     topic: str | None
     description: str
+    media: list[MediaRead] = []
     mode: RequestMode
     status: RequestStatus
     scheduled_at: datetime | None

@@ -186,6 +186,22 @@ export const en = {
     University: 'University',
     Other: 'Other',
   },
+  media: {
+    add: 'Photo / video',
+    hint: 'Up to {{count}} · images ≤ 5 MB, videos ≤ 20 MB',
+    uploading: 'Uploading and checking…',
+    remove: 'Remove',
+    max: 'You can attach up to {{count}} files',
+    tooLarge: 'File too large (images ≤ 5 MB, videos ≤ 20 MB)',
+    unsupported: 'Unsupported file type',
+    unreadable: 'This video could not be read',
+  },
+  moderation: {
+    alertTitle: 'The internet is not a lawless land!! TT',
+    rejected: 'Your content breaks the community guidelines and was not published.',
+    takenDown: '{{count}} of your posts were taken down for breaking the community guidelines.',
+    ok: 'I understand',
+  },
   common: {
     loading: 'Loading…',
     error: 'Something went wrong',
