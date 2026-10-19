@@ -48,6 +48,7 @@ export function AppLayout() {
             {[
               { to: '/', label: t('nav.dashboard'), end: true },
               { to: '/requests', label: t('nav.browse') },
+              { to: '/forum', label: t('nav.forum') },
               { to: '/leaderboard', label: t('nav.leaderboard') },
             ].map((item) => (
               <NavLink
@@ -131,6 +132,7 @@ export function AppLayout() {
           {[
             { to: '/', label: t('nav.dashboard'), end: true },
             { to: '/requests', label: t('nav.browse') },
+            { to: '/forum', label: t('nav.forum') },
             { to: '/leaderboard', label: t('nav.leaderboard') },
           ].map((item) => (
             <NavLink

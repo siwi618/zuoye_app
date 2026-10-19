@@ -10,6 +10,9 @@ import { NewRequest } from '@/pages/NewRequest'
 import { RequestDetail } from '@/pages/RequestDetail'
 import { Profile } from '@/pages/Profile'
 import { Leaderboard } from '@/pages/Leaderboard'
+import { Forum } from '@/pages/Forum'
+import { NewPost } from '@/pages/NewPost'
+import { PostDetail } from '@/pages/PostDetail'
 
 export default function App() {
   return (
@@ -25,6 +28,9 @@ export default function App() {
             <Route path="/requests/new" element={<NewRequest />} />
             <Route path="/requests/:id" element={<RequestDetail />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/forum" element={<Forum />} />
+            <Route path="/forum/new" element={<NewPost />} />
+            <Route path="/forum/:id" element={<PostDetail />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>

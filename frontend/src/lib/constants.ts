@@ -23,3 +23,13 @@ export const GRADE_OPTIONS = [
   'University',
   'Other',
 ] as const
+
+export const FORUM_TAG_OPTIONS = [
+  'Study Tips',
+  'Homework',
+  'Exams',
+  'Resources',
+  'Campus Life',
+  'Chat',
+  'Other',
+] as const
