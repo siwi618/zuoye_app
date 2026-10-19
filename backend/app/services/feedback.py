@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 
 from app.schemas.feedback import FeedbackCreate, FeedbackRead, LeaderboardEntry
 from app.schemas.request import ProfileSummary, RequestStatus
+from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
 
@@ -106,6 +107,7 @@ def create_feedback(user_id: str, request_id: str, payload: FeedbackCreate) -> F
             detail="You have already left feedback for this request",
         )
 
+    ensure_allowed(payload.comment)
     inserted = (
         get_supabase()
         .table("feedbacks")

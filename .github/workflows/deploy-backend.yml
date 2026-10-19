@@ -38,8 +38,13 @@ jobs:
 
       - name: Deploy Worker + Container
         uses: cloudflare/wrangler-action@v3
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend
           command: deploy
+          # Uploaded as Worker secrets before deploying (values come from env above).
+          secrets: |
+            OPENAI_API_KEY

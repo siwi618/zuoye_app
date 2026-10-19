@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthShell } from '@/components/AuthShell'
 import { supabase } from '@/api/supabase'
+import { checkDisplayName } from '@/api/client'
 
 export function SignUp() {
   const { t, i18n } = useTranslation()
@@ -21,6 +22,9 @@ export function SignUp() {
     e.preventDefault()
     setSubmitting(true)
     try {
+      if (!(await checkDisplayName(displayName))) {
+        throw new Error(t('auth.displayNameRejected'))
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

@@ -10,6 +10,7 @@ from app.schemas.request import (
     RequestUpdate,
     ScheduleRequest,
 )
+from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
 
@@ -135,6 +136,7 @@ def get_request(request_id: str) -> RequestRead:
 
 
 def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
+    ensure_allowed(payload.topic, payload.description)
     insert = (
         get_supabase()
         .table("requests")
@@ -186,6 +188,7 @@ def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> Req
     updates = payload.model_dump(exclude_none=True, mode="json")
     if not updates:
         return get_request(request_id)
+    ensure_allowed(updates.get("topic"), updates.get("description"))
 
     updated = (
         get_supabase()
@@ -269,6 +272,7 @@ def schedule_request(user_id: str, request_id: str, payload: ScheduleRequest) ->
             detail=f"Request must be accepted to schedule (currently {row['status']})",
         )
 
+    ensure_allowed(payload.meeting_info)
     get_supabase().table("requests").update({
         "scheduled_at": payload.scheduled_at.isoformat(),
         "meeting_info": payload.meeting_info,

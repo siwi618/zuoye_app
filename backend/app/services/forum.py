@@ -15,6 +15,7 @@ from app.schemas.forum import (
     TimeRange,
 )
 from app.schemas.request import ProfileSummary
+from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
 _RANGE_DELTAS = {
@@ -175,6 +176,7 @@ def get_post(user_id: str, post_id: str) -> PostRead:
 
 
 def create_post(user_id: str, payload: PostCreate) -> PostRead:
+    ensure_allowed(payload.title, payload.body)
     inserted = (
         get_supabase()
         .table("forum_posts")
@@ -267,6 +269,7 @@ def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort
 
 def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> CommentRead:
     _get_post_row(post_id)
+    ensure_allowed(payload.body)
     inserted = (
         get_supabase()
         .table("forum_comments")

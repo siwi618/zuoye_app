@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = Field(default="", alias="SUPABASE_SERVICE_ROLE_KEY")
     supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
 
+    # Optional: enables content moderation of user-posted text (see services/moderation.py).
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+
     # Stored as a raw string so pydantic-settings doesn't try to JSON-decode it
     # (the list[str] heuristic silently falls back to default on parse failure,
     # which masked CORS misconfig in prod). Parsed via the cors_origins property.

@@ -1,3 +1,4 @@
+import i18n from '@/i18n'
 import { supabase } from './supabase'
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -6,6 +7,14 @@ async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+export async function checkDisplayName(displayName: string): Promise<boolean> {
+  const { allowed } = await apiFetch<{ allowed: boolean }>('/moderation/display-name', {
+    method: 'POST',
+    body: JSON.stringify({ display_name: displayName }),
+  })
+  return allowed
 }
 
 export async function apiFetch<T>(
@@ -22,6 +31,9 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const body = await res.text()
+    if (res.status === 422 && body.includes('"content_rejected"')) {
+      throw new Error(i18n.t('common.contentRejected'))
+    }
     throw new Error(`API ${res.status}: ${body}`)
   }
 

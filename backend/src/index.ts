@@ -5,6 +5,7 @@ interface Env {
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string
   SUPABASE_SERVICE_ROLE_KEY: string
+  OPENAI_API_KEY?: string
   CORS_ORIGINS: string
   ENVIRONMENT: string
 }
@@ -27,6 +28,7 @@ export class ZuoyebangBackend extends Container<Env> {
       SUPABASE_URL: env.SUPABASE_URL,
       SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
+      OPENAI_API_KEY: env.OPENAI_API_KEY ?? '',
       CORS_ORIGINS: env.CORS_ORIGINS,
       ENVIRONMENT: env.ENVIRONMENT,
     }

@@ -39,6 +39,7 @@ export const zh: Translations = {
     checkEmail: '请查收邮件，确认注册。',
     signInFailed: '登录失败',
     signUpFailed: '注册失败',
+    displayNameRejected: '这个昵称不符合社区规范，请换一个。',
   },
   dashboard: {
     allCompletedRequests: '全部已完成的请求',
@@ -191,5 +192,6 @@ export const zh: Translations = {
     error: '出错了',
     cancel: '取消',
     save: '保存',
+    contentRejected: '内容不符合社区规范，请修改后再发布。',
   },
 }

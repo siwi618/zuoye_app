@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import feedback, forum, health, me, requests
+from app.routers import feedback, forum, health, me, moderation, requests
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(requests.router)
     app.include_router(feedback.router)
     app.include_router(forum.router)
+    app.include_router(moderation.router)
 
     return app
 

@@ -38,6 +38,7 @@ export const en = {
     checkEmail: 'Check your email to confirm sign-up.',
     signInFailed: 'Sign in failed',
     signUpFailed: 'Sign up failed',
+    displayNameRejected: 'This display name is not allowed. Please choose another one.',
   },
   dashboard: {
     allCompletedRequests: 'All Completed Requests',
@@ -190,6 +191,7 @@ export const en = {
     error: 'Something went wrong',
     cancel: 'Cancel',
     save: 'Save',
+    contentRejected: 'This content breaks the community guidelines. Please edit it and try again.',
   },
 }
 
