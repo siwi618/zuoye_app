@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.deps import CurrentUserDep
+from app.schemas.profile import GRADES, MyProfile, MyProfileUpdate
 from app.supabase_client import get_supabase
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -18,6 +19,35 @@ class ModerationNotice(BaseModel):
 @router.get("")
 def get_me(user: CurrentUserDep) -> dict[str, str | None]:
     return {"id": user.id, "email": user.email, "role": user.role}
+
+
+@router.get("/profile", response_model=MyProfile)
+def get_my_profile(user: CurrentUserDep) -> MyProfile:
+    rows = (
+        get_supabase()
+        .table("profiles")
+        .select("grade")
+        .eq("id", user.id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    grade = rows[0].get("grade") if rows else None
+    # Legacy free-form values don't count as a confirmed grade.
+    return MyProfile(grade=grade if grade in GRADES else None)
+
+
+@router.put("/profile", response_model=MyProfile)
+def update_my_profile(payload: MyProfileUpdate, user: CurrentUserDep) -> MyProfile:
+    (
+        get_supabase()
+        .table("profiles")
+        .update({"grade": payload.grade})
+        .eq("id", user.id)
+        .execute()
+    )
+    return MyProfile(grade=payload.grade)
 
 
 @router.get("/notices", response_model=list[ModerationNotice])

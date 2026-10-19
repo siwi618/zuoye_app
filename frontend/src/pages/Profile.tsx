@@ -1,11 +1,24 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Mail } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { CheckCircle2, GraduationCap, Mail } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { RequestCard } from '@/components/RequestCard'
 import { listRequests } from '@/api/requests'
+import { MY_PROFILE_KEY, updateMyProfile, useMyProfile, type Grade } from '@/api/profile'
+import { GRADE_OPTIONS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 
 export function Profile() {
@@ -48,6 +61,8 @@ export function Profile() {
         </CardContent>
       </Card>
 
+      <DefaultGradeCard />
+
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -74,5 +89,73 @@ export function Profile() {
         )}
       </section>
     </div>
+  )
+}
+
+function DefaultGradeCard() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const profile = useMyProfile()
+  const saved = profile.data?.grade ?? null
+  // null = untouched, follow the saved value
+  const [picked, setPicked] = useState<Grade | null>(null)
+  const value = picked ?? saved
+
+  const mutation = useMutation({
+    mutationFn: (grade: Grade) => updateMyProfile({ grade }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(MY_PROFILE_KEY, data)
+      setPicked(null)
+      toast.success(t('profile.gradeSaved'))
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : t('profile.gradeSaveFailed'))
+    },
+  })
+
+  const unset = profile.isSuccess && !saved
+
+  return (
+    <Card className={cn(unset && 'border-amber-300 bg-amber-50/60 dark:border-amber-700/50 dark:bg-amber-900/20')}>
+      <CardContent className="flex flex-wrap items-end gap-4">
+        <div className="flex min-w-56 flex-1 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
+            <GraduationCap className="size-4.5" />
+          </span>
+          <div className="space-y-1">
+            <Label htmlFor="default-grade" className="text-base font-semibold">
+              {t('profile.defaultGrade')}
+            </Label>
+            <p className={cn('text-sm', unset ? 'text-amber-800 dark:text-amber-100' : 'text-muted-foreground')}>
+              {unset ? t('profile.gradeReminder') : t('profile.defaultGradeHint')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={value ?? ''}
+            onValueChange={(v) => setPicked(v as Grade)}
+            disabled={profile.isLoading}
+          >
+            <SelectTrigger id="default-grade" className="w-40">
+              <SelectValue placeholder={t('profile.defaultGradeNone')} />
+            </SelectTrigger>
+            <SelectContent>
+              {GRADE_OPTIONS.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {t(`grades.${g}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => value && mutation.mutate(value)}
+            disabled={!value || value === saved || mutation.isPending}
+          >
+            {mutation.isPending ? '…' : t('profile.saveGrade')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

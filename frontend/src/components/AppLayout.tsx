@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Brand } from '@/components/Brand'
+import { GradeReminder } from '@/components/GradeReminder'
 import { ModerationAlert } from '@/components/ModerationAlert'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
@@ -156,6 +157,7 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-10">
+        <GradeReminder />
         <Outlet />
       </main>
       <ModerationAlert />

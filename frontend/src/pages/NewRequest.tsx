@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createRequest, type RequestMode } from '@/api/requests'
+import { useMyProfile } from '@/api/profile'
 import type { MediaRead } from '@/api/media'
 import { MediaUploader } from '@/components/MediaUploader'
 import { SUBJECT_OPTIONS, GRADE_OPTIONS } from '@/lib/constants'
@@ -26,13 +27,17 @@ export function NewRequest() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const [grade, setGrade] = useState('')
+  const [pickedGrade, setGrade] = useState('')
   const [subject, setSubject] = useState('')
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [media, setMedia] = useState<MediaRead[]>([])
   const [uploading, setUploading] = useState(false)
   const [mode, setMode] = useState<RequestMode>('either')
+
+  // Prefill the grade from the profile's default; it can still be changed.
+  const defaultGrade = useMyProfile().data?.grade ?? null
+  const grade = pickedGrade || defaultGrade || ''
 
   const mutation = useMutation({
     mutationFn: createRequest,
@@ -100,6 +105,9 @@ export function NewRequest() {
                     ))}
                   </SelectContent>
                 </Select>
+                {defaultGrade && grade === defaultGrade && (
+                  <p className="text-xs text-muted-foreground">{t('request.gradeFromProfile')}</p>
+                )}
               </div>
 
               <div className="space-y-2">
