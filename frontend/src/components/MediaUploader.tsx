@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ImagePlus, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  ACCEPTED_MEDIA,
+  ACCEPTED_IMAGES,
+  ACCEPTED_VIDEOS,
+  getMediaConfig,
   MAX_ATTACHMENTS,
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
@@ -27,6 +30,8 @@ export function MediaUploader({
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(0)
+  const config = useQuery({ queryKey: ['media-config'], queryFn: getMediaConfig, staleTime: 5 * 60_000 })
+  const videoEnabled = config.data?.video_enabled ?? true
 
   const setPending = (delta: number) =>
     setUploading((n) => {
@@ -44,6 +49,10 @@ export function MediaUploader({
     let current = value
     for (const original of picked) {
       const isVideo = original.type.startsWith('video/')
+      if (isVideo && !videoEnabled) {
+        toast.error(t('media.videoDisabled'))
+        continue
+      }
       const file = isVideo ? original : await compressImage(original)
       if (file.size > (isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES)) {
         toast.error(t('media.tooLarge'))
@@ -94,7 +103,7 @@ export function MediaUploader({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_MEDIA}
+        accept={videoEnabled ? `${ACCEPTED_IMAGES},${ACCEPTED_VIDEOS}` : ACCEPTED_IMAGES}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -112,10 +121,12 @@ export function MediaUploader({
           onClick={() => inputRef.current?.click()}
         >
           <ImagePlus className="size-4" />
-          {t('media.add')}
+          {videoEnabled ? t('media.add') : t('media.addImage')}
         </Button>
         <span className="text-xs text-muted-foreground">
-          {uploading > 0 ? t('media.uploading') : t('media.hint', { count: MAX_ATTACHMENTS })}
+          {uploading > 0
+            ? t('media.uploading')
+            : t(videoEnabled ? 'media.hint' : 'media.hintImages', { count: MAX_ATTACHMENTS })}
         </span>
       </div>
     </div>

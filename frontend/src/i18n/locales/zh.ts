@@ -189,6 +189,9 @@ export const zh: Translations = {
   },
   media: {
     add: '图片 / 视频',
+    addImage: '图片',
+    hintImages: '最多 {{count}} 张图片 · 每张 ≤ 5 MB',
+    videoDisabled: '视频上传暂时关闭了',
     hint: '最多 {{count}} 个 · 图片 ≤ 5 MB，视频 ≤ 20 MB',
     uploading: '上传并审核中…',
     remove: '移除',

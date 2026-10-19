@@ -8,6 +8,7 @@ interface Env {
   OPENAI_API_KEY?: string
   CORS_ORIGINS: string
   ENVIRONMENT: string
+  MEDIA_VIDEO_ENABLED: string
 }
 
 /**
@@ -31,6 +32,7 @@ export class ZuoyebangBackend extends Container<Env> {
       OPENAI_API_KEY: env.OPENAI_API_KEY ?? '',
       CORS_ORIGINS: env.CORS_ORIGINS,
       ENVIRONMENT: env.ENVIRONMENT,
+      MEDIA_VIDEO_ENABLED: env.MEDIA_VIDEO_ENABLED,
     }
   }
 }

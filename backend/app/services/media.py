@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import HTTPException, UploadFile, status
 
+from app.config import get_settings
 from app.schemas.media import MediaRead
 from app.services.moderation import CONTENT_REJECTED, MEDIA_BUCKET, check_media
 from app.supabase_client import get_supabase
@@ -27,6 +28,8 @@ def upload(user_id: str, file: UploadFile) -> MediaRead:
     if mime_type in _IMAGE_TYPES:
         kind, ext, limit = "image", _IMAGE_TYPES[mime_type], MAX_IMAGE_BYTES
     elif mime_type in _VIDEO_TYPES:
+        if not get_settings().media_video_enabled:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="video_disabled")
         kind, ext, limit = "video", _VIDEO_TYPES[mime_type], MAX_VIDEO_BYTES
     else:
         raise HTTPException(

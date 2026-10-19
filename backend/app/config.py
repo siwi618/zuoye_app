@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Optional: enables content moderation of user-posted text (see services/moderation.py).
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
 
+    # Kill switch for video uploads (images keep working). Existing videos stay visible.
+    media_video_enabled: bool = Field(default=True, alias="MEDIA_VIDEO_ENABLED")
+
     # Stored as a raw string so pydantic-settings doesn't try to JSON-decode it
     # (the list[str] heuristic silently falls back to default on parse failure,
     # which masked CORS misconfig in prod). Parsed via the cors_origins property.

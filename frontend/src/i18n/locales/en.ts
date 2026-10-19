@@ -188,6 +188,9 @@ export const en = {
   },
   media: {
     add: 'Photo / video',
+    addImage: 'Photo',
+    hintImages: 'Up to {{count}} images · ≤ 5 MB each',
+    videoDisabled: 'Video uploads are temporarily turned off',
     hint: 'Up to {{count}} · images ≤ 5 MB, videos ≤ 20 MB',
     uploading: 'Uploading and checking…',
     remove: 'Remove',
