@@ -209,7 +209,9 @@ npx wrangler secret list
 
 User-visible text (forum posts/comments, requests, feedback, display names) is checked with OpenAI's free `omni-moderation-latest` model in [`backend/app/services/moderation.py`](backend/app/services/moderation.py). The plain `violence` category is ignored (fight scenes in anime/fiction); everything else the model flags is rejected with 422 `content_rejected`.
 
-If OpenAI is unreachable the text is saved with `moderated = false`. The Worker cron (every 10 min) checks the `moderation_queue` view (which skips content of soft-deleted users) and, only if something is waiting, calls the container's `/internal/moderation/sweep` (blocked from public traffic). Flagged rows get `moderation_flagged = true` and are hidden; flagged display names become `user_xxxxxx`.
+If OpenAI is unreachable the text is saved with `moderated = false`. The Worker cron (every 10 min) checks the `moderation_queue` view (which skips content of soft-deleted users) and, only if something is waiting, calls the container's `/internal/moderation/sweep` (blocked from public traffic). Flagged rows get `moderation_flagged = true` and are hidden; flagged display names become `user_xxxxxx`. Each takedown inserts a `moderation_notices` row (DB trigger), and the frontend shows the author a red warning dialog.
+
+**Attachments.** Requests, forum posts and comments take up to 4 images (≤ 5 MB, resized in the browser) or videos (≤ 20 MB). `POST /media` moderates before storing: images directly, videos as 6 frames sampled with ffmpeg (installed in the Dockerfile). Files go to the public Storage bucket `media`; flagged files are deleted. The model only judges images for sexual, self-harm and violence categories.
 
 ---
 
@@ -226,6 +228,7 @@ Schema, RLS, and triggers live in `supabase/migrations/`:
 | `0005_forum.sql` | Discussion forum: `forum_posts`, `forum_comments`, post/comment likes, counter triggers, `forum_increment_view()` |
 | `0006_moderation_flags.sql` | `moderated` / `moderation_flagged` columns + `moderation_queue` view; a Worker cron re-moderates unchecked rows every 10 min |
 | `0007_skip_deleted_in_moderation_queue.sql` | `moderation_queue` leaves out content of soft-deleted users |
+| `0008_media_and_moderation_notices.sql` | `media` table + Storage bucket `media`, `media_ids` on requests/posts/comments, `moderation_notices` with takedown triggers |
 
 ### Apply migrations
 
