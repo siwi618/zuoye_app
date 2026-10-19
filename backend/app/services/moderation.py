@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 _MODERATION_URL = "https://api.openai.com/v1/moderations"
 _MODEL = "omni-moderation-latest"
 
+# Plain "violence" fires on fight scenes in anime, novels, games and history,
+# which students discuss all the time. Real threats still trip
+# harassment/threatening, and gore trips violence/graphic.
+_IGNORED_CATEGORIES = {"violence"}
+
 # Sent as the error detail so the frontend can show a translated message.
 CONTENT_REJECTED = "content_rejected"
 
@@ -28,9 +33,9 @@ def check(*texts: str | None) -> bool | None:
     """Ask OpenAI's moderation model whether user-facing text is acceptable.
 
     Returns True (clean), False (flagged) or None (could not check: no
-    OPENAI_API_KEY, or OpenAI unreachable). Uses the model's own `flagged`
-    verdict — lenient enough for normal student chat, but blocks overt
-    harassment, hate, sexual, violent or illicit content.
+    OPENAI_API_KEY, or OpenAI unreachable). Uses the model's own per-category
+    verdicts, except _IGNORED_CATEGORIES — lenient enough for normal student
+    chat, but blocks overt harassment, hate, sexual, graphic or illicit content.
     """
     inputs = [t for t in texts if t and t.strip()]
     if not inputs:
@@ -52,7 +57,11 @@ def check(*texts: str | None) -> bool | None:
         logger.warning("Moderation check skipped: %s", exc)
         return None
 
-    return not any(r.get("flagged") for r in results)
+    return not any(
+        flagged and category not in _IGNORED_CATEGORIES
+        for r in results
+        for category, flagged in r.get("categories", {}).items()
+    )
 
 
 def is_allowed(*texts: str | None) -> bool:
