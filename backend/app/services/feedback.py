@@ -11,7 +11,7 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
     res = (
         get_supabase()
         .table("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, is_deleted")
         .in_("id", list(user_ids))
         .execute()
     )
@@ -45,7 +45,12 @@ def list_feedbacks_for_request(request_id: str) -> list[FeedbackRead]:
         return []
     user_ids = {r["from_user_id"] for r in rows} | {r["to_user_id"] for r in rows}
     profiles = _fetch_profiles(user_ids)
-    return [_hydrate_feedback(r, profiles) for r in rows]
+    return [
+        _hydrate_feedback(r, profiles)
+        for r in rows
+        if not profiles[r["from_user_id"]].get("is_deleted")
+        and not profiles[r["to_user_id"]].get("is_deleted")
+    ]
 
 
 def create_feedback(user_id: str, request_id: str, payload: FeedbackCreate) -> FeedbackRead:
@@ -142,7 +147,7 @@ def get_leaderboard(limit: int = 10) -> list[LeaderboardEntry]:
     entries: list[LeaderboardEntry] = []
     for r in rows:
         profile = profiles.get(r["user_id"])
-        if not profile:
+        if not profile or profile.get("is_deleted"):
             continue
         entries.append(
             LeaderboardEntry(

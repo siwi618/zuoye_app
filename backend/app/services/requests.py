@@ -52,11 +52,19 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
     res = (
         get_supabase()
         .table("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, is_deleted")
         .in_("id", list(user_ids))
         .execute()
     )
     return {row["id"]: row for row in (res.data or [])}
+
+
+def _involves_deleted(row: dict, profiles_by_id: dict[str, dict]) -> bool:
+    """True if the requester or helper is soft-deleted — such requests are hidden."""
+    for user_id in (row["requester_id"], row.get("helper_id")):
+        if user_id and profiles_by_id.get(user_id, {}).get("is_deleted"):
+            return True
+    return False
 
 
 def list_requests(
@@ -99,7 +107,7 @@ def list_requests(
             user_ids.add(r["helper_id"])
 
     profiles = _fetch_profiles(user_ids)
-    return [_hydrate_request(r, profiles) for r in rows]
+    return [_hydrate_request(r, profiles) for r in rows if not _involves_deleted(r, profiles)]
 
 
 def get_request(request_id: str) -> RequestRead:
@@ -121,6 +129,8 @@ def get_request(request_id: str) -> RequestRead:
     if row.get("helper_id"):
         user_ids.add(row["helper_id"])
     profiles = _fetch_profiles(user_ids)
+    if _involves_deleted(row, profiles):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
     return _hydrate_request(row, profiles)
 
 

@@ -222,6 +222,7 @@ Schema, RLS, and triggers live in `supabase/migrations/`:
 | `0001_initial_schema.sql` | `profiles`, `requests`, `feedbacks` tables + `user_ratings` view + auto-profile trigger |
 | `0002_rls_policies.sql` | RLS: authenticated SELECT only; writes go through backend service-role |
 | `0003_helper_only_ratings.sql` | `user_ratings` view filtered to helper-direction feedback (powers leaderboard) |
+| `0004_profile_soft_delete.sql` | `profiles.is_deleted` soft delete: bans the auth user, revokes sessions, hides their requests/feedback, drops them from the leaderboard |
 
 ### Apply migrations
 

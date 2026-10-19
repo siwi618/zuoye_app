@@ -5,6 +5,7 @@ from fastapi import Depends, Header, HTTPException, status
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.supabase_client import get_supabase
 
 
 class CurrentUser(BaseModel):
@@ -68,6 +69,23 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token did not resolve to a user",
+        )
+
+    # Soft-deleted accounts (profiles.is_deleted) are treated as deleted.
+    profile_rows = (
+        get_supabase()
+        .table("profiles")
+        .select("is_deleted")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if profile_rows and profile_rows[0].get("is_deleted"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account has been deleted",
         )
 
     return CurrentUser(
