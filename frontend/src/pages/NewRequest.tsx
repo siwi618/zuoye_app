@@ -38,6 +38,8 @@ export function NewRequest() {
     mutationFn: createRequest,
     onSuccess: (req) => {
       toast.success(t('request.posted'))
+      // Seed the detail page so it opens instantly; lists refresh in the background.
+      queryClient.setQueryData(['request', req.id], req)
       void queryClient.invalidateQueries({ queryKey: ['requests'] })
       navigate(`/requests/${req.id}`, { replace: true })
     },

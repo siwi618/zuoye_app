@@ -227,9 +227,11 @@ def delete_post(user_id: str, post_id: str) -> None:
     media_svc.delete(list(media_svc.all_ids([row, *comments])))
 
 
-def record_view(post_id: str) -> None:
+def record_view(post_id: str) -> int:
+    """Count a view and return the post's new view count."""
     _get_post_row(post_id)
     get_supabase().rpc("forum_increment_view", {"p_post_id": post_id}).execute()
+    return _get_post_row(post_id)["view_count"]
 
 
 def _toggle_like(table: str, key: str, target_id: str, user_id: str) -> bool:

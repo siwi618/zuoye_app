@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Eye, Heart, MessageCircle, MessagesSquare, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +26,8 @@ export function Forum() {
   const [range, setRange] = useState<TimeRange>('all')
 
   const query = useQuery({
+    // Keep showing the current results while a new filter loads.
+    placeholderData: keepPreviousData,
     queryKey: ['forum-posts', { tag, sort, range }],
     queryFn: () =>
       listPosts({

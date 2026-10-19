@@ -133,6 +133,7 @@ export const zh: Translations = {
     comments: '评论',
     commentPlaceholder: '写下你的评论…',
     commentSubmit: '发表评论',
+    sending: '发送中…',
     commentsEmpty: '还没有评论 — 来抢沙发吧。',
     commentTop: '最热',
     commentNew: '最新',

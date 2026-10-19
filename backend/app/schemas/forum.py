@@ -78,6 +78,10 @@ class CommentRead(BaseModel):
     created_at: datetime
 
 
+class ViewResult(BaseModel):
+    view_count: int
+
+
 class LikeResult(BaseModel):
     liked: bool
     like_count: int

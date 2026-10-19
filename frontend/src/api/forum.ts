@@ -36,6 +36,8 @@ export interface CommentRead {
   like_count: number
   liked_by_me: boolean
   created_at: string
+  // Client-only: shown optimistically while the comment is still being sent.
+  pending?: boolean
 }
 
 export interface LikeResult {
@@ -78,8 +80,8 @@ export function deletePost(id: string): Promise<void> {
   return apiFetch<void>(`/forum/posts/${id}`, { method: 'DELETE' })
 }
 
-export function recordView(id: string): Promise<void> {
-  return apiFetch<void>(`/forum/posts/${id}/view`, { method: 'POST' })
+export function recordView(id: string): Promise<{ view_count: number }> {
+  return apiFetch<{ view_count: number }>(`/forum/posts/${id}/view`, { method: 'POST' })
 }
 
 export function togglePostLike(id: string): Promise<LikeResult> {

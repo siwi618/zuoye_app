@@ -101,24 +101,25 @@ export function RequestDetail() {
     enabled: Boolean(id),
   })
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['request', id] })
+  // Actions return the updated request: show it right away, refresh lists in the background.
+  const applyUpdate = (updated: RequestRead) => {
+    queryClient.setQueryData(['request', id], updated)
     void queryClient.invalidateQueries({ queryKey: ['requests'] })
   }
 
   const accept = useMutation({
     mutationFn: () => acceptRequest(id!),
-    onSuccess: () => { toast.success(t('request.accept')); invalidate() },
+    onSuccess: (r) => { toast.success(t('request.accept')); applyUpdate(r) },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
   })
   const complete = useMutation({
     mutationFn: () => completeRequest(id!),
-    onSuccess: () => { toast.success(t('request.markComplete')); invalidate() },
+    onSuccess: (r) => { toast.success(t('request.markComplete')); applyUpdate(r) },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
   })
   const cancel = useMutation({
     mutationFn: () => cancelRequest(id!),
-    onSuccess: () => { toast.success(t('request.cancel')); invalidate() },
+    onSuccess: (r) => { toast.success(t('request.cancel')); applyUpdate(r) },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
   })
 
@@ -277,7 +278,7 @@ export function RequestDetail() {
         requestId={req.id}
         initialScheduledAt={req.scheduled_at}
         initialMeetingInfo={req.meeting_info}
-        onSuccess={invalidate}
+        onSuccess={applyUpdate}
       />
     </div>
   )
@@ -296,7 +297,7 @@ function ScheduleDialog({
   requestId: string
   initialScheduledAt: string | null
   initialMeetingInfo: string | null
-  onSuccess: () => void
+  onSuccess: (updated: RequestRead) => void
 }) {
   const { t } = useTranslation()
   const [when, setWhen] = useState(toLocalInputValue(initialScheduledAt))
@@ -308,9 +309,9 @@ function ScheduleDialog({
         scheduled_at: new Date(when).toISOString(),
         meeting_info: info.trim(),
       }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       toast.success(t('request.schedule'))
-      onSuccess()
+      onSuccess(updated)
       onOpenChange(false)
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),

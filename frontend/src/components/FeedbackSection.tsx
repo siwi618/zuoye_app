@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { StarRating } from '@/components/StarRating'
-import { createFeedback, listFeedbacks } from '@/api/feedback'
+import { createFeedback, listFeedbacks, type FeedbackRead } from '@/api/feedback'
 import { useAuthStore } from '@/store/auth'
 
 export function FeedbackSection({
@@ -36,11 +36,11 @@ export function FeedbackSection({
 
   const submit = useMutation({
     mutationFn: () => createFeedback(requestId, { rating, comment: comment.trim() }),
-    onSuccess: () => {
+    onSuccess: (fb) => {
       toast.success(t('feedback.submit'))
       setRating(0)
       setComment('')
-      void queryClient.invalidateQueries({ queryKey: ['feedbacks', requestId] })
+      queryClient.setQueryData<FeedbackRead[]>(['feedbacks', requestId], (old) => [...(old ?? []), fb])
       void queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),

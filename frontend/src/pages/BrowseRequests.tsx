@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Filter, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +24,8 @@ export function BrowseRequests() {
   const [grade, setGrade] = useState<string>(ANY)
 
   const query = useQuery({
+    // Keep showing the current results while a new filter loads.
+    placeholderData: keepPreviousData,
     queryKey: ['requests', { statusFilter, subject, grade }],
     queryFn: () =>
       listRequests({

@@ -25,9 +25,20 @@ import { MediaGallery } from '@/components/MediaGallery'
 import { MediaUploader } from '@/components/MediaUploader'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
+import {
+  findPostInLists,
+  patchComment,
+  patchComments,
+  patchPost,
+  snapshotForum,
+} from '@/lib/forumCache'
 
 // Count a view at most once per post per browser session.
-function useRecordView(postId: string | undefined, onRecorded: () => void) {
+function useRecordView(
+  postId: string | undefined,
+  onCounted: () => void,
+  onRecorded: (viewCount: number) => void,
+) {
   useEffect(() => {
     if (!postId) return
     const key = `forum-viewed:${postId}`
@@ -37,7 +48,10 @@ function useRecordView(postId: string | undefined, onRecorded: () => void) {
     } catch {
       // storage unavailable — still count the view
     }
-    void recordView(postId).then(onRecorded).catch(() => {})
+    onCounted()
+    void recordView(postId)
+      .then((res) => onRecorded(res.view_count))
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId])
 }
@@ -53,20 +67,36 @@ export function PostDetail() {
     queryKey: ['forum-post', id],
     queryFn: () => getPost(id!),
     enabled: !!id,
+    // Opened from the list: show what the list already has while fetching.
+    placeholderData: () => (id ? findPostInLists(queryClient, id) : undefined),
   })
 
-  useRecordView(id, () => {
-    void queryClient.invalidateQueries({ queryKey: ['forum-post', id] })
-    void queryClient.invalidateQueries({ queryKey: ['forum-posts'] })
-  })
+  // Views: +1 on screen right away, then settle on the server's count.
+  useRecordView(
+    id,
+    () => patchPost(queryClient, id!, (p) => ({ ...p, view_count: p.view_count + 1 })),
+    (viewCount) => patchPost(queryClient, id!, (p) => ({ ...p, view_count: viewCount })),
+  )
 
+  // Likes: flip on screen immediately; roll back if the server says no.
   const like = useMutation({
     mutationFn: () => togglePostLike(id!),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['forum-post', id] })
-      void queryClient.invalidateQueries({ queryKey: ['forum-posts'] })
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['forum-post', id] })
+      const rollback = snapshotForum(queryClient, id!)
+      patchPost(queryClient, id!, (p) => ({
+        ...p,
+        liked_by_me: !p.liked_by_me,
+        like_count: p.like_count + (p.liked_by_me ? -1 : 1),
+      }))
+      return { rollback }
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
+    onSuccess: (res) =>
+      patchPost(queryClient, id!, (p) => ({ ...p, liked_by_me: res.liked, like_count: res.like_count })),
+    onError: (err, _vars, ctx) => {
+      ctx?.rollback()
+      toast.error(err instanceof Error ? err.message : t('common.error'))
+    },
   })
 
   const remove = useMutation({
@@ -131,8 +161,7 @@ export function PostDetail() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => like.mutate()}
-            disabled={like.isPending}
+            onClick={() => !like.isPending && like.mutate()}
             className={cn('gap-1.5 rounded-full', p.liked_by_me && 'border-rose-200 text-rose-600')}
           >
             <Heart className={cn('size-4', p.liked_by_me && 'fill-rose-500 text-rose-500')} />
@@ -171,7 +200,8 @@ export function PostDetail() {
 function CommentsSection({ postId }: { postId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const userId = useAuthStore((s) => s.user?.id)
+  const user = useAuthStore((s) => s.user)
+  const userId = user?.id
   const [sort, setSort] = useState<CommentSort>('top')
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<MediaRead[]>([])
@@ -182,26 +212,52 @@ function CommentsSection({ postId }: { postId: string }) {
     queryFn: () => listComments(postId, sort),
   })
 
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['forum-comments', postId] })
-    void queryClient.invalidateQueries({ queryKey: ['forum-post', postId] })
-    void queryClient.invalidateQueries({ queryKey: ['forum-posts'] })
-  }
-
+  // Comments appear immediately (greyed out as "sending") and are swapped for
+  // the server's copy when it arrives; on failure the draft goes back in the box.
   const submit = useMutation({
-    mutationFn: () => createComment(postId, body.trim(), media.map((m) => m.id)),
-    onSuccess: () => {
+    mutationFn: (draft: { body: string; media: MediaRead[] }) =>
+      createComment(postId, draft.body, draft.media.map((m) => m.id)),
+    onMutate: async (draft) => {
+      await queryClient.cancelQueries({ queryKey: ['forum-comments', postId] })
+      const rollback = snapshotForum(queryClient, postId)
+      const tempId = `pending-${Date.now()}`
+      const temp: CommentRead = {
+        id: tempId,
+        post_id: postId,
+        author: {
+          id: userId ?? '',
+          display_name: (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? '',
+          avatar_url: null,
+        },
+        body: draft.body,
+        media: draft.media,
+        like_count: 0,
+        liked_by_me: false,
+        created_at: new Date().toISOString(),
+        pending: true,
+      }
+      patchComments(queryClient, postId, (list) => [temp, ...list])
+      patchPost(queryClient, postId, (p) => ({ ...p, comment_count: p.comment_count + 1 }))
       setBody('')
       setMedia([])
-      refresh()
+      return { rollback, tempId }
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
+    onSuccess: (comment, _draft, ctx) =>
+      patchComments(queryClient, postId, (list) =>
+        list.map((c) => (c.id === ctx?.tempId ? comment : c)),
+      ),
+    onError: (err, draft, ctx) => {
+      ctx?.rollback()
+      setBody(draft.body)
+      setMedia(draft.media)
+      toast.error(err instanceof Error ? err.message : t('common.error'))
+    },
   })
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!body.trim()) return
-    submit.mutate()
+    submit.mutate({ body: body.trim(), media })
   }
 
   return (
@@ -238,8 +294,8 @@ function CommentsSection({ postId }: { postId: string }) {
         />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <MediaUploader value={media} onChange={setMedia} onUploadingChange={setUploading} />
-          <Button type="submit" size="sm" disabled={submit.isPending || uploading || !body.trim()}>
-            {submit.isPending ? '…' : t('forum.commentSubmit')}
+          <Button type="submit" size="sm" disabled={uploading || !body.trim()}>
+            {t('forum.commentSubmit')}
           </Button>
         </div>
       </form>
@@ -254,7 +310,7 @@ function CommentsSection({ postId }: { postId: string }) {
       ) : (
         <div className="space-y-3">
           {comments.data!.map((c) => (
-            <CommentItem key={c.id} comment={c} isMine={c.author.id === userId} onChanged={refresh} />
+            <CommentItem key={c.id} comment={c} isMine={c.author.id === userId} />
           ))}
         </div>
       )}
@@ -262,32 +318,58 @@ function CommentsSection({ postId }: { postId: string }) {
   )
 }
 
-function CommentItem({
-  comment,
-  isMine,
-  onChanged,
-}: {
-  comment: CommentRead
-  isMine: boolean
-  onChanged: () => void
-}) {
+function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolean }) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const postId = comment.post_id
   const initials = comment.author.display_name.slice(0, 2).toUpperCase()
 
   const like = useMutation({
     mutationFn: () => toggleCommentLike(comment.id),
-    onSuccess: onChanged,
-    onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['forum-comments', postId] })
+      const rollback = snapshotForum(queryClient, postId)
+      patchComment(queryClient, postId, comment.id, (c) => ({
+        ...c,
+        liked_by_me: !c.liked_by_me,
+        like_count: c.like_count + (c.liked_by_me ? -1 : 1),
+      }))
+      return { rollback }
+    },
+    onSuccess: (res) =>
+      patchComment(queryClient, postId, comment.id, (c) => ({
+        ...c,
+        liked_by_me: res.liked,
+        like_count: res.like_count,
+      })),
+    onError: (err, _vars, ctx) => {
+      ctx?.rollback()
+      toast.error(err instanceof Error ? err.message : t('common.error'))
+    },
   })
 
   const remove = useMutation({
     mutationFn: () => deleteComment(comment.id),
-    onSuccess: onChanged,
-    onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['forum-comments', postId] })
+      const rollback = snapshotForum(queryClient, postId)
+      patchComments(queryClient, postId, (list) => list.filter((c) => c.id !== comment.id))
+      patchPost(queryClient, postId, (p) => ({ ...p, comment_count: p.comment_count - 1 }))
+      return { rollback }
+    },
+    onError: (err, _vars, ctx) => {
+      ctx?.rollback()
+      toast.error(err instanceof Error ? err.message : t('common.error'))
+    },
   })
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft">
+    <div
+      className={cn(
+        'rounded-2xl border border-border/60 bg-card p-4 shadow-soft transition-opacity',
+        comment.pending && 'opacity-60',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <Avatar className="size-8">
@@ -298,18 +380,17 @@ function CommentItem({
           <div className="text-sm leading-tight">
             <p className="font-medium">{comment.author.display_name}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {new Date(comment.created_at).toLocaleString()}
+              {comment.pending ? t('forum.sending') : new Date(comment.created_at).toLocaleString()}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className={cn('flex items-center gap-1', comment.pending && 'pointer-events-none')}>
           {isMine && (
             <Button
               variant="ghost"
               size="sm"
               className="h-8 px-2 text-muted-foreground hover:text-destructive"
               aria-label={t('forum.delete')}
-              disabled={remove.isPending}
               onClick={() => {
                 if (window.confirm(t('forum.deleteCommentConfirm'))) remove.mutate()
               }}
@@ -321,8 +402,7 @@ function CommentItem({
             variant="ghost"
             size="sm"
             className={cn('h-8 gap-1 px-2 text-muted-foreground', comment.liked_by_me && 'text-rose-600')}
-            disabled={like.isPending}
-            onClick={() => like.mutate()}
+            onClick={() => !like.isPending && like.mutate()}
           >
             <Heart className={cn('size-3.5', comment.liked_by_me && 'fill-rose-500 text-rose-500')} />
             {comment.like_count}

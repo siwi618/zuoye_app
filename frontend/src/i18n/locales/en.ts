@@ -132,6 +132,7 @@ export const en = {
     comments: 'Comments',
     commentPlaceholder: 'Write a comment…',
     commentSubmit: 'Comment',
+    sending: 'Sending…',
     commentsEmpty: 'No comments yet — be the first.',
     commentTop: 'Top',
     commentNew: 'Newest',

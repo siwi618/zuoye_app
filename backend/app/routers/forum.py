@@ -11,6 +11,7 @@ from app.schemas.forum import (
     PostRead,
     PostSort,
     TimeRange,
+    ViewResult,
 )
 from app.services import forum as svc
 
@@ -43,10 +44,10 @@ def delete_post(user: CurrentUserDep, post_id: str) -> None:
     svc.delete_post(user.id, post_id)
 
 
-@router.post("/posts/{post_id}/view", status_code=204)
-def record_view(user: CurrentUserDep, post_id: str) -> None:
+@router.post("/posts/{post_id}/view", response_model=ViewResult)
+def record_view(user: CurrentUserDep, post_id: str) -> ViewResult:
     _ = user
-    svc.record_view(post_id)
+    return ViewResult(view_count=svc.record_view(post_id))
 
 
 @router.post("/posts/{post_id}/like", response_model=LikeResult)

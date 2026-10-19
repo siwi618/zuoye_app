@@ -36,6 +36,8 @@ export function NewPost() {
     mutationFn: createPost,
     onSuccess: (post) => {
       toast.success(t('forum.posted'))
+      // Seed the detail page so it opens instantly; lists refresh in the background.
+      queryClient.setQueryData(['forum-post', post.id], post)
       void queryClient.invalidateQueries({ queryKey: ['forum-posts'] })
       navigate(`/forum/${post.id}`, { replace: true })
     },
