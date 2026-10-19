@@ -62,7 +62,7 @@ zuoyebang/
 ├── supabase/                  # SQL migrations + setup notes → supabase/README.md
 ├── .github/workflows/         # CI/CD
 │   ├── deploy-frontend.yml    #   auto-deploys on push to frontend/**
-│   └── deploy-backend.yml     #   disabled — workflow_dispatch only (see below)
+│   └── deploy-backend.yml     #   auto-deploys on push to backend/**
 └── README.md
 ```
 
@@ -130,6 +130,7 @@ The dev port is pinned to **3000** (`strictPort: true` in [`frontend/vite.config
 | `SUPABASE_JWT_SECRET` | Supabase → Settings → API → JWT Settings → JWT Secret |
 | `CORS_ORIGINS` | Comma-separated list, e.g. `http://localhost:3000` |
 | `ENVIRONMENT` | `development` locally |
+| `OPENAI_API_KEY` | Optional — enables content moderation. platform.openai.com → API keys (restricted: Model capabilities only) |
 
 CORS: backend defaults to `http://localhost:3000`. If you change the frontend port, update both [`frontend/vite.config.ts`](frontend/vite.config.ts) and `backend/.env`.
 
@@ -172,44 +173,43 @@ Set at https://github.com/siwi618/zuoye_app/settings/secrets/actions:
 
 ## Deploy — Backend (Cloudflare Workers + Containers)
 
-**Manual only.** [`.github/workflows/deploy-backend.yml`](.github/workflows/deploy-backend.yml) exists but is set to `workflow_dispatch:` only — see *Backend CI: why it's disabled* below.
+**Automatic.** Any push to `main` that touches `backend/**` triggers [`.github/workflows/deploy-backend.yml`](.github/workflows/deploy-backend.yml), which runs `wrangler deploy` via `cloudflare/wrangler-action`:
+
+1. Uploads Worker secrets listed under `secrets:` in the workflow (currently `OPENAI_API_KEY`, from the GitHub secret of the same name)
+2. Builds the Docker image from `backend/Dockerfile` and pushes it to Cloudflare's image registry
+3. Updates the Worker (`src/index.ts`), the Container Durable Object and the cron trigger (`triggers.crons` in `wrangler.jsonc`)
+
+Takes ~1 minute. Watch a run: https://github.com/siwi618/zuoye_app/actions/workflows/deploy-backend.yml — it can also be started by hand from the Actions tab (`workflow_dispatch`).
+
+`CLOUDFLARE_API_TOKEN` must be an **account-owned** token (Manage Account → Account API Tokens, "Edit Cloudflare Workers" template, which includes Workers Containers: Edit). A user-owned token gets 403 on `GET /accounts/.../containers/me`.
+
+### Manual backend deploy (fallback)
+
+Needs Docker running locally; first run opens a browser for OAuth.
 
 ```bash
 cd backend
 npx wrangler deploy
 ```
 
-This:
-1. Builds the Docker image from `backend/Dockerfile`
-2. Pushes it to Cloudflare's image registry
-3. Updates the Worker (`src/index.ts`) and the Container Durable Object
-4. Returns the live Worker URL
+### Backend secrets
 
-First run will prompt OAuth login in a browser — that's expected. After that, OAuth credentials are cached in `~/.wrangler`.
+Non-secret config lives in [`backend/wrangler.jsonc`](backend/wrangler.jsonc) under `vars`. Secrets are never committed:
 
-### Backend secrets (one-time setup)
-
-Non-secret config lives in [`backend/wrangler.jsonc`](backend/wrangler.jsonc) under `vars`. Secrets must be set via Wrangler — they're never committed:
-
-```bash
-cd backend
-npx wrangler secret put SUPABASE_URL
-npx wrangler secret put SUPABASE_ANON_KEY
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-```
-
-To list/rotate later:
+| Secret | How it is set |
+|--------|---------------|
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | One-time, `cd backend && npx wrangler secret put <NAME>` |
+| `OPENAI_API_KEY` | GitHub secret → uploaded on every backend deploy. Rotate with `gh secret set OPENAI_API_KEY -R siwi618/zuoye_app`, then re-run the backend workflow |
 
 ```bash
 npx wrangler secret list
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY   # overwrites
 ```
 
-### Backend CI: why it's disabled
+### Content moderation
 
-`wrangler deploy` calls `GET /accounts/{id}/containers/me` to check Container access. With a custom API token this returns **403** even with `Cloudchamber: Edit` + `User Details: Read`. The scope that actually grants `/containers/me` access isn't surfaced in Cloudflare's Custom Token UI. Until Cloudflare documents this, the backend ships from your laptop via `npx wrangler deploy` (which uses OAuth, not an API token, and works fine).
+User-visible text (forum posts/comments, requests, feedback, display names) is checked with OpenAI's free `omni-moderation-latest` model in [`backend/app/services/moderation.py`](backend/app/services/moderation.py). The plain `violence` category is ignored (fight scenes in anime/fiction); everything else the model flags is rejected with 422 `content_rejected`.
 
-To re-enable later: uncomment the `push:` block in `.github/workflows/deploy-backend.yml`.
+If OpenAI is unreachable the text is saved with `moderated = false`. The Worker cron (every 10 min) checks the `moderation_queue` view (which skips content of soft-deleted users) and, only if something is waiting, calls the container's `/internal/moderation/sweep` (blocked from public traffic). Flagged rows get `moderation_flagged = true` and are hidden; flagged display names become `user_xxxxxx`.
 
 ---
 
@@ -225,6 +225,7 @@ Schema, RLS, and triggers live in `supabase/migrations/`:
 | `0004_profile_soft_delete.sql` | `profiles.is_deleted` soft delete: bans the auth user, revokes sessions, hides their requests/feedback, drops them from the leaderboard |
 | `0005_forum.sql` | Discussion forum: `forum_posts`, `forum_comments`, post/comment likes, counter triggers, `forum_increment_view()` |
 | `0006_moderation_flags.sql` | `moderated` / `moderation_flagged` columns + `moderation_queue` view; a Worker cron re-moderates unchecked rows every 10 min |
+| `0007_skip_deleted_in_moderation_queue.sql` | `moderation_queue` leaves out content of soft-deleted users |
 
 ### Apply migrations
 
@@ -296,6 +297,11 @@ CLI route (for later automation): see [`supabase/README.md`](supabase/README.md)
 - Backend (FastAPI in Docker) on Cloudflare Containers
 - Repo on GitHub (private)
 
-✅ **Phase 5 partial** — GitHub Actions CI/CD:
+✅ **Phase 5 complete** — GitHub Actions CI/CD:
 - ✅ Frontend auto-deploys on push to `main` (`frontend/**` changes)
-- ⚠️ Backend auto-deploy disabled — see *Backend CI: why it's disabled* above. Push backend manually with `cd backend && npx wrangler deploy`.
+- ✅ Backend auto-deploys on push to `main` (`backend/**` changes)
+
+✅ **Phase 6** — community features:
+- Discussion forum (tags, comments, likes, view-ranked posts)
+- Soft delete for accounts (`profiles.is_deleted`)
+- Content moderation with background re-check

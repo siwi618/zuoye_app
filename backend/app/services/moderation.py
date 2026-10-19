@@ -87,22 +87,24 @@ def ensure_allowed(*texts: str | None) -> bool:
 def sweep(batch_size: int = 50) -> dict[str, int]:
     """Re-check rows saved while moderation was unavailable (moderated = false).
 
-    Flagged content is hidden (moderation_flagged = true); a flagged display
-    name is replaced with a neutral one. Stops early if OpenAI is still
-    unreachable, leaving the rest for the next run.
+    Works off the moderation_queue view, which already leaves out content of
+    soft-deleted users. Flagged content is hidden (moderation_flagged = true);
+    a flagged display name is replaced with a neutral one. Stops early if
+    OpenAI is still unreachable, leaving the rest for the next run.
     """
     stats = {"checked": 0, "flagged": 0}
     db = get_supabase()
+    queue = db.table("moderation_queue").select("source,id").limit(batch_size).execute().data or []
+
+    ids_by_table: dict[str, list[str]] = {}
+    for item in queue:
+        ids_by_table.setdefault(item["source"], []).append(item["id"])
+
     for table, fields in _SWEEP_TABLES:
-        rows = (
-            db.table(table)
-            .select(",".join(("id", *fields)))
-            .eq("moderated", False)
-            .limit(batch_size)
-            .execute()
-            .data
-            or []
-        )
+        ids = ids_by_table.get(table)
+        if not ids:
+            continue
+        rows = db.table(table).select(",".join(("id", *fields))).in_("id", ids).execute().data or []
         for row in rows:
             verdict = check(*(row.get(f) for f in fields))
             if verdict is None:
