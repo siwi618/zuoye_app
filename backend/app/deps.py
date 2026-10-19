@@ -1,7 +1,12 @@
+import hashlib
+import threading
+import time
 from typing import Annotated
 
 import httpx
 from fastapi import Depends, Header, HTTPException, status
+from jose import jwt
+from jose.exceptions import JWTError
 from pydantic import BaseModel
 
 from app.config import get_settings
@@ -14,16 +19,54 @@ class CurrentUser(BaseModel):
     role: str | None = None
 
 
+# Successful auth lookups are reused for a short while so each request doesn't
+# make two round trips to Supabase. Trade-off: a revoked session or a newly
+# soft-deleted account keeps working for up to _AUTH_CACHE_SECONDS.
+_AUTH_CACHE_SECONDS = 30
+_AUTH_CACHE_MAX = 1000
+_auth_cache: dict[str, tuple[float, CurrentUser]] = {}
+_auth_cache_lock = threading.Lock()
+
+
+def _cache_key(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _cache_get(key: str) -> CurrentUser | None:
+    with _auth_cache_lock:
+        hit = _auth_cache.get(key)
+        if hit and hit[0] > time.monotonic():
+            return hit[1]
+        _auth_cache.pop(key, None)
+        return None
+
+
+def _cache_put(key: str, token: str, user: CurrentUser) -> None:
+    ttl = float(_AUTH_CACHE_SECONDS)
+    # Never trust a cached token past its own expiry.
+    try:
+        exp = jwt.get_unverified_claims(token).get("exp")
+        if exp:
+            ttl = min(ttl, exp - time.time())
+    except JWTError:
+        pass
+    if ttl <= 0:
+        return
+
+    now = time.monotonic()
+    with _auth_cache_lock:
+        if len(_auth_cache) >= _AUTH_CACHE_MAX:
+            for k in [k for k, (expires, _) in _auth_cache.items() if expires <= now]:
+                del _auth_cache[k]
+            if len(_auth_cache) >= _AUTH_CACHE_MAX:
+                _auth_cache.clear()
+        _auth_cache[key] = (now + ttl, user)
+
+
 def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
 ) -> CurrentUser:
-    """Validate the caller's Supabase JWT by asking Supabase Auth.
-
-    We hit GoTrue's /auth/v1/user endpoint with the user's bearer token.
-    This works regardless of whether the project uses legacy HS256 secrets
-    or the newer asymmetric (ES256/RS256) signing keys, and it doubles as
-    a check that the session has not been revoked.
-    """
+    """Resolve the caller from their Supabase JWT, using the short auth cache."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -31,6 +74,24 @@ def get_current_user(
         )
 
     token = authorization.split(" ", 1)[1].strip()
+    key = _cache_key(token)
+    cached = _cache_get(key)
+    if cached:
+        return cached
+
+    user = _verify_token(token)
+    _cache_put(key, token, user)
+    return user
+
+
+def _verify_token(token: str) -> CurrentUser:
+    """Validate the caller's Supabase JWT by asking Supabase Auth.
+
+    We hit GoTrue's /auth/v1/user endpoint with the user's bearer token.
+    This works regardless of whether the project uses legacy HS256 secrets
+    or the newer asymmetric (ES256/RS256) signing keys, and it doubles as
+    a check that the session has not been revoked.
+    """
     settings = get_settings()
 
     if not settings.supabase_url or not settings.supabase_anon_key:
