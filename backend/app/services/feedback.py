@@ -26,7 +26,8 @@ def _hydrate_feedback(row: dict, profiles: dict[str, dict]) -> FeedbackRead:
         from_user=ProfileSummary(**profiles[row["from_user_id"]]),
         to_user=ProfileSummary(**profiles[row["to_user_id"]]),
         rating=row["rating"],
-        comment=row.get("comment"),
+        # Hide only the text of a flagged review; the rating still counts.
+        comment=None if row.get("moderation_flagged") else row.get("comment"),
         created_at=row["created_at"],
     )
 
@@ -107,7 +108,7 @@ def create_feedback(user_id: str, request_id: str, payload: FeedbackCreate) -> F
             detail="You have already left feedback for this request",
         )
 
-    ensure_allowed(payload.comment)
+    moderated = ensure_allowed(payload.comment)
     inserted = (
         get_supabase()
         .table("feedbacks")
@@ -117,6 +118,7 @@ def create_feedback(user_id: str, request_id: str, payload: FeedbackCreate) -> F
             "to_user_id": to_user_id,
             "rating": payload.rating,
             "comment": payload.comment,
+            "moderated": moderated,
         })
         .execute()
         .data

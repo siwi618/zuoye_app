@@ -224,6 +224,7 @@ Schema, RLS, and triggers live in `supabase/migrations/`:
 | `0003_helper_only_ratings.sql` | `user_ratings` view filtered to helper-direction feedback (powers leaderboard) |
 | `0004_profile_soft_delete.sql` | `profiles.is_deleted` soft delete: bans the auth user, revokes sessions, hides their requests/feedback, drops them from the leaderboard |
 | `0005_forum.sql` | Discussion forum: `forum_posts`, `forum_comments`, post/comment likes, counter triggers, `forum_increment_view()` |
+| `0006_moderation_flags.sql` | `moderated` / `moderation_flagged` columns + `moderation_queue` view; a Worker cron re-moderates unchecked rows every 10 min |
 
 ### Apply migrations
 

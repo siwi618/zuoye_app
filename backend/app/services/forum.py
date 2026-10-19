@@ -112,7 +112,7 @@ def _get_post_row(post_id: str) -> dict:
     if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     row = rows[0]
-    if row["author_id"] in _deleted_user_ids():
+    if row["moderation_flagged"] or row["author_id"] in _deleted_user_ids():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     return row
 
@@ -144,7 +144,7 @@ def list_posts(
     time_range: TimeRange = TimeRange.all,
     limit: int = 50,
 ) -> list[PostRead]:
-    query = get_supabase().table("forum_posts").select("*")
+    query = get_supabase().table("forum_posts").select("*").eq("moderation_flagged", False)
 
     if tag:
         query = query.eq("tag", tag.value)
@@ -176,7 +176,7 @@ def get_post(user_id: str, post_id: str) -> PostRead:
 
 
 def create_post(user_id: str, payload: PostCreate) -> PostRead:
-    ensure_allowed(payload.title, payload.body)
+    moderated = ensure_allowed(payload.title, payload.body)
     inserted = (
         get_supabase()
         .table("forum_posts")
@@ -185,6 +185,7 @@ def create_post(user_id: str, payload: PostCreate) -> PostRead:
             "title": payload.title,
             "body": payload.body,
             "tag": payload.tag.value,
+            "moderated": moderated,
         })
         .execute()
         .data
@@ -249,7 +250,13 @@ def toggle_post_like(user_id: str, post_id: str) -> LikeResult:
 
 def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort.top) -> list[CommentRead]:
     _get_post_row(post_id)
-    query = get_supabase().table("forum_comments").select("*").eq("post_id", post_id)
+    query = (
+        get_supabase()
+        .table("forum_comments")
+        .select("*")
+        .eq("post_id", post_id)
+        .eq("moderation_flagged", False)
+    )
     deleted = _deleted_user_ids()
     if deleted:
         query = query.not_.in_("author_id", deleted)
@@ -269,11 +276,16 @@ def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort
 
 def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> CommentRead:
     _get_post_row(post_id)
-    ensure_allowed(payload.body)
+    moderated = ensure_allowed(payload.body)
     inserted = (
         get_supabase()
         .table("forum_comments")
-        .insert({"post_id": post_id, "author_id": user_id, "body": payload.body})
+        .insert({
+            "post_id": post_id,
+            "author_id": user_id,
+            "body": payload.body,
+            "moderated": moderated,
+        })
         .execute()
         .data
     )

@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback.router)
     app.include_router(forum.router)
     app.include_router(moderation.router)
+    app.include_router(moderation.internal_router)
 
     return app
 

@@ -60,8 +60,10 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
     return {row["id"]: row for row in (res.data or [])}
 
 
-def _involves_deleted(row: dict, profiles_by_id: dict[str, dict]) -> bool:
-    """True if the requester or helper is soft-deleted — such requests are hidden."""
+def _is_hidden(row: dict, profiles_by_id: dict[str, dict]) -> bool:
+    """True if moderation flagged the request, or the requester or helper is soft-deleted."""
+    if row.get("moderation_flagged"):
+        return True
     for user_id in (row["requester_id"], row.get("helper_id")):
         if user_id and profiles_by_id.get(user_id, {}).get("is_deleted"):
             return True
@@ -108,7 +110,7 @@ def list_requests(
             user_ids.add(r["helper_id"])
 
     profiles = _fetch_profiles(user_ids)
-    return [_hydrate_request(r, profiles) for r in rows if not _involves_deleted(r, profiles)]
+    return [_hydrate_request(r, profiles) for r in rows if not _is_hidden(r, profiles)]
 
 
 def get_request(request_id: str) -> RequestRead:
@@ -130,13 +132,13 @@ def get_request(request_id: str) -> RequestRead:
     if row.get("helper_id"):
         user_ids.add(row["helper_id"])
     profiles = _fetch_profiles(user_ids)
-    if _involves_deleted(row, profiles):
+    if _is_hidden(row, profiles):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
     return _hydrate_request(row, profiles)
 
 
 def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
-    ensure_allowed(payload.topic, payload.description)
+    moderated = ensure_allowed(payload.topic, payload.description)
     insert = (
         get_supabase()
         .table("requests")
@@ -147,6 +149,7 @@ def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
             "topic": payload.topic,
             "description": payload.description,
             "mode": payload.mode.value,
+            "moderated": moderated,
         })
         .execute()
     )
@@ -188,7 +191,10 @@ def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> Req
     updates = payload.model_dump(exclude_none=True, mode="json")
     if not updates:
         return get_request(request_id)
-    ensure_allowed(updates.get("topic"), updates.get("description"))
+    merged = {**existing, **updates}
+    updates["moderated"] = ensure_allowed(
+        merged.get("topic"), merged.get("description"), merged.get("meeting_info")
+    )
 
     updated = (
         get_supabase()
@@ -272,10 +278,11 @@ def schedule_request(user_id: str, request_id: str, payload: ScheduleRequest) ->
             detail=f"Request must be accepted to schedule (currently {row['status']})",
         )
 
-    ensure_allowed(payload.meeting_info)
+    moderated = ensure_allowed(row.get("topic"), row.get("description"), payload.meeting_info)
     get_supabase().table("requests").update({
         "scheduled_at": payload.scheduled_at.isoformat(),
         "meeting_info": payload.meeting_info,
+        "moderated": moderated,
     }).eq("id", request_id).execute()
     return get_request(request_id)
 

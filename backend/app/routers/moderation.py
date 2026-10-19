@@ -22,3 +22,13 @@ class CheckResult(BaseModel):
 def check_display_name(payload: DisplayNameCheck) -> CheckResult:
     # No auth: called from the sign-up form before the account exists.
     return CheckResult(allowed=svc.is_allowed(payload.display_name))
+
+
+internal_router = APIRouter(prefix="/internal/moderation", tags=["internal"])
+
+
+@internal_router.post("/sweep")
+def sweep() -> dict[str, int]:
+    # Called by the Worker cron (src/index.ts); the Worker blocks /internal/*
+    # from public traffic.
+    return svc.sweep()

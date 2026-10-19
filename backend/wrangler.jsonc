@@ -35,6 +35,11 @@
   // CORS_ORIGINS is a comma-separated list — pydantic-settings splits it
   // into list[str] when JSON-decoding fails. Plain commas survive the
   // Worker→Container env-var hop unmangled.
+  // Every 10 min: re-moderate content saved while OpenAI was unreachable.
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
+
   "vars": {
     "ENVIRONMENT": "production",
     "CORS_ORIGINS": "https://zuoyebang-app.pages.dev,http://localhost:3000"
