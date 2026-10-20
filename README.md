@@ -21,9 +21,9 @@ A web platform where students post help requests (grade / subject / topic), othe
 | Service | URL |
 |---------|-----|
 | Frontend (prod) | https://studycoral.com (also https://zuoyebang-app.pages.dev) |
-| Backend API (prod) | https://zuoyebang-backend.lyu331901400.workers.dev |
-| Backend Swagger (prod) | https://zuoyebang-backend.lyu331901400.workers.dev/docs |
-| Backend health (prod) | https://zuoyebang-backend.lyu331901400.workers.dev/healthz |
+| Backend API (prod) | https://api.studycoral.com (fallback: https://zuoyebang-backend.lyu331901400.workers.dev, often unreachable from mainland China) |
+| Backend Swagger (prod) | https://api.studycoral.com/docs |
+| Backend health (prod) | https://api.studycoral.com/healthz |
 | Frontend (local) | http://localhost:3000 |
 | Backend API (local) | http://localhost:8000 |
 | Backend Swagger (local) | http://localhost:8000/docs |
@@ -151,7 +151,7 @@ Watch a run: https://github.com/siwi618/zuoye_app/actions/workflows/deploy-front
 ```bash
 cd frontend
 npm ci
-VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... VITE_API_BASE_URL=https://zuoyebang-backend.lyu331901400.workers.dev \
+VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... VITE_API_BASE_URL=https://api.studycoral.com \
   npm run build
 npx wrangler pages deploy dist --project-name=zuoyebang-app --branch=main
 ```
