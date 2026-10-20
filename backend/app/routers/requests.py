@@ -24,6 +24,7 @@ def list_requests(
     mine: bool = Query(default=False),
     exclude_mine: bool = Query(default=False),
     helping: bool = Query(default=False),
+    posted: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[RequestRead]:
     return svc.list_requests(
@@ -34,6 +35,7 @@ def list_requests(
         mine=mine,
         exclude_mine=exclude_mine,
         helping=helping,
+        posted=posted,
         limit=limit,
     )
 

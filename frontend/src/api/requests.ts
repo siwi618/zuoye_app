@@ -44,6 +44,7 @@ export interface ListRequestsParams {
   mine?: boolean
   exclude_mine?: boolean
   helping?: boolean  // only requests the caller accepted as helper
+  posted?: boolean  // only requests the caller posted
   limit?: number
 }
 

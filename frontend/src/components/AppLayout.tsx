@@ -46,12 +46,12 @@ export function AppLayout() {
             <Brand size="md" />
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex">
             {[
               { to: '/', label: t('nav.dashboard'), end: true },
               { to: '/requests', label: t('nav.browse') },
+              { to: '/my-requests', label: t('nav.myRequests') },
               { to: '/my-tasks', label: t('nav.myTasks') },
-              { to: '/history', label: t('nav.history') },
               { to: '/forum', label: t('nav.forum') },
               { to: '/leaderboard', label: t('nav.leaderboard') },
             ].map((item) => (
@@ -132,12 +132,12 @@ export function AppLayout() {
         </div>
 
         {/* mobile nav row */}
-        <nav className="flex items-center gap-1 overflow-x-auto border-t border-border/60 px-3 py-2 md:hidden">
+        <nav className="flex items-center gap-1 overflow-x-auto border-t border-border/60 px-3 py-2 lg:hidden">
           {[
             { to: '/', label: t('nav.dashboard'), end: true },
             { to: '/requests', label: t('nav.browse') },
+            { to: '/my-requests', label: t('nav.myRequests') },
             { to: '/my-tasks', label: t('nav.myTasks') },
-            { to: '/history', label: t('nav.history') },
             { to: '/forum', label: t('nav.forum') },
             { to: '/leaderboard', label: t('nav.leaderboard') },
           ].map((item) => (

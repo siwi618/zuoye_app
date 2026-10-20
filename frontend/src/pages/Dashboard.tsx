@@ -135,7 +135,7 @@ export function Dashboard() {
         data={completedRecent.data}
         loading={completedRecent.isLoading}
         error={completedRecent.error}
-        moreTo="/history"
+        moreTo="/requests?status=completed"
         Icon={CheckCircle2}
         tint="bg-emerald-50 text-emerald-700"
       />

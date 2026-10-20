@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Filter, Plus, Search } from 'lucide-react'
@@ -19,7 +19,12 @@ const ANY = '__any__'
 
 export function BrowseRequests() {
   const { t } = useTranslation()
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | typeof ANY>('open')
+  // ?status=completed etc. preselects the filter (used by the dashboard's "view all" links).
+  const [params] = useSearchParams()
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | typeof ANY>(() => {
+    const s = params.get('status')
+    return s === 'accepted' || s === 'completed' || s === 'cancelled' ? s : 'open'
+  })
   const [subject, setSubject] = useState<string>(ANY)
   const [grade, setGrade] = useState<string>(ANY)
 

@@ -11,7 +11,7 @@ import { RequestDetail } from '@/pages/RequestDetail'
 import { Profile } from '@/pages/Profile'
 import { Leaderboard } from '@/pages/Leaderboard'
 import { Forum } from '@/pages/Forum'
-import { History } from '@/pages/History'
+import { MyRequests } from '@/pages/MyRequests'
 import { MyTasks } from '@/pages/MyTasks'
 import { NewPost } from '@/pages/NewPost'
 import { PostDetail } from '@/pages/PostDetail'
@@ -30,7 +30,9 @@ export default function App() {
             <Route path="/requests/new" element={<NewRequest />} />
             <Route path="/requests/:id" element={<RequestDetail />} />
             <Route path="/my-tasks" element={<MyTasks />} />
-            <Route path="/history" element={<History />} />
+            <Route path="/my-requests" element={<MyRequests />} />
+            {/* The old global history page now lives in My Tasks. */}
+            <Route path="/history" element={<Navigate to="/my-tasks?tab=history" replace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewPost />} />
