@@ -48,6 +48,13 @@ class PostCreate(BaseModel):
     media_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
 
+class TopComment(BaseModel):
+    """Most-liked comment on a post, previewed in the post list."""
+    author_name: str
+    body: str
+    like_count: int
+
+
 class PostRead(BaseModel):
     id: str
     author: ProfileSummary
@@ -60,6 +67,7 @@ class PostRead(BaseModel):
     comment_count: int
     liked_by_me: bool
     created_at: datetime
+    top_comment: TopComment | None = None
 
 
 class CommentCreate(BaseModel):

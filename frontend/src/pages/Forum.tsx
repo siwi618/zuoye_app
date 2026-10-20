@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Eye, Heart, MessageCircle, MessagesSquare, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Select,
@@ -110,9 +111,9 @@ export function Forum() {
           <p className="text-sm text-muted-foreground">{t('forum.empty')}</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {query.data!.map((post) => (
-            <PostRow key={post.id} post={post} />
+            <PostCard key={post.id} post={post} />
           ))}
         </div>
       )}
@@ -120,47 +121,72 @@ export function Forum() {
   )
 }
 
-function PostRow({ post }: { post: PostRead }) {
+function PostCard({ post }: { post: PostRead }) {
   const { t } = useTranslation()
   const initials = post.author.display_name.slice(0, 2).toUpperCase()
 
   return (
-    <Link
-      to={`/forum/${post.id}`}
-      className="group block rounded-2xl border border-border/60 bg-card p-5 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-base font-semibold leading-snug">{post.title}</h2>
-        <Badge variant="open" className="shrink-0">
-          {t(`forumTags.${post.tag}`, { defaultValue: post.tag })}
-        </Badge>
-      </div>
-      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{post.body}</p>
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <Avatar className="size-6">
-            <AvatarFallback className="bg-brand-100 text-[10px] font-semibold text-brand-700">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <span className="font-medium text-foreground">{post.author.display_name}</span>
-          <span>{new Date(post.created_at).toLocaleDateString()}</span>
-        </span>
-        <span className="ml-auto inline-flex items-center gap-4">
-          <span className="inline-flex items-center gap-1">
-            <Eye className="size-3.5" />
-            {post.view_count}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Heart className={cn('size-3.5', post.liked_by_me && 'fill-rose-500 text-rose-500')} />
-            {post.like_count}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="size-3.5" />
-            {post.comment_count}
-          </span>
-        </span>
-      </div>
+    <Link to={`/forum/${post.id}`} className="group block focus:outline-none">
+      <Card
+        className={cn(
+          'h-full gap-3 py-5 transition-all duration-200',
+          'group-hover:-translate-y-0.5 group-hover:border-primary/40 group-hover:shadow-soft-lg',
+          'group-focus-visible:ring-2 group-focus-visible:ring-primary/50',
+        )}
+      >
+        <CardHeader className="gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="line-clamp-2 text-base leading-snug">{post.title}</CardTitle>
+            <Badge variant="open" className="shrink-0">
+              {t(`forumTags.${post.tag}`, { defaultValue: post.tag })}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col">
+          <p className="line-clamp-2 text-sm text-muted-foreground">{post.body}</p>
+          {post.top_comment && (
+            <p className="mt-3 line-clamp-1 rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{t('forum.topComment')}</span>
+              {' · '}
+              <span className="font-medium text-foreground">{post.top_comment.author_name}</span>
+              {': '}
+              {post.top_comment.body}
+            </p>
+          )}
+          {/* pinned to the bottom so footers line up across a row of cards */}
+          <div className="mt-auto pt-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <Avatar className="size-6">
+                  <AvatarFallback className="bg-brand-100 text-[10px] font-semibold text-brand-700">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="truncate font-medium text-foreground">
+                  {post.author.display_name}
+                </span>
+                <span>{new Date(post.created_at).toLocaleDateString()}</span>
+              </span>
+              <span className="ml-auto inline-flex items-center gap-3">
+                <span className="inline-flex items-center gap-1">
+                  <Eye className="size-3.5" />
+                  {post.view_count}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Heart
+                    className={cn('size-3.5', post.liked_by_me && 'fill-rose-500 text-rose-500')}
+                  />
+                  {post.like_count}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <MessageCircle className="size-3.5" />
+                  {post.comment_count}
+                </span>
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </Link>
   )
 }

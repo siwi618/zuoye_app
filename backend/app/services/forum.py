@@ -13,6 +13,7 @@ from app.schemas.forum import (
     PostRead,
     PostSort,
     TimeRange,
+    TopComment,
 )
 from app.schemas.request import ProfileSummary
 from app.schemas.media import MediaRead
@@ -74,7 +75,11 @@ def _liked_ids(table: str, key: str, user_id: str, ids: list[str]) -> set[str]:
 
 
 def _hydrate_post(
-    row: dict, profiles: dict[str, dict], liked: set[str], media_by_id: dict[str, MediaRead]
+    row: dict,
+    profiles: dict[str, dict],
+    liked: set[str],
+    media_by_id: dict[str, MediaRead],
+    top_comment: TopComment | None = None,
 ) -> PostRead:
     return PostRead(
         id=row["id"],
@@ -88,7 +93,38 @@ def _hydrate_post(
         comment_count=row["comment_count"],
         liked_by_me=row["id"] in liked,
         created_at=row["created_at"],
+        top_comment=top_comment,
     )
+
+
+def _top_comments(post_ids: list[str], deleted: list[str]) -> dict[str, TopComment]:
+    """Most-liked visible comment per post (ties: earliest), same order as CommentSort.top."""
+    if not post_ids:
+        return {}
+    query = (
+        get_supabase()
+        .table("forum_comments")
+        .select("post_id, author_id, body, like_count")
+        .in_("post_id", post_ids)
+        .eq("moderation_flagged", False)
+    )
+    if deleted:
+        query = query.not_.in_("author_id", deleted)
+    rows = query.order("like_count", desc=True).order("created_at").execute().data or []
+
+    best: dict[str, dict] = {}
+    for r in rows:
+        best.setdefault(r["post_id"], r)
+    profiles = _fetch_profiles({r["author_id"] for r in best.values()})
+    return {
+        post_id: TopComment(
+            author_name=profiles[r["author_id"]]["display_name"],
+            body=r["body"],
+            like_count=r["like_count"],
+        )
+        for post_id, r in best.items()
+        if r["author_id"] in profiles
+    }
 
 
 def _hydrate_comment(
@@ -171,10 +207,12 @@ def list_posts(
     if not rows:
         return []
 
+    post_ids = [r["id"] for r in rows]
     profiles = _fetch_profiles({r["author_id"] for r in rows})
-    liked = _liked_ids("forum_post_likes", "post_id", user_id, [r["id"] for r in rows])
+    liked = _liked_ids("forum_post_likes", "post_id", user_id, post_ids)
     media_by_id = media_svc.fetch(media_svc.all_ids(rows))
-    return [_hydrate_post(r, profiles, liked, media_by_id) for r in rows]
+    top = _top_comments(post_ids, deleted)
+    return [_hydrate_post(r, profiles, liked, media_by_id, top.get(r["id"])) for r in rows]
 
 
 def get_post(user_id: str, post_id: str) -> PostRead:

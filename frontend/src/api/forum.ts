@@ -18,6 +18,14 @@ export interface PostRead {
   comment_count: number
   liked_by_me: boolean
   created_at: string
+  // Most-liked comment, only included in the post list.
+  top_comment?: TopComment | null
+}
+
+export interface TopComment {
+  author_name: string
+  body: string
+  like_count: number
 }
 
 export interface PostCreate {
