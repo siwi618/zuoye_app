@@ -4,6 +4,7 @@ export const en = {
     tagline: 'Peer homework help, by students for students.',
   },
   nav: {
+    history: 'Help History',
     dashboard: 'Dashboard',
     browse: 'Browse Requests',
     forum: 'Discussion',
@@ -41,8 +42,9 @@ export const en = {
     displayNameRejected: 'This display name is not allowed. Please choose another one.',
   },
   dashboard: {
-    allCompletedRequests: 'All Completed Requests',
-    openRequests: 'Open Requests',
+    latestOpenRequests: 'Latest Open Requests',
+    recentCompletedRequests: 'Recently Completed Requests',
+    historySubtitle: 'Every request that has been completed.',
     myStats: 'My Stats',
     newRequest: 'New Request',
     heroHint: 'Find someone to help — or pay it forward by helping a classmate.',

@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, CircleDot, Plus, Sparkles } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleDot, Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { listRequests, type RequestRead } from '@/api/requests'
 import { RequestCard } from '@/components/RequestCard'
 import { useAuthStore } from '@/store/auth'
+
+const DASHBOARD_LIMIT = 5
 
 function Section({
   title,
@@ -13,7 +15,7 @@ function Section({
   data,
   loading,
   error,
-  limit = 12,
+  moreTo,
   Icon,
   tint,
 }: {
@@ -22,12 +24,11 @@ function Section({
   data: RequestRead[] | undefined
   loading: boolean
   error: unknown
-  limit?: number
+  moreTo: string
   Icon: typeof CircleDot
   tint: string
 }) {
   const { t } = useTranslation()
-  const count = data?.length ?? 0
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-3">
@@ -35,11 +36,13 @@ function Section({
           <Icon className="size-4.5" />
         </span>
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-        {!loading && !error && count > 0 && (
-          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-            {count}
-          </span>
-        )}
+        <Link
+          to={moreTo}
+          className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {t('dashboard.browseAll')}
+          <ArrowRight className="size-3.5" />
+        </Link>
       </div>
       {loading ? (
         <p className="text-muted-foreground">{t('common.loading')}</p>
@@ -53,7 +56,7 @@ function Section({
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data!.slice(0, limit).map((r) => (
+          {data!.map((r) => (
             <RequestCard key={r.id} request={r} />
           ))}
         </div>
@@ -70,16 +73,16 @@ export function Dashboard() {
     user?.email?.split('@')[0] ??
     ''
 
-  // Top: open requests other students posted — what the user can pick up.
+  // Top: the newest open requests other students posted — what the user can pick up.
   const openOthers = useQuery({
-    queryKey: ['requests', { status: 'open', exclude_mine: true }],
-    queryFn: () => listRequests({ status: 'open', exclude_mine: true }),
+    queryKey: ['requests', { status: 'open', exclude_mine: true, limit: DASHBOARD_LIMIT }],
+    queryFn: () => listRequests({ status: 'open', exclude_mine: true, limit: DASHBOARD_LIMIT }),
   })
 
-  // Bottom: every completed request, across all users.
-  const completedAll = useQuery({
-    queryKey: ['requests', { status: 'completed' }],
-    queryFn: () => listRequests({ status: 'completed' }),
+  // Bottom: the most recently completed requests, across all users.
+  const completedRecent = useQuery({
+    queryKey: ['requests', { status: 'completed', limit: DASHBOARD_LIMIT }],
+    queryFn: () => listRequests({ status: 'completed', limit: DASHBOARD_LIMIT }),
   })
 
   return (
@@ -116,21 +119,23 @@ export function Dashboard() {
       </section>
 
       <Section
-        title={t('dashboard.openRequests')}
+        title={t('dashboard.latestOpenRequests')}
         emptyHint={t('dashboard.openEmpty')}
         data={openOthers.data}
         loading={openOthers.isLoading}
         error={openOthers.error}
+        moreTo="/requests"
         Icon={CircleDot}
         tint="bg-brand-100 text-brand-700"
       />
 
       <Section
-        title={t('dashboard.allCompletedRequests')}
+        title={t('dashboard.recentCompletedRequests')}
         emptyHint={t('dashboard.completedEmpty')}
-        data={completedAll.data}
-        loading={completedAll.isLoading}
-        error={completedAll.error}
+        data={completedRecent.data}
+        loading={completedRecent.isLoading}
+        error={completedRecent.error}
+        moreTo="/history"
         Icon={CheckCircle2}
         tint="bg-emerald-50 text-emerald-700"
       />

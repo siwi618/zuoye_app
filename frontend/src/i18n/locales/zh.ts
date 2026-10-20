@@ -6,6 +6,7 @@ export const zh: Translations = {
     tagline: '同学之间互相帮忙的作业平台。',
   },
   nav: {
+    history: '接单历史',
     dashboard: '主页',
     browse: '浏览请求',
     forum: '讨论区',
@@ -42,8 +43,9 @@ export const zh: Translations = {
     displayNameRejected: '这个昵称不符合社区规范，请换一个。',
   },
   dashboard: {
-    allCompletedRequests: '全部已完成的请求',
-    openRequests: '待接单请求',
+    latestOpenRequests: '最新待接单请求',
+    recentCompletedRequests: '近期已完成的请求',
+    historySubtitle: '所有已经完成的请求。',
     myStats: '我的数据',
     newRequest: '发起请求',
     heroHint: '找同学帮你 — 或者顺手帮一个同学，把善意传下去。',

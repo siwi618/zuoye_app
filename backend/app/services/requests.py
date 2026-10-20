@@ -85,11 +85,13 @@ def list_requests(
     exclude_mine: bool = False,
     limit: int = 50,
 ) -> list[RequestRead]:
+    # Completed requests are listed by when they were completed, the rest by when posted.
+    order_by = "completed_at" if status_filter == RequestStatus.completed else "created_at"
     query = (
         get_supabase()
         .table("requests")
         .select("*")
-        .order("created_at", desc=True)
+        .order(order_by, desc=True)
         .limit(limit)
     )
 

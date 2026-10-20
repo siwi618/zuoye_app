@@ -11,6 +11,7 @@ import { RequestDetail } from '@/pages/RequestDetail'
 import { Profile } from '@/pages/Profile'
 import { Leaderboard } from '@/pages/Leaderboard'
 import { Forum } from '@/pages/Forum'
+import { History } from '@/pages/History'
 import { NewPost } from '@/pages/NewPost'
 import { PostDetail } from '@/pages/PostDetail'
 
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/requests" element={<BrowseRequests />} />
             <Route path="/requests/new" element={<NewRequest />} />
             <Route path="/requests/:id" element={<RequestDetail />} />
+            <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewPost />} />
