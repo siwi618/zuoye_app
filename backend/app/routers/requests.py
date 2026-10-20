@@ -77,6 +77,11 @@ def complete_request(user: CurrentUserDep, request_id: str) -> RequestRead:
     return svc.complete_request(user.id, request_id)
 
 
+@router.delete("/{request_id}", status_code=204)
+def delete_request(user: CurrentUserDep, request_id: str) -> None:
+    svc.delete_request(user.id, request_id)
+
+
 @router.post("/{request_id}/cancel", response_model=RequestRead)
 def cancel_request(user: CurrentUserDep, request_id: str) -> RequestRead:
     return svc.cancel_request(user.id, request_id)

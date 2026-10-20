@@ -77,6 +77,11 @@ export function cancelRequest(id: string): Promise<RequestRead> {
   return apiFetch<RequestRead>(`/requests/${id}/cancel`, { method: 'POST' })
 }
 
+// Completed requests only; hidden everywhere, but the helper keeps the rating.
+export function deleteRequest(id: string): Promise<void> {
+  return apiFetch<void>(`/requests/${id}`, { method: 'DELETE' })
+}
+
 export function acceptRequest(id: string): Promise<RequestRead> {
   return apiFetch<RequestRead>(`/requests/${id}/accept`, { method: 'POST' })
 }

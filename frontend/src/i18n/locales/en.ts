@@ -85,6 +85,9 @@ export const en = {
     noCompleted: 'No completed requests yet.',
   },
   request: {
+    delete: 'Delete request',
+    deleteConfirm: "Delete this request? It will disappear for both of you. The helper's rating from it still counts.",
+    deleted: 'Request deleted',
     gradeFromProfile: 'From your profile — change it if this request is for another grade.',
     subject: 'Subject',
     topic: 'Topic',

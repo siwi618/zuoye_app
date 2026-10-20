@@ -66,8 +66,8 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
 
 
 def _is_hidden(row: dict, profiles_by_id: dict[str, dict]) -> bool:
-    """True if moderation flagged the request, or the requester or helper is soft-deleted."""
-    if row.get("moderation_flagged"):
+    """True if moderation flagged the request, the requester deleted it, or a participant is soft-deleted."""
+    if row.get("moderation_flagged") or row.get("deleted_by_requester"):
         return True
     for user_id in (row["requester_id"], row.get("helper_id")):
         if user_id and profiles_by_id.get(user_id, {}).get("is_deleted"):
@@ -94,6 +94,7 @@ def list_requests(
         get_supabase()
         .table("requests")
         .select("*")
+        .eq("deleted_by_requester", False)
         .order(order_by, desc=True)
         .limit(limit)
     )
@@ -245,7 +246,7 @@ def _get_row(request_id: str) -> dict:
         .data
         or []
     )
-    if not rows:
+    if not rows or rows[0].get("deleted_by_requester"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
     return rows[0]
 
@@ -358,3 +359,25 @@ def cancel_request(user_id: str, request_id: str) -> RequestRead:
     ).eq("id", request_id).execute()
 
     return get_request(request_id)
+
+
+def delete_request(user_id: str, request_id: str) -> None:
+    """Requester hides their completed request; its feedback still counts for the helper."""
+    row = _get_row(request_id)
+    if row["requester_id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester can delete this request",
+        )
+    if row["status"] != RequestStatus.completed.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only completed requests can be deleted (currently {row['status']})",
+        )
+    (
+        get_supabase()
+        .table("requests")
+        .update({"deleted_by_requester": True})
+        .eq("id", request_id)
+        .execute()
+    )

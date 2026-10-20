@@ -13,6 +13,7 @@ import {
   MapPin,
   Users,
   Video,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ import {
   acceptRequest,
   cancelRequest,
   completeRequest,
+  deleteRequest,
   getRequest,
   scheduleRequest,
   type RequestRead,
@@ -118,6 +120,16 @@ export function RequestDetail() {
     onSuccess: (r) => { toast.success(t('request.markComplete')); applyUpdate(r) },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
   })
+  const remove = useMutation({
+    mutationFn: () => deleteRequest(id!),
+    onSuccess: () => {
+      toast.success(t('request.deleted'))
+      queryClient.removeQueries({ queryKey: ['request', id] })
+      void queryClient.invalidateQueries({ queryKey: ['requests'] })
+      navigate('/my-requests', { replace: true })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
+  })
   const cancel = useMutation({
     mutationFn: () => cancelRequest(id!),
     onSuccess: (r) => { toast.success(t('request.cancel')); applyUpdate(r) },
@@ -143,8 +155,9 @@ export function RequestDetail() {
   const showSchedule = req.status === 'accepted' && isParticipant
   const showComplete = req.status === 'accepted' && isParticipant
   const showCancel = isRequester && (req.status === 'open' || req.status === 'accepted')
-  const anyAction = showAccept || showSchedule || showComplete || showCancel
-  const busy = accept.isPending || complete.isPending || cancel.isPending
+  const showDelete = isRequester && req.status === 'completed'
+  const anyAction = showAccept || showSchedule || showComplete || showCancel || showDelete
+  const busy = accept.isPending || complete.isPending || cancel.isPending || remove.isPending
 
   const { variant: statusVariant, Icon: StatusIcon } = statusMeta[req.status]
   const requesterInitials = req.requester.display_name.slice(0, 2).toUpperCase()
@@ -265,6 +278,18 @@ export function RequestDetail() {
                 {showCancel && (
                   <Button variant="destructive" disabled={busy} onClick={() => cancel.mutate()}>
                     {cancel.isPending ? '…' : t('request.cancel')}
+                  </Button>
+                )}
+                {showDelete && (
+                  <Button
+                    variant="destructive"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm(t('request.deleteConfirm'))) remove.mutate()
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                    {remove.isPending ? '…' : t('request.delete')}
                   </Button>
                 )}
               </div>

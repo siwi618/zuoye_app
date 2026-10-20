@@ -86,6 +86,9 @@ export const zh: Translations = {
     noCompleted: '还没有已完成的请求。',
   },
   request: {
+    delete: '删除请求',
+    deleteConfirm: '确定删除这个请求吗？删除后你和接单者都看不到它，但接单者从这单获得的评分仍会保留。',
+    deleted: '请求已删除',
     gradeFromProfile: '来自个人资料的默认年级，如果这个请求是别的年级可以改。',
     subject: '学科',
     topic: '题目 / 板块',
