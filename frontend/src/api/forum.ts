@@ -44,6 +44,9 @@ export interface CommentRead {
   like_count: number
   liked_by_me: boolean
   created_at: string
+  // Replies only: the thread's top-level comment, and whose comment was answered.
+  parent_id: string | null
+  reply_to: ProfileSummary | null
   // Client-only: shown optimistically while the comment is still being sent.
   pending?: boolean
 }
@@ -104,10 +107,11 @@ export function createComment(
   postId: string,
   body: string,
   mediaIds: string[] = [],
+  replyToId?: string,
 ): Promise<CommentRead> {
   return apiFetch<CommentRead>(`/forum/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ body, media_ids: mediaIds }),
+    body: JSON.stringify({ body, media_ids: mediaIds, reply_to_id: replyToId ?? null }),
   })
 }
 

@@ -73,6 +73,8 @@ class PostRead(BaseModel):
 class CommentCreate(BaseModel):
     body: CommentBodyStr
     media_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
+    # Set to reply to a comment (top-level or a reply) on the same post.
+    reply_to_id: str | None = None
 
 
 class CommentRead(BaseModel):
@@ -84,6 +86,9 @@ class CommentRead(BaseModel):
     like_count: int
     liked_by_me: bool
     created_at: datetime
+    # Replies only: the thread's top-level comment, and whose comment was answered.
+    parent_id: str | None = None
+    reply_to: ProfileSummary | None = None
 
 
 class ViewResult(BaseModel):

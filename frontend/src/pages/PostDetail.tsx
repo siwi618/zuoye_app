@@ -3,7 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft, Eye, Heart, MessageCircle, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Heart,
+  MessageCircle,
+  Reply,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -197,6 +206,16 @@ export function PostDetail() {
   )
 }
 
+interface Draft {
+  body: string
+  media: MediaRead[]
+  // The comment being answered; null for a new top-level comment.
+  replyTo: CommentRead | null
+}
+
+// A reply's thread is its top-level comment.
+const threadOf = (c: CommentRead) => c.parent_id ?? c.id
+
 function CommentsSection({ postId }: { postId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -206,17 +225,34 @@ function CommentsSection({ postId }: { postId: string }) {
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<MediaRead[]>([])
   const [uploading, setUploading] = useState(false)
+  const [replyTo, setReplyTo] = useState<CommentRead | null>(null)
+  const [replyBody, setReplyBody] = useState('')
+  // Threads whose replies are shown; replies start folded.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
+  const setThreadOpen = (id: string, open: boolean) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (open) next.add(id)
+      else next.delete(id)
+      return next
+    })
 
   const comments = useQuery({
     queryKey: ['forum-comments', postId, sort],
     queryFn: () => listComments(postId, sort),
   })
 
-  // Comments appear immediately (greyed out as "sending") and are swapped for
-  // the server's copy when it arrives; on failure the draft goes back in the box.
+  // Comments and replies appear immediately (greyed out as "sending") and are
+  // swapped for the server's copy when it arrives; on failure the draft goes back in its box.
   const submit = useMutation({
-    mutationFn: (draft: { body: string; media: MediaRead[] }) =>
-      createComment(postId, draft.body, draft.media.map((m) => m.id)),
+    mutationFn: (draft: Draft) =>
+      createComment(
+        postId,
+        draft.body,
+        draft.media.map((m) => m.id),
+        draft.replyTo?.id,
+      ),
     onMutate: async (draft) => {
       await queryClient.cancelQueries({ queryKey: ['forum-comments', postId] })
       const rollback = snapshotForum(queryClient, postId)
@@ -226,7 +262,8 @@ function CommentsSection({ postId }: { postId: string }) {
         post_id: postId,
         author: {
           id: userId ?? '',
-          display_name: (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? '',
+          display_name:
+            (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? '',
           avatar_url: null,
         },
         body: draft.body,
@@ -234,12 +271,21 @@ function CommentsSection({ postId }: { postId: string }) {
         like_count: 0,
         liked_by_me: false,
         created_at: new Date().toISOString(),
+        parent_id: draft.replyTo ? threadOf(draft.replyTo) : null,
+        reply_to: draft.replyTo?.author ?? null,
         pending: true,
       }
-      patchComments(queryClient, postId, (list) => [temp, ...list])
+      if (draft.replyTo) {
+        patchComments(queryClient, postId, (list) => [...list, temp])
+        setThreadOpen(threadOf(draft.replyTo), true)
+        setReplyTo(null)
+        setReplyBody('')
+      } else {
+        patchComments(queryClient, postId, (list) => [temp, ...list])
+        setBody('')
+        setMedia([])
+      }
       patchPost(queryClient, postId, (p) => ({ ...p, comment_count: p.comment_count + 1 }))
-      setBody('')
-      setMedia([])
       return { rollback, tempId }
     },
     onSuccess: (comment, _draft, ctx) =>
@@ -248,8 +294,13 @@ function CommentsSection({ postId }: { postId: string }) {
       ),
     onError: (err, draft, ctx) => {
       ctx?.rollback()
-      setBody(draft.body)
-      setMedia(draft.media)
+      if (draft.replyTo) {
+        setReplyTo(draft.replyTo)
+        setReplyBody(draft.body)
+      } else {
+        setBody(draft.body)
+        setMedia(draft.media)
+      }
       toast.error(err instanceof Error ? err.message : t('common.error'))
     },
   })
@@ -257,7 +308,33 @@ function CommentsSection({ postId }: { postId: string }) {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (!body.trim()) return
-    submit.mutate({ body: body.trim(), media })
+    submit.mutate({ body: body.trim(), media, replyTo: null })
+  }
+
+  const onReplySubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!replyTo || !replyBody.trim()) return
+    submit.mutate({ body: replyBody.trim(), media: [], replyTo })
+  }
+
+  const startReply = (target: CommentRead) => {
+    if (replyTo?.id !== target.id) setReplyBody('')
+    setReplyTo(target)
+  }
+
+  // Top-level comments keep the server's order (top / newest); replies read
+  // oldest first under their thread.
+  const all = comments.data ?? []
+  const tops = all.filter((c) => !c.parent_id)
+  const repliesByThread = new Map<string, CommentRead[]>()
+  for (const c of all) {
+    if (!c.parent_id) continue
+    const list = repliesByThread.get(c.parent_id) ?? []
+    list.push(c)
+    repliesByThread.set(c.parent_id, list)
+  }
+  for (const list of repliesByThread.values()) {
+    list.sort((a, b) => a.created_at.localeCompare(b.created_at))
   }
 
   return (
@@ -302,26 +379,109 @@ function CommentsSection({ postId }: { postId: string }) {
 
       {comments.isLoading ? (
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-      ) : (comments.data?.length ?? 0) === 0 ? (
+      ) : tops.length === 0 ? (
         <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card/50 px-4 py-6 text-sm text-muted-foreground">
           <MessageCircle className="size-4 shrink-0" />
           {t('forum.commentsEmpty')}
         </div>
       ) : (
         <div className="space-y-3">
-          {comments.data!.map((c) => (
-            <CommentItem key={c.id} comment={c} isMine={c.author.id === userId} />
-          ))}
+          {tops.map((c) => {
+            const replies = repliesByThread.get(c.id) ?? []
+            const open = expanded.has(c.id)
+            return (
+              <div
+                key={c.id}
+                className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft"
+              >
+                <CommentItem
+                  comment={c}
+                  isMine={c.author.id === userId}
+                  replyCount={replies.length}
+                  onReply={() => startReply(c)}
+                />
+
+                {replies.length > 0 && (
+                  <div className="mt-3 ml-11 space-y-3 border-l-2 border-border/60 pl-4">
+                    {open &&
+                      replies.map((r) => (
+                        <CommentItem
+                          key={r.id}
+                          comment={r}
+                          isMine={r.author.id === userId}
+                          replyCount={0}
+                          onReply={() => startReply(r)}
+                        />
+                      ))}
+                    <button
+                      type="button"
+                      onClick={() => setThreadOpen(c.id, !open)}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      {open ? (
+                        <ChevronUp className="size-3.5" />
+                      ) : (
+                        <ChevronDown className="size-3.5" />
+                      )}
+                      {open
+                        ? t('forum.hideReplies')
+                        : t('forum.showReplies', { count: replies.length })}
+                    </button>
+                  </div>
+                )}
+
+                {replyTo && threadOf(replyTo) === c.id && (
+                  <form onSubmit={onReplySubmit} className="mt-3 ml-11 space-y-2">
+                    <Textarea
+                      autoFocus
+                      value={replyBody}
+                      onChange={(e) => setReplyBody(e.target.value)}
+                      placeholder={t('forum.replyPlaceholder', {
+                        name: replyTo.author.display_name,
+                      })}
+                      maxLength={2000}
+                      rows={2}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReplyTo(null)}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                      <Button type="submit" size="sm" disabled={!replyBody.trim()}>
+                        {t('forum.reply')}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>
   )
 }
 
-function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolean }) {
+function CommentItem({
+  comment,
+  isMine,
+  replyCount,
+  onReply,
+}: {
+  comment: CommentRead
+  isMine: boolean
+  // Replies removed along with this comment (top-level only).
+  replyCount: number
+  onReply: () => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const postId = comment.post_id
+  const isReply = comment.parent_id !== null
   const initials = comment.author.display_name.slice(0, 2).toUpperCase()
 
   const like = useMutation({
@@ -348,13 +508,19 @@ function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolea
     },
   })
 
+  // Deleting a top-level comment takes its replies with it.
   const remove = useMutation({
     mutationFn: () => deleteComment(comment.id),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['forum-comments', postId] })
       const rollback = snapshotForum(queryClient, postId)
-      patchComments(queryClient, postId, (list) => list.filter((c) => c.id !== comment.id))
-      patchPost(queryClient, postId, (p) => ({ ...p, comment_count: p.comment_count - 1 }))
+      patchComments(queryClient, postId, (list) =>
+        list.filter((c) => c.id !== comment.id && c.parent_id !== comment.id),
+      )
+      patchPost(queryClient, postId, (p) => ({
+        ...p,
+        comment_count: p.comment_count - 1 - replyCount,
+      }))
       return { rollback }
     },
     onError: (err, _vars, ctx) => {
@@ -364,16 +530,16 @@ function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolea
   })
 
   return (
-    <div
-      className={cn(
-        'rounded-2xl border border-border/60 bg-card p-4 shadow-soft transition-opacity',
-        comment.pending && 'opacity-60',
-      )}
-    >
+    <div className={cn('transition-opacity', comment.pending && 'opacity-60')}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Avatar className="size-8">
-            <AvatarFallback className="bg-brand-100 text-xs font-semibold text-brand-700">
+          <Avatar className={isReply ? 'size-6' : 'size-8'}>
+            <AvatarFallback
+              className={cn(
+                'bg-brand-100 font-semibold text-brand-700',
+                isReply ? 'text-[10px]' : 'text-xs',
+              )}
+            >
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -385,6 +551,15 @@ function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolea
           </div>
         </div>
         <div className={cn('flex items-center gap-1', comment.pending && 'pointer-events-none')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 px-2 text-muted-foreground"
+            onClick={onReply}
+          >
+            <Reply className="size-3.5" />
+            {t('forum.reply')}
+          </Button>
           {isMine && (
             <Button
               variant="ghost"
@@ -401,16 +576,35 @@ function CommentItem({ comment, isMine }: { comment: CommentRead; isMine: boolea
           <Button
             variant="ghost"
             size="sm"
-            className={cn('h-8 gap-1 px-2 text-muted-foreground', comment.liked_by_me && 'text-rose-600')}
+            className={cn(
+              'h-8 gap-1 px-2 text-muted-foreground',
+              comment.liked_by_me && 'text-rose-600',
+            )}
             onClick={() => !like.isPending && like.mutate()}
           >
-            <Heart className={cn('size-3.5', comment.liked_by_me && 'fill-rose-500 text-rose-500')} />
+            <Heart
+              className={cn('size-3.5', comment.liked_by_me && 'fill-rose-500 text-rose-500')}
+            />
             {comment.like_count}
           </Button>
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-wrap pl-11 text-sm text-foreground/90">{comment.body}</p>
-      <MediaGallery media={comment.media} className="mt-3 pl-11" />
+      <p
+        className={cn(
+          'mt-2 whitespace-pre-wrap text-sm text-foreground/90',
+          isReply ? 'pl-9' : 'mt-3 pl-11',
+        )}
+      >
+        {isReply && comment.reply_to && (
+          <>
+            {t('forum.replyPrefix')}
+            <span className="text-muted-foreground">{comment.reply_to.display_name}</span>
+            {t('forum.replySuffix')}
+          </>
+        )}
+        {comment.body}
+      </p>
+      <MediaGallery media={comment.media} className={cn('mt-3', isReply ? 'pl-9' : 'pl-11')} />
     </div>
   )
 }

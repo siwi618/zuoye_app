@@ -138,6 +138,12 @@ export const zh: Translations = {
     to: '给',
   },
   forum: {
+    reply: '回复',
+    replyPrefix: '回复 ',
+    replySuffix: ' 的评论：',
+    replyPlaceholder: '回复 {{name}}…',
+    showReplies: '展开 {{count}} 条回复',
+    hideReplies: '收起回复',
     title: '讨论区',
     subtitle: '和同学一起提问、分享、闲聊。',
     newPost: '发帖',

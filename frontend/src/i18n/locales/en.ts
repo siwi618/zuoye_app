@@ -137,6 +137,12 @@ export const en = {
     to: 'To',
   },
   forum: {
+    reply: 'Reply',
+    replyPrefix: 'Reply to ',
+    replySuffix: "'s comment: ",
+    replyPlaceholder: 'Reply to {{name}}…',
+    showReplies: 'Show replies ({{count}})',
+    hideReplies: 'Hide replies',
     title: 'Discussion',
     subtitle: 'Ask, share and chat with classmates.',
     newPost: 'New post',

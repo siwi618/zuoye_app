@@ -106,6 +106,7 @@ def _top_comments(post_ids: list[str], deleted: list[str]) -> dict[str, TopComme
         .table("forum_comments")
         .select("post_id, author_id, body, like_count")
         .in_("post_id", post_ids)
+        .is_("parent_id", "null")
         .eq("moderation_flagged", False)
     )
     if deleted:
@@ -139,6 +140,12 @@ def _hydrate_comment(
         like_count=row["like_count"],
         liked_by_me=row["id"] in liked,
         created_at=row["created_at"],
+        parent_id=row.get("parent_id"),
+        reply_to=(
+            ProfileSummary(**profiles[row["reply_to_user_id"]])
+            if row.get("reply_to_user_id") in profiles
+            else None
+        ),
     )
 
 
@@ -323,10 +330,16 @@ def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort
         query = query.order("created_at", desc=True)
 
     rows = query.execute().data or []
+    # A reply is hidden along with its thread's top-level comment.
+    visible_tops = {r["id"] for r in rows if not r.get("parent_id")}
+    rows = [r for r in rows if not r.get("parent_id") or r["parent_id"] in visible_tops]
     if not rows:
         return []
 
-    profiles = _fetch_profiles({r["author_id"] for r in rows})
+    user_ids = {r["author_id"] for r in rows} | {
+        r["reply_to_user_id"] for r in rows if r.get("reply_to_user_id")
+    }
+    profiles = _fetch_profiles(user_ids)
     liked = _liked_ids("forum_comment_likes", "comment_id", user_id, [r["id"] for r in rows])
     media_by_id = media_svc.fetch(media_svc.all_ids(rows))
     return [_hydrate_comment(r, profiles, liked, media_by_id) for r in rows]
@@ -334,6 +347,14 @@ def list_comments(user_id: str, post_id: str, *, sort: CommentSort = CommentSort
 
 def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> CommentRead:
     _get_post_row(post_id)
+    parent_id = reply_to_user_id = None
+    if payload.reply_to_id:
+        target = _get_comment_row(payload.reply_to_id)
+        if target["post_id"] != post_id or target["moderation_flagged"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        # Replies to a reply join the same thread, under its top-level comment.
+        parent_id = target.get("parent_id") or target["id"]
+        reply_to_user_id = target["author_id"]
     moderated = ensure_allowed(payload.body)
     media_ids = media_svc.validate_attachments(user_id, payload.media_ids)
     inserted = (
@@ -345,6 +366,8 @@ def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> Commen
             "body": payload.body,
             "media_ids": media_ids,
             "moderated": moderated,
+            "parent_id": parent_id,
+            "reply_to_user_id": reply_to_user_id,
         })
         .execute()
         .data
@@ -355,7 +378,7 @@ def create_comment(user_id: str, post_id: str, payload: CommentCreate) -> Commen
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create comment",
         )
-    profiles = _fetch_profiles({user_id})
+    profiles = _fetch_profiles({user_id} | ({reply_to_user_id} if reply_to_user_id else set()))
     return _hydrate_comment(row, profiles, set(), media_svc.fetch(set(media_ids)))
 
 
@@ -366,8 +389,11 @@ def delete_comment(user_id: str, comment_id: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only the author can delete this comment",
         )
-    get_supabase().table("forum_comments").delete().eq("id", comment_id).execute()
-    media_svc.delete(row.get("media_ids") or [])
+    db = get_supabase()
+    # Replies are removed by ON DELETE CASCADE; their attachments need deleting too.
+    replies = db.table("forum_comments").select("media_ids").eq("parent_id", comment_id).execute().data or []
+    db.table("forum_comments").delete().eq("id", comment_id).execute()
+    media_svc.delete([m for r in [row, *replies] for m in (r.get("media_ids") or [])])
 
 
 def toggle_comment_like(user_id: str, comment_id: str) -> LikeResult:
