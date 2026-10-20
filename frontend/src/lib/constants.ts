@@ -10,6 +10,7 @@ export const SUBJECT_OPTIONS = [
   'History',
   'Geography',
   'Computer Science',
+  'TOK',
   'Other',
 ] as const
 

@@ -195,22 +195,37 @@ def list_posts(
     time_range: TimeRange = TimeRange.all,
     limit: int = 50,
 ) -> list[PostRead]:
-    query = get_supabase().table("forum_posts").select("*").eq("moderation_flagged", False)
-
-    if tag:
-        query = query.eq("tag", tag.value)
-    if time_range in _RANGE_DELTAS:
-        since = datetime.now(timezone.utc) - _RANGE_DELTAS[time_range]
-        query = query.gte("created_at", since.isoformat())
     deleted = _deleted_user_ids()
-    if deleted:
-        query = query.not_.in_("author_id", deleted)
 
-    if sort == PostSort.hot:
-        query = query.order("view_count", desc=True)
-    query = query.order("created_at", desc=True).limit(limit)
+    def base():
+        query = get_supabase().table("forum_posts").select("*").eq("moderation_flagged", False)
+        if tag:
+            query = query.eq("tag", tag.value)
+        if time_range in _RANGE_DELTAS:
+            since = datetime.now(timezone.utc) - _RANGE_DELTAS[time_range]
+            query = query.gte("created_at", since.isoformat())
+        if deleted:
+            query = query.not_.in_("author_id", deleted)
+        return query
 
-    rows = query.execute().data or []
+    if sort == PostSort.mine:
+        mine = base().eq("author_id", user_id).order("created_at", desc=True).limit(limit)
+        rows = mine.execute().data or []
+        if len(rows) < limit:
+            others = (
+                base()
+                .neq("author_id", user_id)
+                .order("view_count", desc=True)
+                .order("created_at", desc=True)
+                .limit(limit - len(rows))
+            )
+            rows += others.execute().data or []
+    else:
+        query = base()
+        if sort == PostSort.hot:
+            query = query.order("view_count", desc=True)
+        rows = query.order("created_at", desc=True).limit(limit).execute().data or []
+
     if not rows:
         return []
 

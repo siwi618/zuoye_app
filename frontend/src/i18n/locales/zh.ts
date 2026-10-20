@@ -160,6 +160,7 @@ export const zh: Translations = {
     anyTag: '全部标签',
     sortHot: '浏览最多',
     sortNew: '最新发布',
+    sortMine: '我的',
     rangeAll: '全部时间',
     rangeDay: '24 小时内',
     rangeWeek: '一周内',
@@ -216,6 +217,7 @@ export const zh: Translations = {
     History: '历史',
     Geography: '地理',
     'Computer Science': '计算机',
+    TOK: 'TOK（知识论）',
     Other: '其他',
   },
   grades: {

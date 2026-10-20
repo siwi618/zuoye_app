@@ -159,6 +159,7 @@ export const en = {
     anyTag: 'All tags',
     sortHot: 'Most viewed',
     sortNew: 'Newest',
+    sortMine: 'Mine first',
     rangeAll: 'Any time',
     rangeDay: 'Past 24 hours',
     rangeWeek: 'Past week',
@@ -215,6 +216,7 @@ export const en = {
     History: 'History',
     Geography: 'Geography',
     'Computer Science': 'Computer Science',
+    TOK: 'TOK',
     Other: 'Other',
   },
   grades: {

@@ -22,6 +22,7 @@ class ForumTag(str, Enum):
 class PostSort(str, Enum):
     hot = "hot"  # most viewed first
     new = "new"
+    mine = "mine"  # the caller's own posts pinned on top (newest first), then the rest by views
 
 
 class TimeRange(str, Enum):

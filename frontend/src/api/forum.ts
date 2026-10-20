@@ -2,7 +2,7 @@ import { apiFetch } from './client'
 import type { ProfileSummary } from './requests'
 import type { MediaRead } from './media'
 
-export type PostSort = 'hot' | 'new'
+export type PostSort = 'hot' | 'new' | 'mine'
 export type TimeRange = 'all' | 'day' | 'week' | 'month'
 export type CommentSort = 'top' | 'new'
 

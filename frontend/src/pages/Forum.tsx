@@ -62,6 +62,7 @@ export function Forum() {
             <SelectContent>
               <SelectItem value="hot">{t('forum.sortHot')}</SelectItem>
               <SelectItem value="new">{t('forum.sortNew')}</SelectItem>
+              <SelectItem value="mine">{t('forum.sortMine')}</SelectItem>
             </SelectContent>
           </Select>
 
