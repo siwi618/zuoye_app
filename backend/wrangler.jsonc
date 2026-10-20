@@ -6,6 +6,10 @@
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
 
+  // Served on our own domain: *.workers.dev is unreliable from mainland China.
+  // The workers.dev address stays enabled as a fallback.
+  "routes": [{ "pattern": "api.studycoral.com", "custom_domain": true }],
+
   "containers": [
     {
       "class_name": "ZuoyebangBackend",
