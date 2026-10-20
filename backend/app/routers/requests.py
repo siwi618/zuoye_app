@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query
 
 from app.deps import CurrentUserDep
+from app.schemas.message import MessageCreate, MessageRead
 from app.schemas.request import (
     RequestCreate,
     RequestRead,
@@ -8,6 +9,7 @@ from app.schemas.request import (
     RequestUpdate,
     ScheduleRequest,
 )
+from app.services import messages as messages_svc
 from app.services import requests as svc
 
 router = APIRouter(prefix="/requests", tags=["requests"])
@@ -21,6 +23,7 @@ def list_requests(
     grade: str | None = Query(default=None),
     mine: bool = Query(default=False),
     exclude_mine: bool = Query(default=False),
+    helping: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[RequestRead]:
     return svc.list_requests(
@@ -30,6 +33,7 @@ def list_requests(
         grade=grade,
         mine=mine,
         exclude_mine=exclude_mine,
+        helping=helping,
         limit=limit,
     )
 
@@ -72,3 +76,13 @@ def complete_request(user: CurrentUserDep, request_id: str) -> RequestRead:
 @router.post("/{request_id}/cancel", response_model=RequestRead)
 def cancel_request(user: CurrentUserDep, request_id: str) -> RequestRead:
     return svc.cancel_request(user.id, request_id)
+
+
+@router.get("/{request_id}/messages", response_model=list[MessageRead])
+def list_messages(user: CurrentUserDep, request_id: str) -> list[MessageRead]:
+    return messages_svc.list_messages(user.id, request_id)
+
+
+@router.post("/{request_id}/messages", response_model=MessageRead, status_code=201)
+def send_message(user: CurrentUserDep, request_id: str, payload: MessageCreate) -> MessageRead:
+    return messages_svc.send_message(user.id, request_id, payload)

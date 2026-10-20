@@ -43,6 +43,7 @@ export interface ListRequestsParams {
   grade?: string
   mine?: boolean
   exclude_mine?: boolean
+  helping?: boolean  // only requests the caller accepted as helper
   limit?: number
 }
 

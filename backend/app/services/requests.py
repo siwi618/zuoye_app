@@ -83,6 +83,7 @@ def list_requests(
     grade: str | None = None,
     mine: bool = False,
     exclude_mine: bool = False,
+    helping: bool = False,
     limit: int = 50,
 ) -> list[RequestRead]:
     # Completed requests are listed by when they were completed, the rest by when posted.
@@ -105,6 +106,8 @@ def list_requests(
         query = query.or_(f"requester_id.eq.{user_id},helper_id.eq.{user_id}")
     if exclude_mine:
         query = query.neq("requester_id", user_id)
+    if helping:
+        query = query.eq("helper_id", user_id)
 
     rows = query.execute().data or []
     if not rows:

@@ -50,6 +50,7 @@ export function AppLayout() {
             {[
               { to: '/', label: t('nav.dashboard'), end: true },
               { to: '/requests', label: t('nav.browse') },
+              { to: '/my-tasks', label: t('nav.myTasks') },
               { to: '/history', label: t('nav.history') },
               { to: '/forum', label: t('nav.forum') },
               { to: '/leaderboard', label: t('nav.leaderboard') },
@@ -135,6 +136,7 @@ export function AppLayout() {
           {[
             { to: '/', label: t('nav.dashboard'), end: true },
             { to: '/requests', label: t('nav.browse') },
+            { to: '/my-tasks', label: t('nav.myTasks') },
             { to: '/history', label: t('nav.history') },
             { to: '/forum', label: t('nav.forum') },
             { to: '/leaderboard', label: t('nav.leaderboard') },

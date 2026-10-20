@@ -43,6 +43,7 @@ import {
 import { useAuthStore } from '@/store/auth'
 import { FeedbackSection } from '@/components/FeedbackSection'
 import { MediaGallery } from '@/components/MediaGallery'
+import { RequestChat } from '@/components/RequestChat'
 
 const statusMeta: Record<
   RequestStatus,
@@ -271,6 +272,10 @@ export function RequestDetail() {
           )}
         </CardContent>
       </Card>
+
+      {isParticipant && (req.status === 'accepted' || req.status === 'completed') && (
+        <RequestChat requestId={req.id} canSend={req.status === 'accepted'} />
+      )}
 
       <ScheduleDialog
         open={scheduleOpen}

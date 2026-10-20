@@ -4,6 +4,7 @@ export const en = {
     tagline: 'Peer homework help, by students for students.',
   },
   nav: {
+    myTasks: 'My Tasks',
     history: 'Help History',
     dashboard: 'Dashboard',
     browse: 'Browse Requests',
@@ -42,6 +43,8 @@ export const en = {
     displayNameRejected: 'This display name is not allowed. Please choose another one.',
   },
   dashboard: {
+    myTasksSubtitle: "Requests you've accepted that aren't completed yet.",
+    myTasksEmpty: "You haven't accepted any requests in progress.",
     latestOpenRequests: 'Latest Open Requests',
     recentCompletedRequests: 'Recently Completed Requests',
     historySubtitle: 'Every request that has been completed.',
@@ -105,6 +108,16 @@ export const en = {
     meetingInfoPlaceholder: 'e.g. Zoom link, library room 203, …',
     posted: 'Request posted',
     postFailed: 'Failed to post request',
+  },
+  chat: {
+    title: 'Chat',
+    subtitle: 'Only you and the other person can see these messages.',
+    empty: 'No messages yet — say hi and agree on the details.',
+    placeholder: 'Type a message… (Enter to send, Shift+Enter for a new line)',
+    send: 'Send',
+    sending: 'Sending…',
+    sendFailed: 'Message failed to send',
+    readOnly: 'This request is completed — the chat is read-only.',
   },
   feedback: {
     title: 'Feedback',

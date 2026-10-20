@@ -6,6 +6,7 @@ export const zh: Translations = {
     tagline: '同学之间互相帮忙的作业平台。',
   },
   nav: {
+    myTasks: '我的接单',
     history: '接单历史',
     dashboard: '主页',
     browse: '浏览请求',
@@ -43,6 +44,8 @@ export const zh: Translations = {
     displayNameRejected: '这个昵称不符合社区规范，请换一个。',
   },
   dashboard: {
+    myTasksSubtitle: '你已经接下、还没完成的请求。',
+    myTasksEmpty: '你还没有进行中的接单。',
     latestOpenRequests: '最新待接单请求',
     recentCompletedRequests: '近期已完成的请求',
     historySubtitle: '所有已经完成的请求。',
@@ -106,6 +109,16 @@ export const zh: Translations = {
     meetingInfoPlaceholder: '例如：Zoom 链接、图书馆 203 室…',
     posted: '请求已发布',
     postFailed: '发布请求失败',
+  },
+  chat: {
+    title: '聊天',
+    subtitle: '只有你和对方能看到这些消息。',
+    empty: '还没有消息 — 打个招呼，约一下时间和方式吧。',
+    placeholder: '输入消息…（Enter 发送，Shift+Enter 换行）',
+    send: '发送',
+    sending: '发送中…',
+    sendFailed: '消息发送失败',
+    readOnly: '这个请求已完成，聊天记录只能查看。',
   },
   feedback: {
     title: '评价',
