@@ -23,7 +23,7 @@ export function BrowseRequests() {
   const [params] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState<RequestStatus | typeof ANY>(() => {
     const s = params.get('status')
-    return s === 'accepted' || s === 'completed' || s === 'cancelled' ? s : 'open'
+    return s === 'accepted' || s === 'completed' ? s : 'open'
   })
   const [subject, setSubject] = useState<string>(ANY)
   const [grade, setGrade] = useState<string>(ANY)
@@ -37,6 +37,8 @@ export function BrowseRequests() {
         status: statusFilter === ANY ? undefined : statusFilter,
         subject: subject === ANY ? undefined : subject,
         grade: grade === ANY ? undefined : grade,
+        // Cancelled requests are only shown to their owner, under My Requests.
+        hide_cancelled: true,
       }),
   })
 
@@ -72,7 +74,6 @@ export function BrowseRequests() {
             <SelectItem value="open">{t('status.open')}</SelectItem>
             <SelectItem value="accepted">{t('status.accepted')}</SelectItem>
             <SelectItem value="completed">{t('status.completed')}</SelectItem>
-            <SelectItem value="cancelled">{t('status.cancelled')}</SelectItem>
           </SelectContent>
         </Select>
 

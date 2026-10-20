@@ -85,6 +85,7 @@ def list_requests(
     exclude_mine: bool = False,
     helping: bool = False,
     posted: bool = False,
+    hide_cancelled: bool = False,
     limit: int = 50,
 ) -> list[RequestRead]:
     # Completed requests are listed by when they were completed, the rest by when posted.
@@ -111,6 +112,8 @@ def list_requests(
         query = query.eq("helper_id", user_id)
     if posted:
         query = query.eq("requester_id", user_id)
+    if hide_cancelled:
+        query = query.neq("status", RequestStatus.cancelled.value)
 
     rows = query.execute().data or []
     if not rows:
