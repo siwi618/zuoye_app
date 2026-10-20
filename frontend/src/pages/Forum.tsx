@@ -144,15 +144,6 @@ function PostCard({ post }: { post: PostRead }) {
         </CardHeader>
         <CardContent className="flex flex-1 flex-col">
           <p className="line-clamp-2 text-sm text-muted-foreground">{post.body}</p>
-          {post.top_comment && (
-            <p className="mt-3 line-clamp-1 rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{t('forum.topComment')}</span>
-              {' · '}
-              <span className="font-medium text-foreground">{post.top_comment.author_name}</span>
-              {': '}
-              {post.top_comment.body}
-            </p>
-          )}
           {/* pinned to the bottom so footers line up across a row of cards */}
           <div className="mt-auto pt-4">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
@@ -184,6 +175,16 @@ function PostCard({ post }: { post: PostRead }) {
                 </span>
               </span>
             </div>
+            {post.top_comment && (
+              // Single line; longer comments end in an ellipsis.
+              <p className="mt-3 truncate rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{t('forum.topComment')}</span>
+                {' · '}
+                <span className="font-medium text-foreground">{post.top_comment.author_name}</span>
+                {': '}
+                {post.top_comment.body.replace(/\s+/g, ' ')}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
