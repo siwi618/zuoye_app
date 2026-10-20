@@ -44,7 +44,7 @@
     "ENVIRONMENT": "production",
     // "false" turns off video uploads (images keep working). Push to redeploy.
     "MEDIA_VIDEO_ENABLED": "true",
-    "CORS_ORIGINS": "https://zuoyebang-app.pages.dev,http://localhost:3000"
+    "CORS_ORIGINS": "https://studycoral.com,https://www.studycoral.com,https://zuoyebang-app.pages.dev,http://localhost:3000"
   }
 
   // Secrets (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)

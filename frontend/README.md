@@ -1,4 +1,4 @@
-# Frontend — Zuoyebang
+# Frontend — Coral Study
 
 React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui.
 

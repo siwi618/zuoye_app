@@ -1,6 +1,6 @@
 export const en = {
   app: {
-    name: 'Zuoyebang',
+    name: 'Coral Study',
     tagline: 'Peer homework help, by students for students.',
   },
   nav: {

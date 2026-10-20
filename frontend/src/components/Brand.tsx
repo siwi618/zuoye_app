@@ -18,25 +18,27 @@ export function Brand({ size = 'md', withWordmark = true, className }: BrandProp
           markSize[size],
         )}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-          className="size-1/2"
-        >
-          <path d="M4 6h10" />
-          <path d="M4 12h7" />
-          <path d="M4 18h10" />
-          <circle cx="18" cy="12" r="2" fill="currentColor" stroke="none" />
+        {/* Coral mark — same drawing as public/favicon.svg */}
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden className="size-[70%]">
+          <g stroke="currentColor" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M32 58V13" />
+            <path d="M32 45c0-8-12-7-12-18v-6" />
+            <path d="M32 40c0-8 12-7 12-18v-6" />
+            <path d="M32 52c0-6-21-5-21-17v-1" />
+            <path d="M32 49c0-6 21-5 21-17v-1" />
+          </g>
+          <g fill="currentColor">
+            <circle cx="32" cy="11" r="4.6" />
+            <circle cx="20" cy="19" r="4.6" />
+            <circle cx="44" cy="14" r="4.6" />
+            <circle cx="11" cy="31" r="4" />
+            <circle cx="53" cy="29" r="4" />
+          </g>
         </svg>
       </span>
       {withWordmark && (
         <span className={cn('font-semibold tracking-tight text-foreground', textSize[size])}>
-          Zuoyebang
+          Coral <span className="text-primary">Study</span>
         </span>
       )}
     </span>

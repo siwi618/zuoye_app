@@ -1,4 +1,4 @@
-# Backend — Zuoyebang
+# Backend — Coral Study
 
 FastAPI service. Auth = Supabase JWT (HS256, audience `authenticated`). DB = Supabase Postgres via supabase-py.
 

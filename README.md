@@ -1,4 +1,4 @@
-# Zuoyebang — Peer Homework Help
+# Coral Study — Peer Homework Help
 
 A web platform where students post help requests (grade / subject / topic), other students accept them, meet online or offline, and leave mutual feedback (1–5 stars + comment). A leaderboard ranks helpers by average rating.
 
@@ -20,7 +20,7 @@ A web platform where students post help requests (grade / subject / topic), othe
 
 | Service | URL |
 |---------|-----|
-| Frontend (prod) | https://zuoyebang-app.pages.dev |
+| Frontend (prod) | https://studycoral.com (also https://zuoyebang-app.pages.dev) |
 | Backend API (prod) | https://zuoyebang-backend.lyu331901400.workers.dev |
 | Backend Swagger (prod) | https://zuoyebang-backend.lyu331901400.workers.dev/docs |
 | Backend health (prod) | https://zuoyebang-backend.lyu331901400.workers.dev/healthz |

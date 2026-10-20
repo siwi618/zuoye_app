@@ -1,7 +1,7 @@
 [project]
 name = "zuoyebang-backend"
 version = "0.1.0"
-description = "FastAPI backend for the Zuoyebang peer homework-help platform"
+description = "FastAPI backend for the Coral Study peer homework-help platform"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

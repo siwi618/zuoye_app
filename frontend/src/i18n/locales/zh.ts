@@ -2,7 +2,7 @@ import type { Translations } from './en'
 
 export const zh: Translations = {
   app: {
-    name: '作业帮',
+    name: 'Coral Study',
     tagline: '同学之间互相帮忙的作业平台。',
   },
   nav: {

@@ -1,6 +1,6 @@
 # Supabase
 
-SQL migrations for the Zuoyebang database.
+SQL migrations for the Coral Study database.
 
 ## Schema overview
 

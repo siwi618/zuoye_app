@@ -53,7 +53,7 @@ export function AuthShell({ children }: AuthShellProps) {
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/70">© {new Date().getFullYear()} Zuoyebang</p>
+        <p className="relative text-xs text-white/70">© {new Date().getFullYear()} Coral Study</p>
       </aside>
 
       {/* Form panel */}

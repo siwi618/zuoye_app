@@ -8,9 +8,9 @@ from app.routers import feedback, forum, health, me, media, moderation, requests
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="Zuoyebang API",
+        title="Coral Study API",
         version="0.1.0",
-        description="Backend for the Zuoyebang peer homework-help platform",
+        description="Backend for the Coral Study peer homework-help platform",
     )
 
     app.add_middleware(

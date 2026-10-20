@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # (wrangler.jsonc `vars` for prod, optional override in local `.env`).
 DEFAULT_CORS_ORIGINS = {
     "development": ["http://localhost:3000", "http://localhost:5173"],
-    "production": ["https://zuoyebang-app.pages.dev"],
+    "production": ["https://studycoral.com", "https://www.studycoral.com", "https://zuoyebang-app.pages.dev"],
 }
 
 
