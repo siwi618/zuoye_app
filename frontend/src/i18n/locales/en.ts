@@ -118,7 +118,6 @@ export const en = {
     to: 'To',
   },
   forum: {
-    topComment: 'Top comment',
     title: 'Discussion',
     subtitle: 'Ask, share and chat with classmates.',
     newPost: 'New post',

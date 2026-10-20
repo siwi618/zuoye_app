@@ -178,8 +178,6 @@ function PostCard({ post }: { post: PostRead }) {
             {post.top_comment && (
               // Single line; longer comments end in an ellipsis.
               <p className="mt-3 truncate rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{t('forum.topComment')}</span>
-                {' · '}
                 <span className="font-medium text-foreground">{post.top_comment.author_name}</span>
                 {': '}
                 {post.top_comment.body.replace(/\s+/g, ' ')}

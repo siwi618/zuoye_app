@@ -119,7 +119,6 @@ export const zh: Translations = {
     to: '给',
   },
   forum: {
-    topComment: '最热评论',
     title: '讨论区',
     subtitle: '和同学一起提问、分享、闲聊。',
     newPost: '发帖',
