@@ -111,7 +111,7 @@ export const en = {
   },
   chat: {
     title: 'Chat',
-    subtitle: 'Only you and the other person can see these messages.',
+    subtitle: 'Start helping each other!',
     empty: 'No messages yet — say hi and agree on the details.',
     placeholder: 'Type a message… (Enter to send, Shift+Enter for a new line)',
     send: 'Send',

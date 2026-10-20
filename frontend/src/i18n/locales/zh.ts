@@ -112,7 +112,7 @@ export const zh: Translations = {
   },
   chat: {
     title: '聊天',
-    subtitle: '只有你和对方能看到这些消息。',
+    subtitle: '开始和对方互助吧！',
     empty: '还没有消息 — 打个招呼，约一下时间和方式吧。',
     placeholder: '输入消息…（Enter 发送，Shift+Enter 换行）',
     send: '发送',
