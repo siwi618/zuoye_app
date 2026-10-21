@@ -44,8 +44,11 @@ export const zh: Translations = {
     displayNameRejected: '这个昵称不符合社区规范，请换一个。',
   },
   dashboard: {
-    myRequestsSubtitle: '你发布过的所有请求，以及它们现在的状态。',
-    myRequestsEmpty: '你还没有发布过请求。',
+    myRequestsSubtitle: '你发布的、等待接单或正在进行的请求。',
+    myRequestsEmpty: '你没有正在进行的请求。',
+    tabRequestHistory: '请求历史',
+    myRequestHistorySubtitle: '你发布的、已经完成的请求。',
+    myRequestHistoryEmpty: '你还没有已完成的请求。',
     myHistorySubtitle: '你帮忙并已完成的请求。',
     myHistoryEmpty: '你还没有完成过接单。',
     tabOngoing: '正在进行',

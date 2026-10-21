@@ -38,7 +38,7 @@ export interface RequestCreate {
 }
 
 export interface ListRequestsParams {
-  status?: RequestStatus
+  status?: RequestStatus | RequestStatus[]  // several = any of them
   subject?: string
   grade?: string
   mine?: boolean
@@ -49,11 +49,16 @@ export interface ListRequestsParams {
   limit?: number
 }
 
-function qs(params: Record<string, string | number | boolean | undefined>): string {
+function qs(
+  params: Record<string, string | number | boolean | string[] | undefined>,
+): string {
   const parts: string[] = []
-  for (const [k, v] of Object.entries(params)) {
-    if (v === undefined || v === null || v === '') continue
-    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+  for (const [k, value] of Object.entries(params)) {
+    // Arrays repeat the key: status=open&status=accepted
+    for (const v of Array.isArray(value) ? value : [value]) {
+      if (v === undefined || v === null || v === '') continue
+      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    }
   }
   return parts.length ? `?${parts.join('&')}` : ''
 }

@@ -78,7 +78,7 @@ def _is_hidden(row: dict, profiles_by_id: dict[str, dict]) -> bool:
 def list_requests(
     user_id: str,
     *,
-    status_filter: RequestStatus | None = None,
+    status_filter: list[RequestStatus] | None = None,
     subject: str | None = None,
     grade: str | None = None,
     mine: bool = False,
@@ -89,7 +89,7 @@ def list_requests(
     limit: int = 50,
 ) -> list[RequestRead]:
     # Completed requests are listed by when they were completed, the rest by when posted.
-    order_by = "completed_at" if status_filter == RequestStatus.completed else "created_at"
+    order_by = "completed_at" if status_filter == [RequestStatus.completed] else "created_at"
     query = (
         get_supabase()
         .table("requests")
@@ -100,7 +100,7 @@ def list_requests(
     )
 
     if status_filter:
-        query = query.eq("status", status_filter.value)
+        query = query.in_("status", [s.value for s in status_filter])
     if subject:
         query = query.eq("subject", subject)
     if grade:

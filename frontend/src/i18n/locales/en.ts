@@ -43,8 +43,11 @@ export const en = {
     displayNameRejected: 'This display name is not allowed. Please choose another one.',
   },
   dashboard: {
-    myRequestsSubtitle: "Everything you've posted and where each one stands.",
-    myRequestsEmpty: "You haven't posted any requests yet.",
+    myRequestsSubtitle: 'Your requests that are waiting for a helper or in progress.',
+    myRequestsEmpty: 'You have no requests in progress.',
+    tabRequestHistory: 'Request history',
+    myRequestHistorySubtitle: 'Your requests that have been completed.',
+    myRequestHistoryEmpty: 'None of your requests have been completed yet.',
     myHistorySubtitle: "Requests you've helped with and completed.",
     myHistoryEmpty: "You haven't completed any requests as a helper yet.",
     tabOngoing: 'In progress',

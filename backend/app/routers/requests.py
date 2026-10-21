@@ -18,7 +18,8 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 @router.get("", response_model=list[RequestRead])
 def list_requests(
     user: CurrentUserDep,
-    status: RequestStatus | None = Query(default=None),
+    # Repeat to match any of several statuses: ?status=open&status=accepted
+    status: list[RequestStatus] | None = Query(default=None),
     subject: str | None = Query(default=None),
     grade: str | None = Query(default=None),
     mine: bool = Query(default=False),
