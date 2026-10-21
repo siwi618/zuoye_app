@@ -1,21 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { CalendarDays, CircleDot, CheckCircle2, Clock, XCircle, MapPin, Video } from 'lucide-react'
+import { CalendarDays, CircleDot, MapPin, Video } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import type { RequestRead, RequestStatus } from '@/api/requests'
-
-const statusMeta: Record<
-  RequestStatus,
-  { variant: 'open' | 'accepted' | 'completed' | 'cancelled'; Icon: typeof CircleDot }
-> = {
-  open: { variant: 'open', Icon: CircleDot },
-  accepted: { variant: 'accepted', Icon: Clock },
-  completed: { variant: 'completed', Icon: CheckCircle2 },
-  cancelled: { variant: 'cancelled', Icon: XCircle },
-}
+import type { RequestRead } from '@/api/requests'
+import { displayStatus, statusIcon } from '@/lib/requestStatus'
 
 function ModeIcon({ mode }: { mode: RequestRead['mode'] }) {
   if (mode === 'online') return <Video className="size-3.5" />
@@ -26,7 +17,8 @@ function ModeIcon({ mode }: { mode: RequestRead['mode'] }) {
 export function RequestCard({ request }: { request: RequestRead }) {
   const { t } = useTranslation()
   const when = new Date(request.created_at).toLocaleDateString()
-  const { variant, Icon } = statusMeta[request.status]
+  const status = displayStatus(request)
+  const Icon = statusIcon[status]
   const requesterInitials = request.requester.display_name.slice(0, 2).toUpperCase()
 
   return (
@@ -46,9 +38,9 @@ export function RequestCard({ request }: { request: RequestRead }) {
                 <span className="text-muted-foreground"> · {request.topic}</span>
               ) : null}
             </CardTitle>
-            <Badge variant={variant} className="shrink-0 gap-1 capitalize">
+            <Badge variant={status} className="shrink-0 gap-1 capitalize">
               <Icon className="size-3" />
-              {t(`status.${request.status}`)}
+              {t(`status.${status}`)}
             </Badge>
           </div>
           <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs">

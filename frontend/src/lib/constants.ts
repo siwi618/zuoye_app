@@ -21,7 +21,7 @@ export const GRADE_OPTIONS = [
   'Grade 10',
   'Grade 11',
   'Grade 12',
-  'University',
+  'Teacher',
   'Other',
 ] as const
 

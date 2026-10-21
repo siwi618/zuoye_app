@@ -42,6 +42,10 @@ export function FeedbackSection({
       setComment('')
       queryClient.setQueryData<FeedbackRead[]>(['feedbacks', requestId], (old) => [...(old ?? []), fb])
       void queryClient.invalidateQueries({ queryKey: ['leaderboard'] })
+      // The request is no longer "待评价" for this user.
+      void queryClient.invalidateQueries({ queryKey: ['request', requestId] })
+      void queryClient.invalidateQueries({ queryKey: ['requests'] })
+      void queryClient.invalidateQueries({ queryKey: ['pending-reviews'] })
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : t('common.error')),
   })

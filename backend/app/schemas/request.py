@@ -73,3 +73,5 @@ class RequestRead(BaseModel):
     created_at: datetime
     accepted_at: datetime | None
     completed_at: datetime | None
+    # Completed, the caller took part, and they haven't left their rating yet ("待评价").
+    awaiting_my_review: bool = False

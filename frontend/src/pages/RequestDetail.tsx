@@ -8,13 +8,11 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDot,
-  Clock,
   GraduationCap,
   MapPin,
   Users,
   Video,
   Trash2,
-  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -40,22 +38,12 @@ import {
   getRequest,
   scheduleRequest,
   type RequestRead,
-  type RequestStatus,
 } from '@/api/requests'
 import { useAuthStore } from '@/store/auth'
 import { FeedbackSection } from '@/components/FeedbackSection'
 import { MediaGallery } from '@/components/MediaGallery'
+import { displayStatus, statusIcon } from '@/lib/requestStatus'
 import { RequestChat } from '@/components/RequestChat'
-
-const statusMeta: Record<
-  RequestStatus,
-  { variant: 'open' | 'accepted' | 'completed' | 'cancelled'; Icon: typeof CircleDot }
-> = {
-  open: { variant: 'open', Icon: CircleDot },
-  accepted: { variant: 'accepted', Icon: Clock },
-  completed: { variant: 'completed', Icon: CheckCircle2 },
-  cancelled: { variant: 'cancelled', Icon: XCircle },
-}
 
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return ''
@@ -108,6 +96,7 @@ export function RequestDetail() {
   const applyUpdate = (updated: RequestRead) => {
     queryClient.setQueryData(['request', id], updated)
     void queryClient.invalidateQueries({ queryKey: ['requests'] })
+    void queryClient.invalidateQueries({ queryKey: ['pending-reviews'] })
   }
 
   const accept = useMutation({
@@ -159,7 +148,8 @@ export function RequestDetail() {
   const anyAction = showAccept || showSchedule || showComplete || showCancel || showDelete
   const busy = accept.isPending || complete.isPending || cancel.isPending || remove.isPending
 
-  const { variant: statusVariant, Icon: StatusIcon } = statusMeta[req.status]
+  const shownStatus = displayStatus(req)
+  const StatusIcon = statusIcon[shownStatus]
   const requesterInitials = req.requester.display_name.slice(0, 2).toUpperCase()
   const helperInitials = req.helper?.display_name.slice(0, 2).toUpperCase()
 
@@ -197,9 +187,9 @@ export function RequestDetail() {
                 </span>
               </div>
             </div>
-            <Badge variant={statusVariant} className="gap-1 capitalize">
+            <Badge variant={shownStatus} className="gap-1 capitalize">
               <StatusIcon className="size-3" />
-              {t(`status.${req.status}`)}
+              {t(`status.${shownStatus}`)}
             </Badge>
           </div>
         </CardHeader>

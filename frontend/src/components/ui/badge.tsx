@@ -18,14 +18,19 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
-        open:
+        brand:
           "bg-brand-100 text-brand-700 ring-1 ring-inset ring-brand-200/60",
+        // Request statuses (lib/requestStatus.ts)
+        open:
+          "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:ring-orange-700/40",
         accepted:
-          "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-700/40",
+          "bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200 dark:ring-yellow-700/40",
+        review:
+          "bg-pink-50 text-pink-700 ring-1 ring-inset ring-pink-200 dark:bg-pink-900/30 dark:text-pink-200 dark:ring-pink-700/40",
         completed:
           "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-700/40",
         cancelled:
-          "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:ring-rose-700/40",
+          "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:ring-slate-700/60",
       },
     },
     defaultVariants: {

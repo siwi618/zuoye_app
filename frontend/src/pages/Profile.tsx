@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2, GraduationCap, Mail } from 'lucide-react'
+import { CheckCircle2, GraduationCap, Mail, UserRoundPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -16,7 +17,14 @@ import {
 } from '@/components/ui/select'
 import { RequestCard } from '@/components/RequestCard'
 import { listRequests } from '@/api/requests'
-import { MY_PROFILE_KEY, updateMyProfile, useMyProfile, type Grade } from '@/api/profile'
+import {
+  changeMyName,
+  MY_PROFILE_KEY,
+  updateMyProfile,
+  useMyProfile,
+  type Grade,
+} from '@/api/profile'
+import { supabase } from '@/api/supabase'
 import { GRADE_OPTIONS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
@@ -61,6 +69,7 @@ export function Profile() {
         </CardContent>
       </Card>
 
+      <DisplayNameCard />
       <DefaultGradeCard />
 
       <section className="space-y-4">
@@ -153,6 +162,74 @@ function DefaultGradeCard() {
             disabled={!value || value === saved || mutation.isPending}
           >
             {mutation.isPending ? '…' : t('profile.saveGrade')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DisplayNameCard() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const profile = useMyProfile()
+  const saved = profile.data?.display_name ?? ''
+  const nextChange = profile.data?.next_name_change_at ?? null
+  // null = untouched, follow the saved value
+  const [draft, setDraft] = useState<string | null>(null)
+  const value = draft ?? saved
+
+  const mutation = useMutation({
+    mutationFn: (name: string) => changeMyName(name),
+    onSuccess: (data) => {
+      queryClient.setQueryData(MY_PROFILE_KEY, data)
+      setDraft(null)
+      // The header reads the name from the session; fetch the updated one.
+      void supabase.auth.refreshSession()
+      toast.success(t('profile.nameSaved'))
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : t('common.error'))
+    },
+  })
+
+  const locked = Boolean(nextChange)
+  const trimmed = value.trim()
+
+  return (
+    <Card>
+      <CardContent className="flex flex-wrap items-end gap-4">
+        <div className="flex min-w-56 flex-1 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
+            <UserRoundPen className="size-4.5" />
+          </span>
+          <div className="space-y-1">
+            <Label htmlFor="display-name" className="text-base font-semibold">
+              {t('profile.displayName')}
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              {locked
+                ? t('profile.nextNameChange', {
+                    date: new Date(nextChange!).toLocaleDateString(),
+                  })
+                : t('profile.displayNameHint')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            id="display-name"
+            value={value}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={profile.isLoading || locked}
+            maxLength={50}
+            className="w-48"
+          />
+          <Button
+            onClick={() => mutation.mutate(trimmed)}
+            disabled={locked || !trimmed || trimmed === saved || mutation.isPending}
+          >
+            {mutation.isPending ? '…' : t('profile.saveName')}
           </Button>
         </div>
       </CardContent>

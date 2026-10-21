@@ -21,7 +21,10 @@ def _now_iso() -> str:
 
 
 def _hydrate_request(
-    row: dict, profiles_by_id: dict[str, dict], media_by_id: dict[str, MediaRead]
+    row: dict,
+    profiles_by_id: dict[str, dict],
+    media_by_id: dict[str, MediaRead],
+    awaiting_my_review: bool = False,
 ) -> RequestRead:
     requester_row = profiles_by_id.get(row["requester_id"])
     if not requester_row:
@@ -49,6 +52,7 @@ def _hydrate_request(
         created_at=row["created_at"],
         accepted_at=row.get("accepted_at"),
         completed_at=row.get("completed_at"),
+        awaiting_my_review=awaiting_my_review,
     )
 
 
@@ -75,6 +79,31 @@ def _is_hidden(row: dict, profiles_by_id: dict[str, dict]) -> bool:
     return False
 
 
+def _reviewed_ids(user_id: str, request_ids: list[str]) -> set[str]:
+    """Requests (of these) the user has already left feedback on."""
+    if not request_ids:
+        return set()
+    rows = (
+        get_supabase()
+        .table("feedbacks")
+        .select("request_id")
+        .eq("from_user_id", user_id)
+        .in_("request_id", request_ids)
+        .execute()
+        .data
+        or []
+    )
+    return {r["request_id"] for r in rows}
+
+
+def _awaits_review(row: dict, user_id: str, reviewed: set[str]) -> bool:
+    return (
+        row["status"] == RequestStatus.completed.value
+        and user_id in (row["requester_id"], row.get("helper_id"))
+        and row["id"] not in reviewed
+    )
+
+
 def list_requests(
     user_id: str,
     *,
@@ -86,6 +115,7 @@ def list_requests(
     helping: bool = False,
     posted: bool = False,
     hide_cancelled: bool = False,
+    awaiting_review: bool | None = None,
     limit: int = 50,
 ) -> list[RequestRead]:
     # Completed requests are listed by when they were completed, the rest by when posted.
@@ -128,11 +158,26 @@ def list_requests(
 
     profiles = _fetch_profiles(user_ids)
     rows = [r for r in rows if not _is_hidden(r, profiles)]
+    reviewed = _reviewed_ids(
+        user_id, [r["id"] for r in rows if r["status"] == RequestStatus.completed.value]
+    )
+    # awaiting_review narrows only the completed rows: True keeps the ones the
+    # caller still has to rate ("待评价"), False the ones they've rated.
+    if awaiting_review is not None:
+        rows = [
+            r
+            for r in rows
+            if r["status"] != RequestStatus.completed.value
+            or _awaits_review(r, user_id, reviewed) == awaiting_review
+        ]
     media_by_id = media_svc.fetch(media_svc.all_ids(rows))
-    return [_hydrate_request(r, profiles, media_by_id) for r in rows]
+    return [
+        _hydrate_request(r, profiles, media_by_id, _awaits_review(r, user_id, reviewed))
+        for r in rows
+    ]
 
 
-def get_request(request_id: str) -> RequestRead:
+def get_request(request_id: str, user_id: str) -> RequestRead:
     rows = (
         get_supabase()
         .table("requests")
@@ -153,7 +198,8 @@ def get_request(request_id: str) -> RequestRead:
     profiles = _fetch_profiles(user_ids)
     if _is_hidden(row, profiles):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
-    return _hydrate_request(row, profiles, media_svc.fetch(media_svc.all_ids([row])))
+    awaiting = _awaits_review(row, user_id, _reviewed_ids(user_id, [row["id"]]))
+    return _hydrate_request(row, profiles, media_svc.fetch(media_svc.all_ids([row])), awaiting)
 
 
 def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
@@ -180,7 +226,7 @@ def create_request(user_id: str, payload: RequestCreate) -> RequestRead:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create request",
         )
-    return get_request(row["id"])
+    return get_request(row["id"], user_id)
 
 
 def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> RequestRead:
@@ -210,7 +256,7 @@ def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> Req
 
     updates = payload.model_dump(exclude_none=True, mode="json")
     if not updates:
-        return get_request(request_id)
+        return get_request(request_id, user_id)
     if "media_ids" in updates:
         updates["media_ids"] = media_svc.validate_attachments(user_id, updates["media_ids"])
     merged = {**existing, **updates}
@@ -232,7 +278,7 @@ def update_request(user_id: str, request_id: str, payload: RequestUpdate) -> Req
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update request",
         )
-    return get_request(row["id"])
+    return get_request(row["id"], user_id)
 
 
 def _get_row(request_id: str) -> dict:
@@ -284,7 +330,7 @@ def accept_request(user_id: str, request_id: str) -> RequestRead:
             status_code=status.HTTP_409_CONFLICT,
             detail="Request was just accepted by someone else",
         )
-    return get_request(request_id)
+    return get_request(request_id, user_id)
 
 
 def schedule_request(user_id: str, request_id: str, payload: ScheduleRequest) -> RequestRead:
@@ -306,7 +352,7 @@ def schedule_request(user_id: str, request_id: str, payload: ScheduleRequest) ->
         "meeting_info": payload.meeting_info,
         "moderated": moderated,
     }).eq("id", request_id).execute()
-    return get_request(request_id)
+    return get_request(request_id, user_id)
 
 
 def complete_request(user_id: str, request_id: str) -> RequestRead:
@@ -326,7 +372,7 @@ def complete_request(user_id: str, request_id: str) -> RequestRead:
         "status": RequestStatus.completed.value,
         "completed_at": _now_iso(),
     }).eq("id", request_id).execute()
-    return get_request(request_id)
+    return get_request(request_id, user_id)
 
 
 def cancel_request(user_id: str, request_id: str) -> RequestRead:
@@ -358,7 +404,7 @@ def cancel_request(user_id: str, request_id: str) -> RequestRead:
         {"status": RequestStatus.cancelled.value}
     ).eq("id", request_id).execute()
 
-    return get_request(request_id)
+    return get_request(request_id, user_id)
 
 
 def delete_request(user_id: str, request_id: str) -> None:

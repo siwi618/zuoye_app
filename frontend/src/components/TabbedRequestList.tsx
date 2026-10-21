@@ -23,6 +23,8 @@ export interface RequestTab {
   subtitle: string
   // Which requests this tab lists (subject / grade filters are added on top).
   params: ListRequestsParams
+  // Optional status chips after "All"; each replaces the tab's params.
+  categories?: { key: string; label: string; params: ListRequestsParams }[]
   empty: ReactNode
 }
 
@@ -44,16 +46,18 @@ export function TabbedRequestList({
   const [params, setParams] = useSearchParams()
   const isHistory = params.get('tab') === 'history'
   const tab = isHistory ? history : ongoing
+  const [category, setCategory] = useState<string>(ANY)
+  const listParams = tab.categories?.find((c) => c.key === category)?.params ?? tab.params
   const [subject, setSubject] = useState<string>(ANY)
   const [grade, setGrade] = useState<string>(ANY)
   const filtered = subject !== ANY || grade !== ANY
 
   const query = useQuery({
     placeholderData: keepPreviousData,
-    queryKey: ['requests', { ...tab.params, subject, grade }],
+    queryKey: ['requests', { ...listParams, subject, grade }],
     queryFn: () =>
       listRequests({
-        ...tab.params,
+        ...listParams,
         subject: subject === ANY ? undefined : subject,
         grade: grade === ANY ? undefined : grade,
         limit: 200,
@@ -79,7 +83,10 @@ export function TabbedRequestList({
             <button
               key={item.key}
               type="button"
-              onClick={() => setParams(item.key === 'history' ? { tab: 'history' } : {})}
+              onClick={() => {
+                setParams(item.key === 'history' ? { tab: 'history' } : {})
+                setCategory(ANY)
+              }}
               className={cn(
                 'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
                 item.active
@@ -91,6 +98,26 @@ export function TabbedRequestList({
             </button>
           ))}
         </div>
+
+        {tab.categories && (
+          <div className="flex flex-wrap gap-1.5 border-t border-border/60 pt-3">
+            {[{ key: ANY, label: t('dashboard.filterAll') }, ...tab.categories].map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setCategory(c.key)}
+                className={cn(
+                  'rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition-colors',
+                  category === c.key
+                    ? 'bg-foreground text-background ring-foreground'
+                    : 'text-muted-foreground ring-border hover:bg-secondary',
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

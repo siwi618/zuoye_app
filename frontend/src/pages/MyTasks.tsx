@@ -14,7 +14,20 @@ export function MyTasks() {
       ongoing={{
         label: t('dashboard.tabOngoing'),
         subtitle: t('dashboard.myTasksSubtitle'),
-        params: { status: 'accepted', helping: true },
+        // In progress, and completed ones you still have to rate.
+        params: { status: ['accepted', 'completed'], awaiting_review: true, helping: true },
+        categories: [
+          {
+            key: 'accepted',
+            label: t('status.accepted'),
+            params: { status: 'accepted', helping: true },
+          },
+          {
+            key: 'review',
+            label: t('status.review'),
+            params: { status: 'completed', awaiting_review: true, helping: true },
+          },
+        ],
         empty: (
           <>
             <span className="grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-600">
@@ -32,7 +45,7 @@ export function MyTasks() {
       history={{
         label: t('dashboard.tabHistory'),
         subtitle: t('dashboard.myHistorySubtitle'),
-        params: { status: 'completed', helping: true },
+        params: { status: 'completed', awaiting_review: false, helping: true },
         empty: (
           <>
             <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">

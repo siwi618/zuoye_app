@@ -27,6 +27,8 @@ def list_requests(
     helping: bool = Query(default=False),
     posted: bool = Query(default=False),
     hide_cancelled: bool = Query(default=False),
+    # Narrows completed requests to the ones the caller still has to rate (true) or has rated (false).
+    awaiting_review: bool | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[RequestRead]:
     return svc.list_requests(
@@ -39,6 +41,7 @@ def list_requests(
         helping=helping,
         posted=posted,
         hide_cancelled=hide_cancelled,
+        awaiting_review=awaiting_review,
         limit=limit,
     )
 
@@ -50,8 +53,7 @@ def create_request(user: CurrentUserDep, payload: RequestCreate) -> RequestRead:
 
 @router.get("/{request_id}", response_model=RequestRead)
 def get_request(user: CurrentUserDep, request_id: str) -> RequestRead:
-    _ = user  # auth-only
-    return svc.get_request(request_id)
+    return svc.get_request(request_id, user.id)
 
 
 @router.patch("/{request_id}", response_model=RequestRead)

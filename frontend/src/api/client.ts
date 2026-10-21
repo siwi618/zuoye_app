@@ -11,6 +11,7 @@ const KNOWN_ERRORS: Record<string, string> = {
   unsupported_media_type: 'media.unsupported',
   unreadable_video: 'media.unreadable',
   video_disabled: 'media.videoDisabled',
+  name_change_too_soon: 'profile.nameTooSoon',
 }
 
 async function authHeader(): Promise<Record<string, string>> {

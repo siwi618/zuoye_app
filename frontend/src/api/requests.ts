@@ -26,6 +26,8 @@ export interface RequestRead {
   created_at: string
   accepted_at: string | null
   completed_at: string | null
+  // Completed, the viewer took part, and they haven't rated it yet ("待评价").
+  awaiting_my_review: boolean
 }
 
 export interface RequestCreate {
@@ -46,6 +48,8 @@ export interface ListRequestsParams {
   helping?: boolean  // only requests the caller accepted as helper
   posted?: boolean  // only requests the caller posted
   hide_cancelled?: boolean
+  // Narrows completed requests to ones the caller still has to rate (true) or has rated (false).
+  awaiting_review?: boolean
   limit?: number
 }
 

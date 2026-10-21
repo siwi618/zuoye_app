@@ -138,7 +138,7 @@ function PostCard({ post }: { post: PostRead }) {
         <CardHeader className="gap-2">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="line-clamp-2 text-base leading-snug">{post.title}</CardTitle>
-            <Badge variant="open" className="shrink-0">
+            <Badge variant="brand" className="shrink-0">
               {t(`forumTags.${post.tag}`, { defaultValue: post.tag })}
             </Badge>
           </div>

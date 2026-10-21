@@ -22,7 +22,21 @@ export function MyRequests() {
       ongoing={{
         label: t('dashboard.tabOngoing'),
         subtitle: t('dashboard.myRequestsSubtitle'),
-        params: { status: ['open', 'accepted'], posted: true },
+        // Waiting, in progress, and completed ones you still have to rate.
+        params: { status: ['open', 'accepted', 'completed'], awaiting_review: true, posted: true },
+        categories: [
+          { key: 'open', label: t('status.open'), params: { status: 'open', posted: true } },
+          {
+            key: 'accepted',
+            label: t('status.accepted'),
+            params: { status: 'accepted', posted: true },
+          },
+          {
+            key: 'review',
+            label: t('status.review'),
+            params: { status: 'completed', awaiting_review: true, posted: true },
+          },
+        ],
         empty: (
           <>
             <span className="grid size-12 place-items-center rounded-2xl bg-brand-100 text-brand-700">
@@ -35,7 +49,7 @@ export function MyRequests() {
       history={{
         label: t('dashboard.tabRequestHistory'),
         subtitle: t('dashboard.myRequestHistorySubtitle'),
-        params: { status: 'completed', posted: true },
+        params: { status: 'completed', awaiting_review: false, posted: true },
         empty: (
           <>
             <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">

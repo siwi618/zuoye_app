@@ -146,7 +146,7 @@ export function PostDetail() {
       <article className="rounded-2xl border border-border/60 bg-card p-6 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl font-bold leading-snug tracking-tight">{p.title}</h1>
-          <Badge variant="open" className="shrink-0">
+          <Badge variant="brand" className="shrink-0">
             {t(`forumTags.${p.tag}`, { defaultValue: p.tag })}
           </Badge>
         </div>
