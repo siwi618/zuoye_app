@@ -288,8 +288,8 @@ CLI route (for later automation): see [`supabase/README.md`](supabase/README.md)
 ## Status
 
 ✅ **Phase 2 complete** — end-to-end MVP locally:
-- Auth (Supabase Auth: signup / signin / protected routes)
-- Request CRUD (post / browse / detail / cancel)
+- Auth (Supabase Auth: signup / sign-in / protected routes)
+- Request CRUD (post/browse/detail/cancel)
 - Accept → schedule → mark-complete flow
 - Mutual 1–5 star + comment feedback
 - Helper-only leaderboard (Top 10)
