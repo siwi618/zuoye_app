@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2, GraduationCap, Mail, UserRoundPen } from 'lucide-react'
+import { CheckCircle2, GraduationCap, Mail, UserRoundPen, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -27,6 +28,7 @@ import {
 import { supabase } from '@/api/supabase'
 import { GRADE_OPTIONS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { saveToolSettings, useToolSettings } from '@/lib/toolSettings'
 import { useAuthStore } from '@/store/auth'
 
 export function Profile() {
@@ -71,6 +73,7 @@ export function Profile() {
 
       <DisplayNameCard />
       <DefaultGradeCard />
+      <ToolSettingsCard />
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">
@@ -98,6 +101,71 @@ export function Profile() {
         )}
       </section>
     </div>
+  )
+}
+
+// Toolbox settings; tools link here as /profile#tool-settings.
+function ToolSettingsCard() {
+  const { t } = useTranslation()
+  const { hash } = useLocation()
+  const settings = useToolSettings()
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (hash === '#tool-settings')
+      document
+        .getElementById('tool-settings')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [hash])
+
+  const toggle = async () => {
+    const on = !settings.autoZero
+    setSaving(true)
+    try {
+      await saveToolSettings({ auto_zero: on })
+      toast.success(t(on ? 'profile.autoZeroOn' : 'profile.autoZeroOff'))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('profile.autoZeroSaveFailed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card id="tool-settings" className={cn(hash === '#tool-settings' && 'border-primary/60')}>
+      <CardContent className="flex flex-wrap items-center gap-4">
+        <div className="flex min-w-56 flex-1 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
+            <Wrench className="size-4.5" />
+          </span>
+          <div className="space-y-1">
+            <Label htmlFor="auto-zero" className="text-base font-semibold">
+              {t('profile.autoZero')}
+            </Label>
+            <p className="text-sm text-muted-foreground">{t('profile.autoZeroHint')}</p>
+          </div>
+        </div>
+        <button
+          id="auto-zero"
+          type="button"
+          role="switch"
+          aria-checked={settings.autoZero}
+          onClick={toggle}
+          disabled={!settings.loaded || saving}
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50',
+            settings.autoZero ? 'bg-primary' : 'bg-input dark:bg-input/80',
+          )}
+        >
+          <span
+            className={cn(
+              'block size-5 rounded-full bg-background shadow-sm transition-transform',
+              settings.autoZero ? 'translate-x-5.5' : 'translate-x-0.5',
+            )}
+          />
+        </button>
+      </CardContent>
+    </Card>
   )
 }
 

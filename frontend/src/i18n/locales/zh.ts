@@ -93,6 +93,12 @@ export const zh: Translations = {
     gradeReminder: '你还没有确认自己的年级 — 设置一次，以后发请求就会自动填上。',
     gradeReminderAction: '去个人资料确认',
     gradeReminderDismiss: '关闭',
+    autoZero: '自动调零（工具箱）',
+    autoZeroHint:
+      '开启后，工具箱里的工具每次开始采集都会自动调零：丢掉传感器刚启动的前 0.2 秒，再用接下来 0.5 秒的读数作为零点。请先点「开始」，再接通电路。',
+    autoZeroOn: '已开启自动调零',
+    autoZeroOff: '已关闭自动调零',
+    autoZeroSaveFailed: '保存设置失败',
     title: '个人资料',
     email: '邮箱',
     completedRequests: '已完成的请求',
@@ -212,6 +218,12 @@ export const zh: Translations = {
     items: {
       ammeter: '电流仪',
     },
+    autoZeroTip: {
+      title: '手动调零太麻烦？试试自动调零吧！',
+      dismiss: '关闭',
+      go: '去开启',
+      notThisWeek: '本周不再提示',
+    },
     ammeter: {
       subtitle:
         '连接 USB 电流传感器（DISPRO 采集器），实时显示电流曲线和读数，支持调零、导出 CSV，也能打开 DISPRO 保存的 .lds 文件。',
@@ -225,6 +237,7 @@ export const zh: Translations = {
       stop: '停止',
       zero: '调零',
       clearZero: '取消调零',
+      autoZeroOn: '自动调零已开启',
       openLds: '打开 .lds',
       exportCsv: '导出 CSV',
       current: '电流',
@@ -251,12 +264,15 @@ export const zh: Translations = {
         stopped: '已停止 · {{n}} 个点',
         opened: '已打开 {{name}} · {{n}} 个点',
         exported: '已导出 {{name}}',
+        zeroing: '正在自动调零…',
       },
       errors: {
         disconnected: '设备已断开，采集已停止。已采到的数据仍可导出。',
         openFailed:
           '无法打开设备：{{msg}}。如果别的程序（DISPRO、DISPRO Mac 或另一个网页标签）正在使用它，请先关掉。',
         ldsFailed: '打不开 {{name}}：文件里没有找到采集数据。',
+        autoZeroSkipped:
+          '开始时读数约 {{v}} mA，电路可能已经接通，这次没有自动调零。断开电路后可以手动点「调零」。',
       },
       discard: {
         title: '当前数据还没导出',
@@ -281,6 +297,7 @@ export const zh: Translations = {
           '双击下载好的文件。如果弹出「你要允许此应用对你的设备进行更改吗？」，点「是」；在安装窗口里点「安装」，提示安装成功后关闭窗口。',
         windowsStep3: '把采集器的 USB 线拔下再插上，回到本页点「连接设备」。',
         driverButton: '下载 CH340 驱动（官方）',
+        close: '关闭',
       },
       macApp: {
         title: '想离线用？下载 Mac 版',

@@ -12,6 +12,7 @@ import {
   Plug,
   Square,
   TriangleAlert,
+  X,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,6 +35,7 @@ import { CurrentChart } from '@/components/ammeter/CurrentChart'
 import { Acquisition } from '@/lib/ammeter/acquisition'
 import { CH340_VENDOR_ID } from '@/lib/ammeter/protocol'
 import { parseLds } from '@/lib/ammeter/lds'
+import { AUTO_ZERO, useToolSettings } from '@/lib/toolSettings'
 import { cn } from '@/lib/utils'
 
 const PERIODS_MS = [1000, 500, 200, 100, 50, 25, 20, 10]
@@ -64,6 +66,7 @@ type View = {
 
 export function Ammeter() {
   const { t } = useTranslation()
+  const settings = useToolSettings()
 
   const [port, setPort] = useState<SerialPort | null>(null)
   const [periodMs, setPeriodMs] = useState(50)
@@ -91,7 +94,9 @@ export function Ammeter() {
   const recentRaw = useRef<number[]>([])
   const offsetRef = useRef(0)
   const acq = useRef<Acquisition | null>(null)
-  const timing = useRef({ periodS: 0.05, startedAt: 0, lastDataAt: 0 })
+  const timing = useRef({ periodS: 0.05, startedAt: 0, lastDataAt: 0, received: 0 })
+  // While auto-zeroing at start: readings held back until the zero is known
+  const autoZeroRun = useRef<{ t: number[]; raw: number[]; need: number } | null>(null)
   const unsaved = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -147,8 +152,9 @@ export function Ammeter() {
       const now = performance.now()
       const { startedAt, lastDataAt } = timing.current
       if (now - lastDataAt > 2000) setStatus({ key: 'noData' })
+      else if (autoZeroRun.current) setStatus({ key: 'zeroing' })
       else if (now - startedAt > 1000) {
-        const rate = data.current.t.length / ((now - startedAt) / 1000)
+        const rate = timing.current.received / ((now - startedAt) / 1000)
         setStatus({ key: 'running', params: { rate: rate.toFixed(1) } })
       }
       refresh()
@@ -161,21 +167,51 @@ export function Ammeter() {
     recentRaw.current = []
   }
 
-  const onValues = useCallback((values: number[]) => {
-    const d = data.current
-    timing.current.lastDataAt = performance.now()
-    for (const raw of values) {
-      recentRaw.current.push(raw)
-      const n = d.t.length
-      const i = raw - offsetRef.current
-      d.t.push((n + 1) * timing.current.periodS)
-      d.i.push(i)
-      d.min = n === 0 ? i : Math.min(d.min, i)
-      d.max = n === 0 ? i : Math.max(d.max, i)
-      d.sum += i
-    }
-    if (recentRaw.current.length > 10) recentRaw.current.splice(0, recentRaw.current.length - 10)
-  }, [])
+  const onValues = useCallback(
+    (values: number[]) => {
+      const d = data.current
+      const push = (time: number, raw: number) => {
+        recentRaw.current.push(raw)
+        const n = d.t.length
+        const i = raw - offsetRef.current
+        d.t.push(time)
+        d.i.push(i)
+        d.min = n === 0 ? i : Math.min(d.min, i)
+        d.max = n === 0 ? i : Math.max(d.max, i)
+        d.sum += i
+      }
+      timing.current.lastDataAt = performance.now()
+      for (const raw of values) {
+        const time = ++timing.current.received * timing.current.periodS
+        const az = autoZeroRun.current
+        if (!az) {
+          push(time, raw)
+          continue
+        }
+        // Drop the start-up readings, average the next window, then release what was held
+        if (time <= AUTO_ZERO.settleS) continue
+        az.t.push(time)
+        az.raw.push(raw)
+        if (az.raw.length < az.need) continue
+        autoZeroRun.current = null
+        const mean = az.raw.reduce((a, b) => a + b, 0) / az.raw.length
+        if (Math.abs(mean) <= AUTO_ZERO.maxOffsetA) {
+          offsetRef.current = mean
+          setOffset(mean)
+        } else {
+          toast.warning(
+            t('tools.ammeter.errors.autoZeroSkipped', { v: (mean * 1000).toFixed(1) }),
+            {
+              duration: 10000,
+            },
+          )
+        }
+        az.raw.forEach((r, k) => push(az.t[k], r))
+      }
+      if (recentRaw.current.length > 10) recentRaw.current.splice(0, recentRaw.current.length - 10)
+    },
+    [t],
+  )
 
   const choosePort = async (): Promise<SerialPort | null> => {
     try {
@@ -206,7 +242,11 @@ export function Ammeter() {
       periodS: periodMs / 1000,
       startedAt: performance.now(),
       lastDataAt: performance.now(),
+      received: 0,
     }
+    autoZeroRun.current = settings.autoZero
+      ? { t: [], raw: [], need: Math.max(1, Math.round((AUTO_ZERO.windowS * 1000) / periodMs)) }
+      : null
     try {
       await a.start()
     } catch (e) {
@@ -388,6 +428,14 @@ export function Ammeter() {
               {t('tools.ammeter.clearZero')}
             </Button>
           )}
+          {settings.autoZero && (
+            <Link
+              to="/profile#tool-settings"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('tools.ammeter.autoZeroOn')}
+            </Link>
+          )}
           <div className="ml-auto flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={running}>
               <FileUp className="size-4" />
@@ -412,7 +460,7 @@ export function Ammeter() {
         </CardContent>
       </Card>
 
-      {showHelp && serial && <DeviceHelp />}
+      {showHelp && serial && <DeviceHelp onClose={() => setShowHelp(false)} />}
 
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
         <Card className="py-0">
@@ -546,12 +594,22 @@ export function Ammeter() {
   )
 }
 
-function DeviceHelp() {
+function DeviceHelp({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   return (
     <Card className="py-0">
       <CardContent className="space-y-3 p-5 text-sm">
-        <h2 className="font-semibold">{t('tools.ammeter.help.title')}</h2>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="font-semibold">{t('tools.ammeter.help.title')}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('tools.ammeter.help.close')}
+            className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
         <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
           <li>{t('tools.ammeter.help.usb')}</li>
           <li>{t('tools.ammeter.help.busy')}</li>

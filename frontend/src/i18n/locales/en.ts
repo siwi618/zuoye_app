@@ -92,6 +92,12 @@ export const en = {
     gradeReminder: "You haven't confirmed your grade yet — set it once and new requests will fill it in for you.",
     gradeReminderAction: 'Confirm in profile',
     gradeReminderDismiss: 'Dismiss',
+    autoZero: 'Auto-zero (Toolbox)',
+    autoZeroHint:
+      'When on, every Toolbox tool zeroes itself each time you start: it drops the first 0.2 s while the sensor starts up and uses the next 0.5 s as zero. Press Start first, then close the circuit.',
+    autoZeroOn: 'Auto-zero is on',
+    autoZeroOff: 'Auto-zero is off',
+    autoZeroSaveFailed: 'Could not save the setting',
     title: 'Profile',
     email: 'Email',
     completedRequests: 'Completed Requests',
@@ -211,6 +217,12 @@ export const en = {
     items: {
       ammeter: 'Ammeter',
     },
+    autoZeroTip: {
+      title: 'Tired of zeroing by hand? Try auto-zero!',
+      dismiss: 'Close',
+      go: 'Turn it on',
+      notThisWeek: 'Not this week',
+    },
     ammeter: {
       subtitle:
         'Connect the USB current sensor (DISPRO logger) to see live current readings and graphs, zero the sensor, export CSV, or open .lds files saved by DISPRO.',
@@ -224,6 +236,7 @@ export const en = {
       stop: 'Stop',
       zero: 'Zero',
       clearZero: 'Clear zero',
+      autoZeroOn: 'Auto-zero on',
       openLds: 'Open .lds',
       exportCsv: 'Export CSV',
       current: 'Current',
@@ -250,12 +263,15 @@ export const en = {
         stopped: 'Stopped · {{n}} points',
         opened: 'Opened {{name}} · {{n}} points',
         exported: 'Exported {{name}}',
+        zeroing: 'Auto-zeroing…',
       },
       errors: {
         disconnected: 'The device was disconnected and recording stopped. The data so far can still be exported.',
         openFailed:
           'Could not open the device: {{msg}}. If another program (DISPRO, DISPRO Mac or another tab) is using it, close that first.',
         ldsFailed: 'Could not open {{name}}: no recorded data found.',
+        autoZeroSkipped:
+          'The reading at start was about {{v}} mA, so the circuit may already be closed; auto-zero was skipped this time. Open the circuit and press Zero to zero by hand.',
       },
       discard: {
         title: 'Current data not exported',
@@ -283,6 +299,7 @@ export const en = {
           'Double-click the downloaded file. If Windows asks whether to allow changes, click “Yes”. Click “INSTALL” and close the window when it says the driver was installed.',
         windowsStep3: 'Unplug the logger’s USB cable, plug it back in, then click “Connect device” on this page.',
         driverButton: 'Get the CH340 driver (official)',
+        close: 'Close',
       },
       macApp: {
         title: 'Prefer an app? Download the Mac version',
