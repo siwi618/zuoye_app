@@ -15,6 +15,8 @@ import { MyRequests } from '@/pages/MyRequests'
 import { MyTasks } from '@/pages/MyTasks'
 import { NewPost } from '@/pages/NewPost'
 import { PostDetail } from '@/pages/PostDetail'
+import { Toolbox } from '@/pages/Toolbox'
+import { Ammeter } from '@/pages/tools/Ammeter'
 
 export default function App() {
   return (
@@ -37,6 +39,8 @@ export default function App() {
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewPost />} />
             <Route path="/forum/:id" element={<PostDetail />} />
+            <Route path="/tools" element={<Toolbox />} />
+            <Route path="/tools/ammeter" element={<Ammeter />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>

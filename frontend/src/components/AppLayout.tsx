@@ -54,6 +54,7 @@ export function AppLayout() {
               { to: '/my-requests', label: t('nav.myRequests') },
               { to: '/my-tasks', label: t('nav.myTasks') },
               { to: '/forum', label: t('nav.forum') },
+              { to: '/tools', label: t('nav.tools') },
               { to: '/leaderboard', label: t('nav.leaderboard') },
             ].map((item) => (
               <NavLink
@@ -140,6 +141,7 @@ export function AppLayout() {
             { to: '/my-requests', label: t('nav.myRequests') },
             { to: '/my-tasks', label: t('nav.myTasks') },
             { to: '/forum', label: t('nav.forum') },
+            { to: '/tools', label: t('nav.tools') },
             { to: '/leaderboard', label: t('nav.leaderboard') },
           ].map((item) => (
             <NavLink
