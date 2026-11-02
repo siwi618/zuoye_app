@@ -226,7 +226,7 @@ export const zh: Translations = {
     },
     ammeter: {
       subtitle:
-        '连接 USB 电流传感器（DISPRO 采集器），实时显示电流曲线和读数，支持调零、导出 CSV，也能打开 DISPRO 保存的 .lds 文件。',
+        '连接 USB 电流传感器（DISPRO 采集器），实时显示电流曲线和读数，支持调零、导出 CSV 或图片，也能打开 DISPRO 保存的 .lds 文件。',
       connect: '连接设备',
       changeDevice: '更换设备',
       deviceReady: '设备已连接',
@@ -239,7 +239,9 @@ export const zh: Translations = {
       clearZero: '取消调零',
       autoZeroOn: '自动调零已开启',
       openLds: '打开 .lds',
-      exportCsv: '导出 CSV',
+      export: '导出',
+      exportCsv: 'CSV 数据',
+      exportPng: '图片（PNG）',
       current: '电流',
       protect: {
         title: '保护设备',

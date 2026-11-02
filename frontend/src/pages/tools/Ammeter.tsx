@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
+  ChevronDown,
   Download,
   ExternalLink,
+  FileSpreadsheet,
   FileUp,
   HelpCircle,
+  ImageIcon,
   Play,
   ShieldCheck,
   Plug,
@@ -27,6 +30,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +44,7 @@ import {
 } from '@/components/ui/select'
 import { CurrentChart } from '@/components/ammeter/CurrentChart'
 import { Acquisition } from '@/lib/ammeter/acquisition'
+import { chartPng } from '@/lib/ammeter/chart'
 import { CH340_VENDOR_ID } from '@/lib/ammeter/protocol'
 import { parseLds } from '@/lib/ammeter/lds'
 import { AUTO_ZERO, useToolSettings } from '@/lib/toolSettings'
@@ -315,24 +325,47 @@ export function Ammeter() {
     }
   }
 
-  const exportCsv = () => {
-    const d = data.current
-    const lines = ['﻿' + t('tools.ammeter.csvHeader')]
-    for (let k = 0; k < d.t.length; k++)
-      lines.push(`${d.t[k].toFixed(3)},${+d.i[k].toPrecision(7)}`)
-    const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' })
+  // Export name: the opened .lds file's, else "电流_<start time>"
+  const exportName = (ext: string) => {
+    if (source) return source.replace(/\.lds$/i, '') + ext
     const stamp = new Date(timing.current.startedAt + performance.timeOrigin)
     const pad = (n: number) => String(n).padStart(2, '0')
-    const name = source
-      ? source.replace(/\.lds$/i, '') + '.csv'
-      : `${t('tools.ammeter.csvPrefix')}_${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}_${pad(stamp.getHours())}${pad(stamp.getMinutes())}${pad(stamp.getSeconds())}.csv`
+    return `${t('tools.ammeter.csvPrefix')}_${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}_${pad(stamp.getHours())}${pad(stamp.getMinutes())}${pad(stamp.getSeconds())}${ext}`
+  }
+
+  const download = (blob: Blob, name: string) => {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = name
     a.click()
     URL.revokeObjectURL(a.href)
-    unsaved.current = false
     setStatus({ key: 'exported', params: { name } })
+  }
+
+  const exportCsv = () => {
+    const d = data.current
+    const lines = ['﻿' + t('tools.ammeter.csvHeader')]
+    for (let k = 0; k < d.t.length; k++)
+      lines.push(`${d.t[k].toFixed(3)},${+d.i[k].toPrecision(7)}`)
+    download(
+      new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }),
+      exportName('.csv'),
+    )
+    unsaved.current = false
+  }
+
+  // The picture doesn't hold the data, so it doesn't count as saving it
+  const exportPng = async () => {
+    const d = data.current
+    const blob = await chartPng({
+      t: d.t,
+      i: d.i,
+      windowSec,
+      milli,
+      xLabel: t('tools.ammeter.timeAxis'),
+      yLabel: t('tools.ammeter.currentAxis', { unit: milli ? 'mA' : 'A' }),
+    })
+    if (blob) download(blob, exportName('.png'))
   }
 
   const d = view
@@ -446,10 +479,25 @@ export function Ammeter() {
               <FileUp className="size-4" />
               {t('tools.ammeter.openLds')}
             </Button>
-            <Button variant="outline" onClick={exportCsv} disabled={running || n === 0}>
-              <Download className="size-4" />
-              {t('tools.ammeter.exportCsv')}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={running || n === 0}>
+                  <Download className="size-4" />
+                  {t('tools.ammeter.export')}
+                  <ChevronDown className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={exportCsv}>
+                  <FileSpreadsheet className="size-4" />
+                  {t('tools.ammeter.exportCsv')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={exportPng}>
+                  <ImageIcon className="size-4" />
+                  {t('tools.ammeter.exportPng')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <input
             ref={fileInput}
@@ -507,8 +555,9 @@ export function Ammeter() {
           <ProtectCard />
         </div>
 
-        <Card className="py-0 lg:self-start">
-          <CardContent className="flex h-[420px] flex-col gap-2 p-4">
+        {/* On wide screens it stretches to the height of the left column */}
+        <Card className="py-0">
+          <CardContent className="flex h-[420px] flex-col gap-2 p-4 lg:h-auto lg:min-h-[420px] lg:flex-1">
             <div className="flex justify-end">
               <Segmented
                 options={WINDOWS.map((w) => ({

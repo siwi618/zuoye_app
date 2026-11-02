@@ -225,7 +225,7 @@ export const en = {
     },
     ammeter: {
       subtitle:
-        'Connect the USB current sensor (DISPRO logger) to see live current readings and graphs, zero the sensor, export CSV, or open .lds files saved by DISPRO.',
+        'Connect the USB current sensor (DISPRO logger) to see live current readings and graphs, zero the sensor, export CSV or an image, or open .lds files saved by DISPRO.',
       connect: 'Connect device',
       changeDevice: 'Change device',
       deviceReady: 'Device connected',
@@ -238,7 +238,9 @@ export const en = {
       clearZero: 'Clear zero',
       autoZeroOn: 'Auto-zero on',
       openLds: 'Open .lds',
-      exportCsv: 'Export CSV',
+      export: 'Export',
+      exportCsv: 'CSV data',
+      exportPng: 'Image (PNG)',
       current: 'Current',
       protect: {
         title: 'Protect the device',
