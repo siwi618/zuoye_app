@@ -1,4 +1,39 @@
-import { BAUD_RATE, FrameParser, STOP_COMMAND, startCommand } from './protocol'
+import { BAUD_RATE, FrameParser, SENSOR_INFO_COMMAND, STOP_COMMAND, startCommand } from './protocol'
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/**
+ * Which sensor is on channel 0, read from its EEPROM while the logger is idle.
+ * null if the logger doesn't answer; throws if the port can't be opened (e.g. in use).
+ */
+export async function readSensorId(port: SerialPort): Promise<number | null> {
+  await port.open({ baudRate: BAUD_RATE })
+  const reader = port.readable!.getReader()
+  const parser = new FrameParser()
+  try {
+    const writer = port.writable!.getWriter()
+    try {
+      await writer.write(STOP_COMMAND)
+      await sleep(100)
+      await writer.write(SENSOR_INFO_COMMAND)
+    } finally {
+      writer.releaseLock()
+    }
+    const deadline = Date.now() + 500
+    while (parser.sensorId === null) {
+      const left = deadline - Date.now()
+      if (left <= 0) break
+      const r = await Promise.race([reader.read(), sleep(left).then(() => null)])
+      if (!r || r.done) break
+      parser.feed(r.value)
+    }
+    return parser.sensorId
+  } finally {
+    await reader.cancel().catch(() => {})
+    reader.releaseLock()
+    await port.close().catch(() => {})
+  }
+}
 
 /**
  * One acquisition run on an already-chosen port: opens it, sends start, reports readings

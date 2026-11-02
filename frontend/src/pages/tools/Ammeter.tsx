@@ -43,10 +43,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CurrentChart } from '@/components/ammeter/CurrentChart'
-import { Acquisition } from '@/lib/ammeter/acquisition'
+import { Acquisition, readSensorId } from '@/lib/ammeter/acquisition'
 import { chartPng } from '@/lib/ammeter/chart'
 import { CH340_VENDOR_ID } from '@/lib/ammeter/protocol'
 import { parseLds } from '@/lib/ammeter/lds'
+import { ACCURACY_FRACTION, DEFAULT_SENSOR_ID, SENSORS } from '@/lib/ammeter/sensors'
 import { AUTO_ZERO, useToolSettings } from '@/lib/toolSettings'
 import { cn } from '@/lib/utils'
 
@@ -54,11 +55,8 @@ const PERIODS_MS = [1000, 500, 200, 100, 50, 25, 20, 10]
 const WINDOWS: (number | null)[] = [10, 30, 60, null]
 const MAC_APP = { href: '/downloads/DISPRO-Mac.zip', size: '1.0 MB' }
 const DRIVER_URL = 'https://www.wch.cn/downloads/CH341SER_EXE.html'
-// Sensor full scale (±3 A); the resistor advice keeps the current under SAFE_FRACTION of it.
-const RANGE_A = 3
+// The resistor advice keeps the current under SAFE_FRACTION of the sensor's range
 const SAFE_FRACTION = 0.8
-// Accuracy from the sensor's spec sheet: ±0.5% of full scale
-const ACCURACY_A = RANGE_A * 0.005
 
 const ua = navigator.userAgent
 const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
@@ -94,6 +92,8 @@ export function Ammeter() {
   const [source, setSource] = useState('')
   const [status, setStatus] = useState<Status>({ key: 'ready' })
   const [showHelp, setShowHelp] = useState(false)
+  // Sensor on channel 0 of the port it was read from; id null = the logger didn't say
+  const [sensor, setSensor] = useState<{ port: SerialPort; id: number | null } | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [view, setView] = useState<View>({
     t: [],
@@ -116,6 +116,24 @@ export function Ammeter() {
   const autoZeroRun = useRef<{ t: number[]; raw: number[]; need: number } | null>(null)
   const unsaved = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  // Sensor reads queue up so two never hold the port at once
+  const identifying = useRef<Promise<void>>(Promise.resolve())
+
+  const identify = useCallback((p: SerialPort) => {
+    identifying.current = identifying.current.then(async () => {
+      try {
+        const id = await readSensorId(p)
+        setSensor({ port: p, id })
+      } catch {
+        // port busy (another tab / app): keep what we had
+      }
+    })
+    return identifying.current
+  }, [])
+
+  useEffect(() => {
+    if (port && !acq.current) identify(port)
+  }, [port, identify])
 
   // Reuse a CH340 the user already allowed on this site; follow plug / unplug.
   useEffect(() => {
@@ -247,6 +265,7 @@ export function Ammeter() {
     setConfirmDiscard(false)
     const p = port ?? (await choosePort())
     if (!p) return
+    await identify(p) // the sensor may have been swapped since the port was picked
     const a = new Acquisition(p, periodMs * 1000, onValues, () => {
       acq.current = null
       setRunning(false)
@@ -554,7 +573,7 @@ export function Ammeter() {
               </dl>
             </CardContent>
           </Card>
-          <ProtectCard />
+          <ProtectCard sensorId={port && sensor?.port === port ? sensor.id : undefined} />
         </div>
 
         {/* On wide screens it stretches to the height of the left column */}
@@ -654,16 +673,31 @@ export function Ammeter() {
 }
 
 // Battery voltage in, smallest series resistor that keeps the sensor inside its range out.
-function ProtectCard() {
+// Battery voltage in, smallest series resistor that keeps the sensor inside its range out.
+// Range and accuracy follow the detected sensor; an unknown one asks for its range.
+function ProtectCard({ sensorId }: { sensorId: number | null | undefined }) {
   const { t } = useTranslation()
   const [volts, setVolts] = useState('')
+  const [rangeInput, setRangeInput] = useState('')
+  const spec = SENSORS[sensorId === undefined ? DEFAULT_SENSOR_ID : (sensorId ?? -1)]
+  const typed = Number(rangeInput)
+  const rangeA = spec ? spec.rangeA : rangeInput.trim() && typed > 0 ? typed : null
+  const accuracyA = spec ? spec.accuracyA : rangeA === null ? null : rangeA * ACCURACY_FRACTION
   const v = Number(volts)
-  const safeA = RANGE_A * SAFE_FRACTION
-  const r = volts.trim() && v > 0 ? v / safeA : null
+  const safeA = rangeA === null ? null : rangeA * SAFE_FRACTION
+  const r = safeA !== null && volts.trim() && v > 0 ? v / safeA : null
   // Round up so the advice never lands below the safe value
   const ohms = r === null ? null : r < 10 ? Math.ceil(r * 10) / 10 : Math.ceil(r)
   // Heat in the resistor at that value: small lab resistors burn out well before this
   const watts = ohms === null ? null : (v * v) / ohms
+  const note =
+    sensorId === undefined
+      ? t('tools.ammeter.protect.noDevice', { range: SENSORS[DEFAULT_SENSOR_ID].rangeA })
+      : spec
+        ? t('tools.ammeter.protect.detected', { id: sensorId })
+        : sensorId === null
+          ? t('tools.ammeter.protect.noReply')
+          : t('tools.ammeter.protect.unknown', { id: sensorId })
 
   return (
     <Card className="py-0">
@@ -674,29 +708,45 @@ function ProtectCard() {
         </div>
         <label className="block space-y-1.5">
           <span className="text-muted-foreground">{t('tools.ammeter.protect.voltage')}</span>
-          <div className="relative">
-            <Input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="any"
-              value={volts}
-              onChange={(e) => setVolts(e.target.value)}
-              placeholder={t('tools.ammeter.protect.voltagePlaceholder')}
-              className="pr-8"
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
-              V
+          <UnitInput
+            value={volts}
+            onChange={setVolts}
+            unit="V"
+            placeholder={t('tools.ammeter.protect.voltagePlaceholder')}
+          />
+        </label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t('tools.ammeter.protect.range')}</span>
+            {spec ? (
+              <span className="tabular-nums">±{spec.rangeA} A</span>
+            ) : (
+              <UnitInput
+                value={rangeInput}
+                onChange={setRangeInput}
+                unit="A"
+                prefix="±"
+                aria-label={t('tools.ammeter.protect.range')}
+                inputClassName="h-8 w-24"
+              />
+            )}
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{t('tools.ammeter.protect.accuracy')}</span>
+            <span className="tabular-nums">
+              {accuracyA === null
+                ? '—'
+                : `±${+accuracyA.toFixed(4)} A${spec ? '' : t('tools.ammeter.protect.estimated')}`}
             </span>
           </div>
-        </label>
-        <div className="flex justify-between gap-2">
-          <span className="text-muted-foreground">{t('tools.ammeter.protect.range')}</span>
-          <span className="tabular-nums">±{RANGE_A} A</span>
-        </div>
-        <div className="flex justify-between gap-2">
-          <span className="text-muted-foreground">{t('tools.ammeter.protect.accuracy')}</span>
-          <span className="tabular-nums">±{+ACCURACY_A.toFixed(4)} A</span>
+          <p
+            className={cn(
+              'text-xs',
+              spec ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300',
+            )}
+          >
+            {note}
+          </p>
         </div>
         <div className="space-y-1 rounded-lg bg-secondary/70 p-3">
           <p className="text-muted-foreground">{t('tools.ammeter.protect.resistor')}</p>
@@ -704,8 +754,12 @@ function ProtectCard() {
             {ohms === null ? '—' : `≥ ${ohms} Ω`}
           </p>
           <p className="text-xs text-muted-foreground">
-            {ohms === null
-              ? t('tools.ammeter.protect.empty')
+            {ohms === null || safeA === null
+              ? t(
+                  rangeA === null
+                    ? 'tools.ammeter.protect.needRange'
+                    : 'tools.ammeter.protect.empty',
+                )
               : t('tools.ammeter.protect.hint', { a: +safeA.toFixed(2), pct: SAFE_FRACTION * 100 })}
           </p>
           {watts !== null && (
@@ -716,6 +770,47 @@ function ProtectCard() {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+/** Number field with its unit shown inside on the right (and an optional sign on the left). */
+function UnitInput({
+  value,
+  onChange,
+  unit,
+  prefix,
+  inputClassName,
+  ...props
+}: {
+  value: string
+  onChange: (v: string) => void
+  unit: string
+  prefix?: string
+  inputClassName?: string
+  placeholder?: string
+  'aria-label'?: string
+}) {
+  return (
+    <div className="relative">
+      {prefix && (
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-muted-foreground">
+          {prefix}
+        </span>
+      )}
+      <Input
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step="any"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn('pr-8', prefix && 'pl-6', inputClassName)}
+        {...props}
+      />
+      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
+        {unit}
+      </span>
+    </div>
   )
 }
 

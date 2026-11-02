@@ -23,9 +23,14 @@ export function startCommand(periodUs: number): Uint8Array {
 
 export const STOP_COMMAND = frame(0x02, 0xff, [])
 
+/** Read the first 16 bytes of the channel-0 sensor's EEPROM; byte 0 is the sensor id. */
+export const SENSOR_INFO_COMMAND = frame(0x10, 0x00, [0x00, 0x10])
+
 /** Splits the byte stream into frames and returns the current readings (A) of data frames. */
 export class FrameParser {
   private buf: number[] = []
+  /** Set when the reply to SENSOR_INFO_COMMAND comes in. */
+  sensorId: number | null = null
 
   feed(chunk: Uint8Array): number[] {
     for (const b of chunk) this.buf.push(b)
@@ -44,8 +49,11 @@ export class FrameParser {
         break
       }
       if (this.buf[e] === 0xf2) {
-        const v = decode(unescape(this.buf.slice(s + 1, e)))
+        const body = unescape(this.buf.slice(s + 1, e))
+        const v = decode(body)
         if (v !== null) values.push(v)
+        else if (valid(body) && body[0] === 0xfd && body[1] === 0x00 && body[2] >= 1)
+          this.sensorId = body[3]
         this.buf = this.buf.slice(e + 1)
       } else {
         this.buf = this.buf.slice(e)
@@ -63,10 +71,14 @@ function unescape(bytes: number[]): number[] {
   return out
 }
 
+function valid(body: number[]): boolean {
+  if (body.length < 4 || body[2] !== body.length - 4) return false
+  return body.slice(0, -1).reduce((a, b) => a ^ b, 0) === body[body.length - 1]
+}
+
 /** Data frame: cmd=01 ch=00 len=04, payload float32 LE in amperes. Other frames → null. */
 function decode(body: number[]): number | null {
-  if (body.length < 4 || body[2] !== body.length - 4) return null
-  if (body.slice(0, -1).reduce((a, b) => a ^ b, 0) !== body[body.length - 1]) return null
+  if (!valid(body)) return null
   if (body[0] !== 0x01 || body[1] !== 0x00 || body[2] !== 4) return null
   return new DataView(new Uint8Array(body.slice(3, 7)).buffer).getFloat32(0, true)
 }
