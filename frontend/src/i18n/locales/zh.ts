@@ -241,6 +241,16 @@ export const zh: Translations = {
       openLds: '打开 .lds',
       exportCsv: '导出 CSV',
       current: '电流',
+      protect: {
+        title: '保护设备',
+        voltage: '电池电压',
+        voltagePlaceholder: '例如 3',
+        range: '设备电流量程',
+        resistor: '推荐串联电阻',
+        empty: '填入电池电压后自动计算',
+        hint: '电流不超过 {{a}} A（量程的 {{pct}}%），电阻再小可能超量程、损坏设备',
+        power: '这时电阻发热约 {{w}} W，要选额定功率不低于它的电阻',
+      },
       stats: {
         min: '最小',
         max: '最大',

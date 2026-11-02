@@ -240,6 +240,16 @@ export const en = {
       openLds: 'Open .lds',
       exportCsv: 'Export CSV',
       current: 'Current',
+      protect: {
+        title: 'Protect the device',
+        voltage: 'Battery voltage',
+        voltagePlaceholder: 'e.g. 3',
+        range: 'Device current range',
+        resistor: 'Recommended series resistor',
+        empty: 'Enter the battery voltage to calculate',
+        hint: 'Keeps the current under {{a}} A ({{pct}}% of the range); a smaller resistor may exceed the range and damage the device',
+        power: 'The resistor then heats up by about {{w}} W; use one rated for at least that',
+      },
       stats: {
         min: 'Min',
         max: 'Max',

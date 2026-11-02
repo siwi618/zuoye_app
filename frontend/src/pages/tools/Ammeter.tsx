@@ -9,6 +9,7 @@ import {
   FileUp,
   HelpCircle,
   Play,
+  ShieldCheck,
   Plug,
   Square,
   TriangleAlert,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,9 @@ const PERIODS_MS = [1000, 500, 200, 100, 50, 25, 20, 10]
 const WINDOWS: (number | null)[] = [10, 30, 60, null]
 const MAC_APP = { href: '/downloads/DISPRO-Mac.zip', size: '1.0 MB' }
 const DRIVER_URL = 'https://www.wch.cn/downloads/CH341SER_EXE.html'
+// Sensor full scale (±3 A); the resistor advice keeps the current under SAFE_FRACTION of it.
+const RANGE_A = 3
+const SAFE_FRACTION = 0.8
 
 const ua = navigator.userAgent
 const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
@@ -463,43 +468,46 @@ export function Ammeter() {
       {showHelp && serial && <DeviceHelp onClose={() => setShowHelp(false)} />}
 
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
-        <Card className="py-0">
-          <CardContent className="space-y-5 p-5">
-            <div className="space-y-2">
-              <p className="truncate text-sm text-muted-foreground">
-                {source || t('tools.ammeter.current')}
-              </p>
-              <p className="text-4xl font-semibold tabular-nums tracking-tight">
-                {n ? fmt(d.i[n - 1]) : '—'}
-              </p>
-              <Segmented
-                options={[
-                  { value: false, label: 'A' },
-                  { value: true, label: 'mA' },
-                ]}
-                value={milli}
-                onChange={setMilli}
-              />
-            </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-              {[
-                ['min', n ? fmt(d.min) : '—'],
-                ['max', n ? fmt(d.max) : '—'],
-                ['mean', n ? fmt(d.sum / n) : '—'],
-                ['count', String(n)],
-                ['duration', `${(n ? d.t[n - 1] : 0).toFixed(2)} s`],
-                ...(offset !== 0 ? [['offset', fmt(offset)]] : []),
-              ].map(([k, v]) => (
-                <div key={k} className="contents">
-                  <dt className="text-muted-foreground">{t(`tools.ammeter.stats.${k}`)}</dt>
-                  <dd className="tabular-nums">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card className="py-0">
+            <CardContent className="space-y-5 p-5">
+              <div className="space-y-2">
+                <p className="truncate text-sm text-muted-foreground">
+                  {source || t('tools.ammeter.current')}
+                </p>
+                <p className="text-4xl font-semibold tabular-nums tracking-tight">
+                  {n ? fmt(d.i[n - 1]) : '—'}
+                </p>
+                <Segmented
+                  options={[
+                    { value: false, label: 'A' },
+                    { value: true, label: 'mA' },
+                  ]}
+                  value={milli}
+                  onChange={setMilli}
+                />
+              </div>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                {[
+                  ['min', n ? fmt(d.min) : '—'],
+                  ['max', n ? fmt(d.max) : '—'],
+                  ['mean', n ? fmt(d.sum / n) : '—'],
+                  ['count', String(n)],
+                  ['duration', `${(n ? d.t[n - 1] : 0).toFixed(2)} s`],
+                  ...(offset !== 0 ? [['offset', fmt(offset)]] : []),
+                ].map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted-foreground">{t(`tools.ammeter.stats.${k}`)}</dt>
+                    <dd className="tabular-nums">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+          <ProtectCard />
+        </div>
 
-        <Card className="py-0">
+        <Card className="py-0 lg:self-start">
           <CardContent className="flex h-[420px] flex-col gap-2 p-4">
             <div className="flex justify-end">
               <Segmented
@@ -591,6 +599,68 @@ export function Ammeter() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// Battery voltage in, smallest series resistor that keeps the sensor inside its range out.
+function ProtectCard() {
+  const { t } = useTranslation()
+  const [volts, setVolts] = useState('')
+  const v = Number(volts)
+  const safeA = RANGE_A * SAFE_FRACTION
+  const r = volts.trim() && v > 0 ? v / safeA : null
+  // Round up so the advice never lands below the safe value
+  const ohms = r === null ? null : r < 10 ? Math.ceil(r * 10) / 10 : Math.ceil(r)
+  // Heat in the resistor at that value: small lab resistors burn out well before this
+  const watts = ohms === null ? null : (v * v) / ohms
+
+  return (
+    <Card className="py-0">
+      <CardContent className="space-y-4 p-5 text-sm">
+        <div className="flex items-center gap-2 font-medium">
+          <ShieldCheck className="size-4 text-primary" />
+          {t('tools.ammeter.protect.title')}
+        </div>
+        <label className="block space-y-1.5">
+          <span className="text-muted-foreground">{t('tools.ammeter.protect.voltage')}</span>
+          <div className="relative">
+            <Input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={volts}
+              onChange={(e) => setVolts(e.target.value)}
+              placeholder={t('tools.ammeter.protect.voltagePlaceholder')}
+              className="pr-8"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
+              V
+            </span>
+          </div>
+        </label>
+        <div className="flex justify-between gap-2">
+          <span className="text-muted-foreground">{t('tools.ammeter.protect.range')}</span>
+          <span className="tabular-nums">±{RANGE_A} A</span>
+        </div>
+        <div className="space-y-1 rounded-lg bg-secondary/70 p-3">
+          <p className="text-muted-foreground">{t('tools.ammeter.protect.resistor')}</p>
+          <p className="text-xl font-semibold tabular-nums">
+            {ohms === null ? '—' : `≥ ${ohms} Ω`}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {ohms === null
+              ? t('tools.ammeter.protect.empty')
+              : t('tools.ammeter.protect.hint', { a: +safeA.toFixed(2), pct: SAFE_FRACTION * 100 })}
+          </p>
+          {watts !== null && (
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+              {t('tools.ammeter.protect.power', { w: +watts.toPrecision(2) })}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
