@@ -243,10 +243,11 @@ export const en = {
       exportPng: 'Image (PNG)',
       current: 'Current',
       protect: {
-        title: 'Protect the device',
+        title: 'Device protection',
         voltage: 'Battery voltage',
         voltagePlaceholder: 'e.g. 3',
         range: 'Device current range',
+        accuracy: 'Device accuracy',
         resistor: 'Recommended series resistor',
         empty: 'Enter the battery voltage to calculate',
         hint: 'Keeps the current under {{a}} A ({{pct}}% of the range); a smaller resistor may exceed the range and damage the device',

@@ -244,10 +244,11 @@ export const zh: Translations = {
       exportPng: '图片（PNG）',
       current: '电流',
       protect: {
-        title: '保护设备',
+        title: '设备保护',
         voltage: '电池电压',
         voltagePlaceholder: '例如 3',
         range: '设备电流量程',
+        accuracy: '设备精度',
         resistor: '推荐串联电阻',
         empty: '填入电池电压后自动计算',
         hint: '电流不超过 {{a}} A（量程的 {{pct}}%），电阻再小可能超量程、损坏设备',

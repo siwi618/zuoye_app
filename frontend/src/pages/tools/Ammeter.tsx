@@ -57,6 +57,8 @@ const DRIVER_URL = 'https://www.wch.cn/downloads/CH341SER_EXE.html'
 // Sensor full scale (±3 A); the resistor advice keeps the current under SAFE_FRACTION of it.
 const RANGE_A = 3
 const SAFE_FRACTION = 0.8
+// Accuracy from the sensor's spec sheet: ±0.5% of full scale
+const ACCURACY_A = RANGE_A * 0.005
 
 const ua = navigator.userAgent
 const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
@@ -691,6 +693,10 @@ function ProtectCard() {
         <div className="flex justify-between gap-2">
           <span className="text-muted-foreground">{t('tools.ammeter.protect.range')}</span>
           <span className="tabular-nums">±{RANGE_A} A</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-muted-foreground">{t('tools.ammeter.protect.accuracy')}</span>
+          <span className="tabular-nums">±{+ACCURACY_A.toFixed(4)} A</span>
         </div>
         <div className="space-y-1 rounded-lg bg-secondary/70 p-3">
           <p className="text-muted-foreground">{t('tools.ammeter.protect.resistor')}</p>
