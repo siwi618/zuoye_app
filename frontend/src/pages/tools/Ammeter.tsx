@@ -742,6 +742,8 @@ function ProtectCard({ sensorId }: { sensorId: number | null | undefined }) {
           <p
             className={cn(
               'text-xs',
+              // two lines kept for every message, so connecting a device doesn't shift the card
+              'min-h-[2lh]',
               spec ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300',
             )}
           >
@@ -753,20 +755,35 @@ function ProtectCard({ sensorId }: { sensorId: number | null | undefined }) {
           <p className="text-xl font-semibold tabular-nums">
             {ohms === null ? '—' : `≥ ${ohms} Ω`}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {ohms === null || safeA === null
-              ? t(
+          {/* The filled-in lines always take their space (hidden until there is a result), so the
+              card, and the chart beside it, keep one height whether or not a voltage is entered */}
+          <div className="grid text-xs">
+            <div
+              className={cn('col-start-1 row-start-1 space-y-1', ohms === null && 'invisible')}
+              aria-hidden={ohms === null}
+            >
+              <p className="text-muted-foreground">
+                {t('tools.ammeter.protect.hint', {
+                  a: +((rangeA ?? 3) * SAFE_FRACTION).toFixed(2),
+                  pct: SAFE_FRACTION * 100,
+                })}
+              </p>
+              <p className="font-medium text-amber-700 dark:text-amber-300">
+                {t('tools.ammeter.protect.power', {
+                  w: watts === null ? 9.9 : +watts.toPrecision(2),
+                })}
+              </p>
+            </div>
+            {ohms === null && (
+              <p className="col-start-1 row-start-1 text-muted-foreground">
+                {t(
                   rangeA === null
                     ? 'tools.ammeter.protect.needRange'
                     : 'tools.ammeter.protect.empty',
-                )
-              : t('tools.ammeter.protect.hint', { a: +safeA.toFixed(2), pct: SAFE_FRACTION * 100 })}
-          </p>
-          {watts !== null && (
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-              {t('tools.ammeter.protect.power', { w: +watts.toPrecision(2) })}
-            </p>
-          )}
+                )}
+              </p>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
