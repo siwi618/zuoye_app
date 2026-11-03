@@ -11,7 +11,12 @@ const CATEGORIES: Subject[] = [
     key: 'science',
     tools: [{ key: 'ammeter', status: 'live', icon: '/tools/ammeter.svg', to: '/tools/ammeter' }],
   },
-  { key: 'humanities', tools: [] },
+  {
+    key: 'humanities',
+    tools: [
+      { key: 'literature', status: 'live', icon: '/tools/literature.svg', to: '/tools/literature' },
+    ],
+  },
 ]
 
 export function Toolbox() {

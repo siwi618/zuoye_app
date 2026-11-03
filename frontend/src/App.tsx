@@ -17,6 +17,7 @@ import { NewPost } from '@/pages/NewPost'
 import { PostDetail } from '@/pages/PostDetail'
 import { Toolbox } from '@/pages/Toolbox'
 import { Ammeter } from '@/pages/tools/Ammeter'
+import { Literature } from '@/pages/tools/Literature'
 import { ToolShell } from '@/components/tools/ToolShell'
 
 export default function App() {
@@ -44,6 +45,8 @@ export default function App() {
             <Route element={<ToolShell />}>
               <Route path="/tools/ammeter" element={<Ammeter />} />
             </Route>
+            {/* Outside ToolShell: its settings (auto-zero) only apply to measuring instruments. */}
+            <Route path="/tools/literature" element={<Literature />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>
