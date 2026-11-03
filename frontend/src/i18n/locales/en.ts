@@ -216,7 +216,7 @@ export const en = {
     subtitle: 'Handy tools made by students — open and use right in the browser.',
     items: {
       ammeter: 'Ammeter',
-      literature: 'Literary Analysis',
+      literature: 'Literary Analysis (Beta)',
     },
     blurbs: {
       ammeter: 'Plug in a USB current sensor and watch the current live.',

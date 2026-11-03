@@ -217,7 +217,7 @@ export const zh: Translations = {
     subtitle: '同学们做的小工具，打开浏览器就能用。',
     items: {
       ammeter: '电流仪',
-      literature: '文学分析',
+      literature: '文学分析（测试中）',
     },
     blurbs: {
       ammeter: '接上 USB 电流传感器，实时画出电流曲线。',
