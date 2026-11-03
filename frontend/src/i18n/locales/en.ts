@@ -217,6 +217,11 @@ export const en = {
     items: {
       ammeter: 'Ammeter',
     },
+    categories: {
+      science: 'Natural sciences',
+      humanities: 'Humanities',
+    },
+    comingSoon: 'No tools yet — coming soon.',
     autoZeroTip: {
       title: 'Tired of zeroing by hand? Try auto-zero!',
       dismiss: 'Close',

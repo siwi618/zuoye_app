@@ -218,6 +218,11 @@ export const zh: Translations = {
     items: {
       ammeter: '电流仪',
     },
+    categories: {
+      science: '自然科学',
+      humanities: '人文科学',
+    },
+    comingSoon: '还没有工具，敬请期待。',
     autoZeroTip: {
       title: '手动调零太麻烦？试试自动调零吧！',
       dismiss: '关闭',
