@@ -11,7 +11,7 @@ export const zh: Translations = {
     dashboard: '主页',
     browse: '浏览请求',
     forum: '讨论区',
-    tools: '工具箱',
+    tools: '工具瑚',
     leaderboard: '排行榜',
     profile: '个人资料',
     signOut: '退出登录',
@@ -93,9 +93,9 @@ export const zh: Translations = {
     gradeReminder: '你还没有确认自己的年级 — 设置一次，以后发请求就会自动填上。',
     gradeReminderAction: '去个人资料确认',
     gradeReminderDismiss: '关闭',
-    autoZero: '自动调零（工具箱）',
+    autoZero: '自动调零（工具瑚）',
     autoZeroHint:
-      '开启后，工具箱里的工具每次开始采集都会自动调零：丢掉传感器刚启动的前 0.2 秒，再用接下来 0.5 秒的读数作为零点。请先点「开始」，再接通电路。',
+      '开启后，工具瑚里的工具每次开始采集都会自动调零：丢掉传感器刚启动的前 0.2 秒，再用接下来 0.5 秒的读数作为零点。请先点「开始」，再接通电路。',
     autoZeroOn: '已开启自动调零',
     autoZeroOff: '已关闭自动调零',
     autoZeroSaveFailed: '保存设置失败',
@@ -213,7 +213,7 @@ export const zh: Translations = {
     Other: '其他',
   },
   tools: {
-    title: '工具箱',
+    title: '工具瑚',
     subtitle: '同学们做的小工具，打开浏览器就能用。',
     items: {
       ammeter: '电流仪',
