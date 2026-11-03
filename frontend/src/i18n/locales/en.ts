@@ -217,6 +217,14 @@ export const en = {
     items: {
       ammeter: 'Ammeter',
     },
+    blurbs: {
+      ammeter: 'Plug in a USB current sensor and watch the current live.',
+    },
+    planned: 'Growing',
+    openTool: 'Open {{name}}',
+    grow: {
+      hint: 'Tap a branch tip to see each tool.',
+    },
     categories: {
       science: 'Natural sciences',
       humanities: 'Humanities',

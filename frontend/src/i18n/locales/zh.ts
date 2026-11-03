@@ -218,6 +218,14 @@ export const zh: Translations = {
     items: {
       ammeter: '电流仪',
     },
+    blurbs: {
+      ammeter: '接上 USB 电流传感器，实时画出电流曲线。',
+    },
+    planned: '筹备中',
+    openTool: '打开{{name}}',
+    grow: {
+      hint: '点枝头，看看每个工具。',
+    },
     categories: {
       science: '自然科学',
       humanities: '人文科学',

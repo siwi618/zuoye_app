@@ -1,0 +1,644 @@
+/* Hallmark · shape: in-app index, one coral colony with a seabed and a few fish · genre: atmospheric · theme: custom · job: try · idea: "the toolbox is a living coral: each subject is a branch and each tool a tip, and the colony grows as tools are added" · vibe: "sunlit mint water, quiet, a little playful"
+ * paper: oklch(0.975 0.018 175) · accent: oklch(0.68 0.13 175), the site's --primary · display: Inter, the app's face · body: Inter with PingFang SC, the app's stack · hero: the page title over the colony, no separate hero · nav: the app's own top bar · footer: the app's own · imagery: none, the colony is the navigation · signature: light running up the branch to the picked tool, fish that scatter from the pointer
+ * axes: light/grotesk-medium/chromatic-teal · posture: restrained, one hue family in many depths · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R4 V5 · weakest: R, fish and seabed corals are pure ambience; kept small, behind the colony, and still under reduced motion */
+/* Hallmark · waive 80 · every branch tip is a button that opens a tool and the seabed corals sit behind the colony at under 100px · the owner asked for an ocean and coral toolbox, so the drawn colony is the navigation itself */
+/* Hallmark · gap: no dark tokens; the app has a .dark palette in index.css but no switch yet, so the toolbox stays light until one ships */
+
+:root {
+  /* Toolbox tokens. Water, light to dark */
+  --tbx-sea-0: oklch(0.975 0.018 175);
+  --tbx-sea-1: oklch(0.93 0.042 178);
+  --tbx-sea-2: oklch(0.84 0.07 182);
+  /* Coral and fish */
+  --tbx-coral: oklch(0.68 0.13 175);
+  --tbx-coral-deep: oklch(0.5 0.1 180);
+  --tbx-coral-soft: oklch(0.82 0.08 172);
+  --tbx-polyp: oklch(0.98 0.02 170);
+  --tbx-fish: oklch(0.6 0.1 186);
+  /* Ink and surfaces */
+  --tbx-foam: oklch(0.995 0.006 170);
+  --tbx-ink: oklch(0.24 0.03 200);
+  --tbx-ink-soft: oklch(0.43 0.035 195);
+  --tbx-glass: oklch(0.995 0.006 170 / 0.78);
+  --tbx-line: oklch(0.55 0.06 190 / 0.22);
+  --tbx-focus: oklch(0.42 0.12 182);
+  --tbx-on-accent: oklch(0.995 0.006 170);
+  /* Shape and motion */
+  --tbx-radius-scene: 28px;
+  --tbx-radius-item: 16px;
+  --tbx-dur-micro: 140ms;
+  --tbx-dur-short: 260ms;
+  --tbx-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+.tbx :focus-visible {
+  outline: 3px solid var(--tbx-focus);
+  outline-offset: 3px;
+  transition: none;
+}
+
+.tbx-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--tbx-coral-deep);
+  color: var(--tbx-on-accent);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform var(--tbx-dur-micro) var(--tbx-ease);
+}
+
+.tbx-btn:hover {
+  transform: translateY(-1px);
+}
+
+.tbx-btn:active {
+  transform: scale(0.98);
+}
+
+/* Coral drawing: seabed corals */
+.tbx-coralsvg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tbx-coralsvg__sway {
+  transform-box: view-box;
+  transform-origin: 60px 140px;
+  animation: tbx-sway 6s ease-in-out infinite alternate;
+}
+
+.tbx-coralsvg__branch {
+  fill: none;
+  stroke: var(--tbx-coral);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.tbx-coralsvg--fan .tbx-coralsvg__branch {
+  stroke-width: 5;
+}
+
+.tbx-coralsvg--bud .tbx-coralsvg__branch {
+  stroke: var(--tbx-coral-soft);
+  stroke-width: 8;
+}
+
+.tbx-coralsvg__polyp {
+  fill: var(--tbx-polyp);
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.45);
+  transition: transform var(--tbx-dur-short) var(--tbx-ease);
+}
+
+.tbx-coralsvg--bud .tbx-coralsvg__polyp {
+  stroke: var(--tbx-coral-soft);
+  stroke-dasharray: 3 3;
+}
+
+.tbx-coralsvg__bubble {
+  fill: color-mix(in oklab, var(--tbx-foam) 80%, transparent);
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+@keyframes tbx-sway {
+  from {
+    transform: rotate(-2deg);
+  }
+  to {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes tbx-bubble {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  11% {
+    opacity: 1;
+    transform: translate(0, -10px) scale(1);
+  }
+  47% {
+    opacity: 0.9;
+    transform: translate(5px, -56px) scale(1.15);
+  }
+  78%,
+  100% {
+    opacity: 0;
+    transform: translate(-3px, -96px) scale(1.25);
+  }
+}
+
+.tbx-fish {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 20px;
+  will-change: transform;
+}
+
+.tbx-fish svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tbx-fish__body {
+  fill: var(--tbx-fish);
+}
+
+.tbx-fish__tail {
+  fill: var(--tbx-coral-deep);
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: tbx-tail 0.5s ease-in-out infinite alternate;
+}
+
+.tbx-fish__eye {
+  fill: var(--tbx-foam);
+}
+
+@keyframes tbx-tail {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes tbx-drift {
+  from {
+    transform: translateY(-10px);
+  }
+  to {
+    transform: translateY(12px);
+  }
+}
+
+/* C. Growth */
+.tbx-grow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: center;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid var(--tbx-line);
+  border-radius: var(--tbx-radius-scene);
+  background: radial-gradient(ellipse at 50% 100%, var(--tbx-sea-2), var(--tbx-sea-1) 45%, var(--tbx-sea-0) 85%);
+}
+
+.tbx-grow__stage,
+.tbx-grow__panel {
+  position: relative;
+  z-index: 1;
+}
+
+.tbx-grow__stage {
+  aspect-ratio: 1000 / 640;
+  min-width: 0;
+}
+
+.tbx-grow__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tbx-grow__plankton circle {
+  fill: var(--tbx-coral-soft);
+  opacity: 0.6;
+  animation: tbx-drift 8s ease-in-out infinite alternate;
+}
+
+.tbx-grow__path {
+  fill: none;
+  stroke: var(--tbx-coral);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  opacity: 0.6;
+  animation: tbx-grow-in 1.1s var(--tbx-ease) both;
+  transition:
+    opacity var(--tbx-dur-short) var(--tbx-ease),
+    stroke var(--tbx-dur-short) var(--tbx-ease);
+}
+
+.tbx-grow__trunk {
+  fill: var(--tbx-coral-deep);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: tbx-rise 0.6s var(--tbx-ease) both;
+}
+
+@keyframes tbx-rise {
+  from {
+    transform: scaleY(0.2);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.tbx-logo__from {
+  stop-color: var(--tbx-coral);
+}
+
+.tbx-logo__to {
+  stop-color: var(--tbx-coral-deep);
+}
+
+.tbx-logo__tile {
+  stroke: var(--tbx-foam);
+  stroke-width: 3;
+}
+
+.tbx-logo__mark path {
+  fill: none;
+  stroke: var(--tbx-on-accent);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tbx-logo__mark circle {
+  fill: var(--tbx-on-accent);
+}
+
+.tbx-grow__logo {
+  animation: tbx-fade 0.5s var(--tbx-ease) 0.5s both;
+}
+
+@keyframes tbx-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tbx-grow__branch {
+  fill: var(--tbx-coral);
+  opacity: 0.6;
+  transform-box: view-box;
+  animation: tbx-sprout 0.9s var(--tbx-ease) 0.45s both;
+  transition:
+    opacity var(--tbx-dur-short) var(--tbx-ease),
+    fill var(--tbx-dur-short) var(--tbx-ease);
+}
+
+.tbx-grow__branch--l2 {
+  animation-delay: 0.8s;
+}
+
+.tbx-grow__branch.is-on {
+  fill: var(--tbx-coral-deep);
+  opacity: 1;
+}
+
+@keyframes tbx-sprout {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+.tbx-grow__path--twig {
+  stroke: var(--tbx-coral-soft);
+  stroke-width: 6;
+  opacity: 0.9;
+  animation-delay: 1.2s;
+}
+
+.tbx-grow__blend {
+  transform-box: view-box;
+  animation: tbx-sprout 0.9s var(--tbx-ease) 0.45s both;
+}
+
+.tbx-blend__from {
+  stop-color: var(--tbx-coral-deep);
+  stop-opacity: 1;
+}
+
+.tbx-blend__to {
+  stop-color: var(--tbx-coral-deep);
+  stop-opacity: 0;
+}
+
+@keyframes tbx-grow-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.tbx-grow__polyp {
+  fill: var(--tbx-polyp);
+  stroke: var(--tbx-coral);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tbx-breathe 3.6s ease-in-out infinite alternate;
+}
+
+@keyframes tbx-breathe {
+  from {
+    transform: scale(0.7);
+  }
+  to {
+    transform: scale(1.1);
+  }
+}
+
+.tbx-grow__flow {
+  fill: var(--tbx-foam);
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tbx-flow 1.8s ease-in-out infinite;
+}
+
+@keyframes tbx-flow {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.tbx-grow__subject {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: var(--tbx-glass);
+  color: var(--tbx-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  transition: color var(--tbx-dur-short) var(--tbx-ease);
+}
+
+.tbx-grow__subject.is-on {
+  color: var(--tbx-ink);
+}
+
+.tbx-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tbx-radius-item);
+  background: transparent;
+  color: var(--tbx-ink);
+  cursor: pointer;
+  text-decoration: none;
+  transform: translate(-50%, -32px);
+}
+
+.tbx-node:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tbx-node__dot {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--tbx-coral);
+  border-radius: 50%;
+  background: var(--tbx-foam);
+  transition:
+    transform var(--tbx-dur-short) var(--tbx-ease),
+    box-shadow var(--tbx-dur-short) var(--tbx-ease);
+}
+
+.tbx-node__dot img {
+  width: 40px;
+  height: 40px;
+}
+
+.tbx-node--planned {
+  transform: translate(-50%, -18px);
+}
+
+.tbx-node--planned .tbx-node__dot {
+  width: 36px;
+  height: 36px;
+  border: 2px dashed var(--tbx-coral);
+  background: var(--tbx-polyp);
+}
+
+.tbx-node.is-on .tbx-node__dot {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 8px color-mix(in oklab, var(--tbx-coral) 22%, transparent);
+}
+
+.tbx-node__name {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--tbx-glass);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tbx-grow__hint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  color: var(--tbx-ink-soft);
+  font-size: 13px;
+}
+
+.tbx-grow__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--tbx-line);
+  border-radius: var(--tbx-radius-item);
+  background: var(--tbx-glass);
+}
+
+.tbx-grow__panelsubject {
+  color: var(--tbx-ink-soft);
+  font-size: 13px;
+}
+
+.tbx-grow__panelname {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.tbx-grow__panelblurb {
+  margin: 0 0 8px;
+  text-wrap: pretty;
+  color: var(--tbx-ink-soft);
+  font-size: 15px;
+}
+
+.tbx-grow__soon {
+  color: var(--tbx-ink-soft);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Fish swim behind the colony; the seabed corals root on the same line as the trunk. */
+.tbx-grow__school {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tbx-grow__seabed {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tbx-deco {
+  position: absolute;
+  bottom: 0;
+  transform-origin: 0 100%;
+  pointer-events: auto;
+}
+
+.tbx-deco:hover .tbx-coralsvg__polyp {
+  transform: scale(1);
+}
+
+.tbx-deco:hover .tbx-coralsvg__bubble {
+  animation: tbx-bubble 3.1s ease-out infinite;
+}
+
+/* Narrow screens */
+@media (max-width: 60rem) {
+  .tbx-grow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .tbx-grow {
+    padding: 12px;
+  }
+
+  .tbx-deco {
+    scale: 0.55;
+  }
+
+  .tbx-grow__subject {
+    top: var(--y-side);
+    left: var(--x-side);
+  }
+
+  /* The science tip reaches the top-left corner on a phone, so the hint moves to the empty right side. */
+  .tbx-grow__hint {
+    left: auto;
+    right: 0;
+  }
+
+  /* Two subject chips share a phone-width stage; the empty note waits for a wider screen. */
+  .tbx-grow__soon {
+    display: none;
+  }
+
+  .tbx-node__dot {
+    width: 48px;
+    height: 48px;
+  }
+
+  .tbx-node__dot img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .tbx-node {
+    transform: translate(-50%, -24px);
+  }
+
+  .tbx-node--planned .tbx-node__dot {
+    width: 28px;
+    height: 28px;
+  }
+
+  .tbx-node--planned {
+    transform: translate(-50%, -14px);
+  }
+
+  .tbx-node__name {
+    font-size: 12px;
+  }
+
+  /* Tips sit too close for four names on a phone; the picked one keeps its name and the panel below says the rest. */
+  .tbx-node:not(.is-on) .tbx-node__name {
+    opacity: 0;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tbx *,
+  .tbx *::before,
+  .tbx *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .tbx-grow__flow {
+    opacity: 1;
+  }
+}
