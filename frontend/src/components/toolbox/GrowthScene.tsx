@@ -39,6 +39,9 @@ const SHOULDER = 17
 // fork -> 12 at a tool.
 const WIDTH = { 1: [34, 24], 2: [24, 12] } as const
 
+// Seconds into the opening when the light first runs: the first tip's icon is fully out by then.
+const FLOW_START = 2.1
+
 const W = 1000
 const H = 640
 const ROOT = { x: 500, y: 630 }
@@ -178,6 +181,10 @@ export function GrowthScene({ subjects }: SceneProps) {
   const gradId = `tbx-logo-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   const firstLive = nodes.find((n) => n.tool.status === 'live') ?? nodes[0]
   const [activeKey, setActiveKey] = useState(firstLive?.tool.key)
+  // On opening, the light waits until the picked tip's icon is out (see the tbx-bud timings in
+  // toolbox.css); once someone picks another tip it starts at once.
+  const [moved, setMoved] = useState(false)
+  const flowStart = moved ? 0 : FLOW_START
   const active = nodes.find((n) => n.tool.key === activeKey) ?? firstLive
   const chain = new Set(active?.chain ?? [])
 
@@ -280,15 +287,23 @@ export function GrowthScene({ subjects }: SceneProps) {
           {segs
             .filter((s) => chain.has(s.id))
             .sort((a, b) => a.level - b.level)
-            .flatMap((s) => (s.level === 0 ? [0.12, 0.86] : [0.2, 0.4, 0.6, 0.8]).map((k) => ({ s, k, p: at(s, k) })))
-            .map(({ s, k, p }, i) => (
+            .flatMap((s) =>
+              s.level === 0
+                ? // On the trunk the light also passes through its four polyps, climbing bottom to top.
+                  [
+                    ...[0.12, 0.86].map((k) => ({ id: `${s.id}-${k}`, p: at(s, k), polyp: false })),
+                    ...TRUNK_POLYPS.map(([x, y]) => ({ id: `${s.id}-p${x}`, p: { x, y }, polyp: true })),
+                  ].sort((a, b) => b.p.y - a.p.y)
+                : [0.2, 0.4, 0.6, 0.8].map((k) => ({ id: `${s.id}-${k}`, p: at(s, k), polyp: false })),
+            )
+            .map(({ id, p, polyp }, i) => (
               <circle
-                key={`${activeKey}-${s.id}-${k}`}
+                key={`${activeKey}-${id}`}
                 cx={p.x}
                 cy={p.y}
-                r="4.5"
-                className="tbx-grow__flow"
-                style={{ animationDelay: `${i * 0.11}s` }}
+                r={polyp ? 5 : 4.5}
+                className={`tbx-grow__flow${polyp ? ' tbx-grow__flow--polyp' : ''}`}
+                style={{ animationDelay: `${flowStart + i * 0.11}s` }}
               />
             ))}
           {/* Coral Study mark on the trunk: the same drawing as the nav logo and favicon. */}
@@ -315,12 +330,13 @@ export function GrowthScene({ subjects }: SceneProps) {
           </g>
         </svg>
 
-        {labels.map((l) => (
+        {labels.map((l, i) => (
           <span
             key={l.key}
             className={`tbx-grow__subject${active?.subject === l.key ? ' is-on' : ''}`}
             style={
               {
+                '--i': i,
                 '--x': `${(l.at.x / W) * 100}%`,
                 '--y': `${(l.at.y / H) * 100}%`,
                 '--x-side': `${(l.side.x / W) * 100}%`,
@@ -333,11 +349,14 @@ export function GrowthScene({ subjects }: SceneProps) {
           </span>
         ))}
 
-        {nodes.map((n) => {
+        {nodes.map((n, i) => {
           const on = n.tool.key === active?.tool.key
           const cls = `tbx-node tbx-node--${n.tool.status}${on ? ' is-on' : ''}`
-          const style = { left: `${(n.at.x / W) * 100}%`, top: `${(n.at.y / H) * 100}%` }
-          const pick = () => setActiveKey(n.tool.key)
+          const style = { left: `${(n.at.x / W) * 100}%`, top: `${(n.at.y / H) * 100}%`, '--i': i } as CSSProperties
+          const pick = () => {
+            if (n.tool.key !== activeKey) setMoved(true)
+            setActiveKey(n.tool.key)
+          }
           const inner = (
             <>
               <span className="tbx-node__dot">{n.tool.icon && <img src={n.tool.icon} alt="" />}</span>

@@ -175,6 +175,25 @@ body {
   fill: var(--tbx-foam);
 }
 
+/* A caught fish comes out in front of the colony and beats its tail fast. */
+.tbx-fish.is-caught {
+  z-index: 3;
+}
+
+.tbx-fish.is-caught .tbx-fish__tail {
+  animation-duration: 0.12s;
+}
+
+.tbx-grow.is-fishy {
+  cursor: grab;
+}
+
+.tbx-grow.is-catching,
+.tbx-grow.is-catching * {
+  cursor: grabbing;
+  user-select: none;
+}
+
 @keyframes tbx-tail {
   from {
     transform: rotate(-12deg);
@@ -385,6 +404,30 @@ body {
   animation: tbx-flow 1.8s ease-in-out infinite;
 }
 
+/* A trunk polyp the light passes through brightens a little: a pale rim and a softer peak than the
+ * branch lights, so the trunk shows the light passing without outshining the tools. */
+.tbx-grow__flow--polyp {
+  stroke: var(--tbx-coral-soft);
+  stroke-width: 1.5;
+  animation-name: tbx-flow-soft;
+}
+
+@keyframes tbx-flow-soft {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
 @keyframes tbx-flow {
   0% {
     opacity: 0;
@@ -421,6 +464,63 @@ body {
 
 .tbx-grow__subject.is-on {
   color: var(--tbx-ink);
+}
+
+/* Opening, after the colony itself: each subject chip pops out beside its main branch once that
+ * branch is about half grown, then each tool tip buds at the end of its branch (ring, then icon,
+ * then name). Only `backwards` fill, so once played the hover / picked / phone-hidden states rule
+ * again, and the pops use the separate scale / translate properties so they leave `transform` alone. */
+.tbx-grow__subject {
+  /* translate(-50%, -50%) runs first, so scaling about 0 0 grows the chip from its anchor point. */
+  transform-origin: 0 0;
+  animation: tbx-chip-in 0.55s var(--tbx-ease) calc(0.95s + var(--i, 0) * 0.12s) backwards;
+}
+
+@keyframes tbx-chip-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+    translate: 0 10px;
+  }
+}
+
+.tbx-node__dot {
+  animation: tbx-bud 0.6s var(--tbx-ease) calc(1.45s + var(--i, 0) * 0.12s) backwards;
+}
+
+.tbx-node__dot img {
+  animation: tbx-bud-icon 0.5s var(--tbx-ease) calc(1.62s + var(--i, 0) * 0.12s) backwards;
+}
+
+.tbx-node__name {
+  animation: tbx-name-in 0.4s var(--tbx-ease) calc(1.85s + var(--i, 0) * 0.12s) backwards;
+}
+
+@keyframes tbx-bud {
+  from {
+    opacity: 0;
+    scale: 0.2;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.12;
+  }
+}
+
+@keyframes tbx-bud-icon {
+  from {
+    opacity: 0;
+    scale: 0.3;
+    rotate: -24deg;
+  }
+}
+
+/* No end keyframe: it settles on whatever opacity the name has (0 for an unpicked tip on a phone). */
+@keyframes tbx-name-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
 }
 
 .tbx-node {
@@ -540,12 +640,16 @@ body {
   font-weight: 400;
 }
 
-/* Fish swim behind the colony; the seabed corals root on the same line as the trunk. */
+/* Fish swim behind the colony; the seabed corals root on the same line as the trunk. The school
+ * makes no stacking layer of its own, so a caught fish can be lifted above the colony. */
 .tbx-grow__school {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
+}
+
+.tbx-fish {
+  z-index: 0;
 }
 
 .tbx-grow__seabed {
