@@ -476,8 +476,13 @@ body {
 }
 
 .tbx-node.is-on .tbx-node__dot {
-  transform: scale(1.08);
   box-shadow: 0 0 0 8px color-mix(in oklab, var(--tbx-coral) 22%, transparent);
+}
+
+/* The icon grows a little under the pointer or keyboard focus; the picked tip keeps only its ring. */
+.tbx-node:hover .tbx-node__dot,
+.tbx-node:focus-visible .tbx-node__dot {
+  transform: scale(1.12);
 }
 
 .tbx-node__name {
