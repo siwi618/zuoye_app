@@ -32,7 +32,9 @@
   --tbx-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-html,
+/* Body only: with html also non-visible, body's overflow stops passing to the viewport, so the
+   scroll lock of an open menu (body overflow hidden) turns body into the scroll container and the
+   sticky header scrolls away with the page. */
 body {
   overflow-x: clip;
 }
