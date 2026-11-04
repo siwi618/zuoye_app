@@ -11,15 +11,68 @@ import { useReducedMotion } from './useReducedMotion'
 // way a future knowledge map would trace a link. Small corals on the seabed and a few fish keep
 // the water alive: polyps open under the pointer, fish scatter from it.
 
-// Seabed decoration: left edge of each coral in % of the stage, its height in px.
-const DECOR: { kind: CoralKind; left: number; size: number }[] = [
-  { kind: 'staghorn', left: 3, size: 92 },
-  { kind: 'fan', left: 14, size: 66 },
-  { kind: 'staghorn', left: 26, size: 54 },
-  { kind: 'fan', left: 64, size: 58 },
-  { kind: 'staghorn', left: 76, size: 96 },
-  { kind: 'fan', left: 89, size: 62 },
+// Seabed decoration: left edge of each coral in % of the stage (past 100 runs on under the side
+// card on a wide screen), its height in px, and its row (`lift` raises a near one onto the reef, in % of
+// the stage, so the front row doesn't stand on one line). Far corals are smaller and paler and stand
+// on the back ridge, half hidden by the reef in front; near ones stand on the sand. The middle of
+// the stage stays clear for the trunk.
+type Decor = { kind: CoralKind; left: number; size: number; far?: boolean; lift?: number }
+const DECOR: Decor[] = [
+  { kind: 'tube', left: 6, size: 46, far: true },
+  { kind: 'table', left: 21, size: 50, far: true },
+  { kind: 'brain', left: 35, size: 54, far: true },
+  { kind: 'fan', left: 58, size: 44, far: true },
+  { kind: 'staghorn', left: 70, size: 54, far: true },
+  { kind: 'tube', left: 99, size: 50, far: true },
+  { kind: 'fan', left: 119, size: 50, far: true },
+  { kind: 'staghorn', left: 0, size: 92 },
+  { kind: 'brain', left: 10, size: 70, lift: 2 },
+  { kind: 'fan', left: 19, size: 62 },
+  { kind: 'tube', left: 28, size: 72, lift: 3.5 },
+  { kind: 'table', left: 62, size: 78, lift: 1.5 },
+  { kind: 'staghorn', left: 75, size: 94 },
+  { kind: 'brain', left: 85, size: 64, lift: 3.5 },
+  { kind: 'fan', left: 93, size: 58 },
+  { kind: 'tube', left: 104, size: 76, lift: 2 },
+  { kind: 'table', left: 115, size: 74, lift: 4 },
+  { kind: 'staghorn', left: 127, size: 84 },
 ]
+
+// The reef the colony stands on, in three layers drawn on a 1400 x 160 strip: a pale far ridge,
+// a bumpy middle reef dotted with pores, and a strip of sand in front.
+const REEF_BACK =
+  'M0 160 L0 70 C80 52 150 40 240 50 C320 58 360 34 450 30 C540 26 600 52 690 56 C780 60 830 36 930 34 C1030 32 1090 58 1180 54 C1260 50 1320 38 1400 44 L1400 160 Z'
+const REEF_MID =
+  'M0 160 L0 100 C40 86 70 84 100 94 C130 80 170 76 200 90 C240 96 270 82 310 86 C350 90 370 100 420 96 C470 92 490 78 540 82 C590 86 610 100 660 98 C700 96 720 86 760 88 C800 90 830 102 880 98 C930 94 950 80 1000 84 C1050 88 1070 98 1120 96 C1170 94 1190 82 1240 86 C1290 90 1320 100 1360 94 C1380 92 1390 90 1400 92 L1400 160 Z'
+const REEF_SAND =
+  'M0 160 L0 136 C120 128 240 140 380 134 C520 128 640 140 780 136 C920 132 1040 142 1180 136 C1280 132 1350 134 1400 132 L1400 160 Z'
+const REEF_PORES = Array.from({ length: 34 }, (_, i) => ({
+  x: 20 + ((i * 397) % 1360),
+  y: 106 + ((i * 53) % 24),
+  r: 2 + (i % 3),
+}))
+const REEF_PEBBLES = Array.from({ length: 16 }, (_, i) => ({ x: 40 + ((i * 271) % 1320), y: 146 + ((i * 31) % 9), r: 3 + (i % 3) }))
+
+function Reef({ layer }: { layer: 'back' | 'front' }) {
+  return (
+    <svg className={`tbx-reef tbx-reef--${layer}`} viewBox="0 0 1400 160" preserveAspectRatio="xMidYMax slice">
+      {layer === 'back' ? (
+        <path d={REEF_BACK} className="tbx-reef__ridge" />
+      ) : (
+        <>
+          <path d={REEF_MID} className="tbx-reef__rock" />
+          {REEF_PORES.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={p.r} className="tbx-reef__pore" />
+          ))}
+          <path d={REEF_SAND} className="tbx-reef__sand" />
+          {REEF_PEBBLES.map((p, i) => (
+            <ellipse key={i} cx={p.x} cy={p.y} rx={p.r * 1.6} ry={p.r} className="tbx-reef__pebble" />
+          ))}
+        </>
+      )}
+    </svg>
+  )
+}
 
 // The trunk is a filled shape, flared at the root like a tree and narrowing to the fork, so it
 // can carry the Coral Study mark. Its centre line is still the 'trunk' segment for highlight and flow.
@@ -175,10 +228,12 @@ function layout(subjects: SceneProps['subjects']) {
   const twigs: Seg[] = segs
     .filter((s) => s.level === 1)
     .map((s) => {
-      const p = at(s, 0.64)
+      // It leaves the underside of the branch heading outwards, dips a little, and lifts its tip up
+      // and out, so it reads as its own sprig rather than lying along the branch.
+      const p = at(s, 0.6)
       const side = s.b.x > s.a.x ? 1 : -1
-      const b = { x: p.x + side * 56, y: p.y - 40 }
-      return { id: `${s.id}-tw`, a: p, c1: { x: p.x + side * 10, y: p.y - 20 }, c2: { x: b.x - side * 12, y: b.y + 12 }, b, level: 2 as const }
+      const b = { x: p.x + side * 60, y: p.y - 6 }
+      return { id: `${s.id}-tw`, a: p, c1: { x: p.x + side * 26, y: p.y + 14 }, c2: { x: b.x - side * 14, y: b.y + 16 }, b, level: 2 as const }
     })
   // Subject labels sit beside the middle of their main branch, inside the fork. On a phone the two
   // would touch there, so each also gets a spot just outside its branch (`side`).
@@ -227,6 +282,23 @@ function flowDots(chain: Seg[]) {
   return dots
 }
 
+function Deco({ c, i }: { c: Decor; i: number }) {
+  return (
+    <span
+      className={`tbx-deco${c.far ? ' tbx-deco--far' : ''}`}
+      style={{
+        left: `${c.left}%`,
+        ...(c.lift ? { bottom: `${c.lift}%` } : {}),
+        width: (c.size * 120) / 140,
+        height: c.size,
+        animationDelay: `${i * -1.1}s`,
+      }}
+    >
+      <Coral kind={c.kind} />
+    </span>
+  )
+}
+
 export function GrowthScene({ subjects }: SceneProps) {
   const { t } = useTranslation()
   const { segs, twigs, nodes, labels, stubs } = useMemo(() => layout(subjects), [subjects])
@@ -261,14 +333,13 @@ export function GrowthScene({ subjects }: SceneProps) {
 
       <div className="tbx-grow__stage">
         <div className="tbx-grow__seabed" aria-hidden="true">
-          {DECOR.map((c, i) => (
-            <span
-              key={i}
-              className="tbx-deco"
-              style={{ left: `${c.left}%`, width: (c.size * 120) / 140, height: c.size, animationDelay: `${i * -1.1}s` }}
-            >
-              <Coral kind={c.kind} />
-            </span>
+          <Reef layer="back" />
+          {DECOR.filter((c) => c.far).map((c, i) => (
+            <Deco key={`f${i}`} c={c} i={i} />
+          ))}
+          <Reef layer="front" />
+          {DECOR.filter((c) => !c.far).map((c, i) => (
+            <Deco key={`n${i}`} c={c} i={i + 7} />
           ))}
         </div>
 

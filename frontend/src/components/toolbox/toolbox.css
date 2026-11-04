@@ -111,6 +111,66 @@ body {
   stroke-dasharray: 3 3;
 }
 
+.tbx-coralsvg__mass {
+  fill: var(--tbx-coral);
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 2;
+}
+
+.tbx-coralsvg__groove {
+  fill: none;
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+/* Brain coral: a soft dome with deep ridges; it sits still instead of swaying. */
+.tbx-coralsvg--brain .tbx-coralsvg__mass {
+  fill: color-mix(in oklab, var(--tbx-coral) 75%, var(--tbx-coral-soft));
+}
+
+.tbx-coralsvg--brain .tbx-coralsvg__groove {
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 3;
+  opacity: 0.9;
+}
+
+.tbx-coralsvg--brain .tbx-coralsvg__sway {
+  animation: none;
+}
+
+/* Organ-pipe coral: thick tubes standing on a low mound, each with an open pale rim. */
+.tbx-coralsvg--tube .tbx-coralsvg__branch {
+  stroke-width: 13;
+  stroke-linecap: butt;
+}
+
+.tbx-coralsvg--tube .tbx-coralsvg__mass {
+  fill: var(--tbx-coral-deep);
+  stroke: none;
+}
+
+.tbx-coralsvg__rim {
+  fill: var(--tbx-polyp);
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 2;
+}
+
+/* Table coral: a deep stalk under a broad plate; the knobs on top carry the polyps. */
+.tbx-coralsvg--table .tbx-coralsvg__branch {
+  stroke: var(--tbx-coral-deep);
+  stroke-width: 5;
+}
+
+.tbx-coralsvg--table .tbx-coralsvg__branch:first-child {
+  stroke-width: 11;
+}
+
+.tbx-coralsvg--table .tbx-coralsvg__sway {
+  animation-duration: 9s;
+}
+
 .tbx-coralsvg__bubble {
   fill: color-mix(in oklab, var(--tbx-foam) 80%, transparent);
   stroke: var(--tbx-coral-deep);
@@ -655,9 +715,43 @@ body {
 }
 
 .tbx-grow__seabed {
+  /* The reef runs out to the scene's edges: through the padding and, on a wide screen, under the
+     side card too. */
+  --reef-pad: 24px;
+  --reef-right: calc(-300px - 2 * var(--reef-pad));
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.tbx-reef {
+  position: absolute;
+  left: calc(-1 * var(--reef-pad));
+  right: var(--reef-right);
+  bottom: calc(-1 * var(--reef-pad));
+  width: calc(100% + var(--reef-pad) - var(--reef-right));
+  height: calc(24% + var(--reef-pad));
+}
+
+.tbx-reef__ridge {
+  fill: color-mix(in oklab, var(--tbx-sea-2) 70%, var(--tbx-coral-soft));
+  opacity: 0.6;
+}
+
+.tbx-reef__rock {
+  fill: color-mix(in oklab, var(--tbx-coral-soft) 62%, var(--tbx-sea-2));
+}
+
+.tbx-reef__pore {
+  fill: color-mix(in oklab, var(--tbx-sea-1) 70%, transparent);
+}
+
+.tbx-reef__sand {
+  fill: color-mix(in oklab, var(--tbx-sea-0) 72%, var(--tbx-coral-soft));
+}
+
+.tbx-reef__pebble {
+  fill: color-mix(in oklab, var(--tbx-coral-soft) 70%, var(--tbx-sea-1));
 }
 
 .tbx-deco {
@@ -665,6 +759,15 @@ body {
   bottom: 0;
   transform-origin: 0 100%;
   pointer-events: auto;
+}
+
+/* The back row stands on the far ridge, behind the middle reef, and fades into the water. */
+.tbx-deco--far {
+  /* Fixed hazy shades of the coral tokens (a token can't be mixed from itself here). */
+  --tbx-coral: oklch(0.79 0.075 176);
+  --tbx-coral-soft: oklch(0.87 0.05 175);
+  --tbx-coral-deep: oklch(0.69 0.08 179);
+  bottom: 9%;
 }
 
 .tbx-deco:hover .tbx-coralsvg__polyp {
@@ -680,11 +783,26 @@ body {
   .tbx-grow {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* The side card drops below the colony, so the reef stops at the scene's edge and at the stage's
+     foot rather than running on under the card. */
+  .tbx-grow__seabed {
+    --reef-right: calc(-1 * var(--reef-pad));
+  }
+
+  .tbx-reef {
+    bottom: 0;
+    height: 24%;
+  }
 }
 
 @media (max-width: 40rem) {
   .tbx-grow {
     padding: 12px;
+  }
+
+  .tbx-grow__seabed {
+    --reef-pad: 12px;
   }
 
   .tbx-deco {
