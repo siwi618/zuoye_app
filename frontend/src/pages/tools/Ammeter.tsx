@@ -53,7 +53,7 @@ import { cn } from '@/lib/utils'
 
 const PERIODS_MS = [1000, 500, 200, 100, 50, 25, 20, 10]
 const WINDOWS: (number | null)[] = [10, 30, 60, null]
-const MAC_APP = { href: '/downloads/DISPRO-Mac.zip', size: '1.0 MB' }
+const MAC_APP = { href: '/downloads/DISPRO-Mac.zip', size: '1.1 MB' }
 const DRIVER_URL = 'https://www.wch.cn/downloads/CH341SER_EXE.html'
 // The resistor advice keeps the current under SAFE_FRACTION of the sensor's range
 const SAFE_FRACTION = 0.8
