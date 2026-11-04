@@ -75,6 +75,35 @@ function above(s: Seg, t: number): Pt {
   return n.y > 0 ? { x: -n.x, y: -n.y } : n
 }
 
+// Points spaced evenly by arc length along consecutive segments, read as one path: the spacing
+// stays the same across a joint, so the light doesn't skip where one branch grows out of another.
+// The first point sits `from` along the path, the last at most `end` short of its far tip.
+function evenly(chain: Seg[], from: number, gap: number, end: number): Pt[] {
+  const pts: Pt[] = []
+  const acc: number[] = []
+  let total = 0
+  chain.forEach((s) => {
+    for (let i = pts.length ? 1 : 0; i <= 64; i++) {
+      const p = at(s, i / 64)
+      if (pts.length) total += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y)
+      pts.push(p)
+      acc.push(total)
+    }
+  })
+  const span = total - end - from
+  if (span <= 0) return []
+  const n = Math.max(1, Math.round(span / gap))
+  const out: Pt[] = []
+  let k = 0
+  for (let i = 0; i <= n; i++) {
+    const want = from + (span * i) / n
+    while (k < acc.length - 2 && acc[k + 1] < want) k++
+    const f = (want - acc[k]) / (acc[k + 1] - acc[k] || 1)
+    out.push({ x: pts[k].x + (pts[k + 1].x - pts[k].x) * f, y: pts[k].y + (pts[k + 1].y - pts[k].y) * f })
+  }
+  return out
+}
+
 const d = (s: Seg) => `M${s.a.x} ${s.a.y} C${s.c1.x} ${s.c1.y} ${s.c2.x} ${s.c2.y} ${s.b.x} ${s.b.y}`
 
 // A branch as a filled outline whose width runs from w0 at the base to w1 at the tip, with a
@@ -107,15 +136,15 @@ function layout(subjects: SceneProps['subjects']) {
   subjects.forEach((s, i) => {
     const off = i - (n - 1) / 2
     const dir = Math.sign(off)
-    const S = { x: 500 + off * 520, y: 280 }
+    const S = { x: 500 + off * 370, y: 310 }
     // Each main branch leaves from its own shoulder of the trunk, rises first, then leans out,
-    // arriving at S heading up and outwards at about 45 degrees.
+    // arriving at S heading up and only slightly outwards, so the tool tips split from it as a Y.
     const A = { x: FORK.x + dir * SHOULDER, y: FORK.y - 6 }
     segs.push({
       id: `s-${s.key}`,
       a: A,
       c1: { x: A.x + dir * 12, y: A.y - 90 },
-      c2: { x: S.x - dir * 80, y: S.y + 80 },
+      c2: { x: S.x - dir * 56, y: S.y + 96 },
       b: S,
       level: 1,
     })
@@ -126,15 +155,15 @@ function layout(subjects: SceneProps['subjects']) {
     }
     s.tools.forEach((tool, j) => {
       // Tips fan around a slight outward lean, so a branch never bends back on itself at S.
-      const deg = dir * 12 + (m === 1 ? 0 : -34 + (68 * j) / (m - 1))
+      const deg = dir * 8 + (m === 1 ? 0 : -32 + (64 * j) / (m - 1))
       const rad = (deg * Math.PI) / 180
-      const L = 170
+      const L = 190
       const B = { x: Math.round(S.x + Math.sin(rad) * L), y: Math.round(S.y - Math.cos(rad) * L) }
       segs.push({
         id: `t-${tool.key}`,
         a: S,
         // Carry the main branch's heading out of S before bending towards the tip.
-        c1: { x: S.x + dir * 34, y: S.y - 34 },
+        c1: { x: S.x + dir * 24, y: S.y - 42 },
         c2: { x: B.x, y: B.y + 70 },
         b: B,
         level: 2,
@@ -170,6 +199,32 @@ function layout(subjects: SceneProps['subjects']) {
       })
     })
   return { segs, twigs, nodes, labels, stubs }
+}
+
+// Spacing between lights on the branches, and how far short of a tool's tip they stop (the tip's
+// icon covers the rest).
+const FLOW_GAP = 45
+const FLOW_TIP = 36
+
+// The lights along a picked chain, root to tip. On the trunk the light also passes through its four
+// polyps, climbing bottom to top; from there on it runs evenly along the main branch and on into
+// the tool's branch as one path, starting one gap above the trunk's top light.
+function flowDots(chain: Seg[]) {
+  const trunk = chain.find((s) => s.level === 0)
+  const rest = chain.filter((s) => s.level > 0).sort((a, b) => a.level - b.level)
+  const dots = trunk
+    ? [
+        // 0.4 bridges the long climb between the low polyps and the middle ones.
+        ...[0.12, 0.4, 0.86].map((k) => ({ id: `${trunk.id}-${k}`, p: at(trunk, k), polyp: false })),
+        ...TRUNK_POLYPS.map(([x, y]) => ({ id: `${trunk.id}-p${x}`, p: { x, y }, polyp: true })),
+      ].sort((a, b) => b.p.y - a.p.y)
+    : []
+  if (rest.length) {
+    const top = trunk ? at(trunk, 0.86) : rest[0].a
+    const from = Math.max(FLOW_GAP / 3, FLOW_GAP - Math.hypot(rest[0].a.x - top.x, rest[0].a.y - top.y))
+    evenly(rest, from, FLOW_GAP, FLOW_TIP).forEach((p, i) => dots.push({ id: `${rest[rest.length - 1].id}-${i}`, p, polyp: false }))
+  }
+  return dots
 }
 
 export function GrowthScene({ subjects }: SceneProps) {
@@ -284,19 +339,7 @@ export function GrowthScene({ subjects }: SceneProps) {
               />
             ))}
           {/* Light travelling root to tip along the picked chain. */}
-          {segs
-            .filter((s) => chain.has(s.id))
-            .sort((a, b) => a.level - b.level)
-            .flatMap((s) =>
-              s.level === 0
-                ? // On the trunk the light also passes through its four polyps, climbing bottom to top.
-                  [
-                    ...[0.12, 0.86].map((k) => ({ id: `${s.id}-${k}`, p: at(s, k), polyp: false })),
-                    ...TRUNK_POLYPS.map(([x, y]) => ({ id: `${s.id}-p${x}`, p: { x, y }, polyp: true })),
-                  ].sort((a, b) => b.p.y - a.p.y)
-                : [0.2, 0.4, 0.6, 0.8].map((k) => ({ id: `${s.id}-${k}`, p: at(s, k), polyp: false })),
-            )
-            .map(({ id, p, polyp }, i) => (
+          {flowDots(segs.filter((s) => chain.has(s.id))).map(({ id, p, polyp }, i) => (
               <circle
                 key={`${activeKey}-${id}`}
                 cx={p.x}
