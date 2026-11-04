@@ -289,6 +289,11 @@ export const en = {
       tempAxis: 'Temperature ({{unit}})',
       waiting: 'Waiting for the thermometer…',
       emptyLive: 'Connect the thermometer to see all four channels plotted live here',
+      noCurve: {
+        noProbe: 'None of the four channels has a probe. Plug one in to see its curve here.',
+        unchecked: 'The checked channels have no probe. Check a channel that has one to see its curve.',
+        hidden: 'Check a channel above to show its curve.',
+      },
       csvNo: 'No.',
       csvTime: 'Time',
       filePrefix: { live: 'temperature_live', segment: 'temperature_record', all: 'temperature_all_records' },

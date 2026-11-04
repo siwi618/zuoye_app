@@ -289,6 +289,11 @@ export const zh: Translations = {
       tempAxis: '温度 ({{unit}})',
       waiting: '等待温度计的数据…',
       emptyLive: '连接温度计后，这里会实时画出 4 个通道的温度曲线',
+      noCurve: {
+        noProbe: '4 个通道都没插探头。插上探头后，这里会画出温度曲线。',
+        unchecked: '勾选的通道都没插探头，勾选有探头的通道来显示曲线。',
+        hidden: '勾选上面的通道，显示它们的曲线。',
+      },
       csvNo: '序号',
       csvTime: '时间',
       filePrefix: { live: '温度_实时', segment: '温度_记录', all: '温度_全部记录' },

@@ -402,6 +402,38 @@ export function Thermometer() {
     return () => clearTimeout(id)
   }, [exported])
 
+  const unitPicker = (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground">{t('tools.thermometer.unit')}</span>
+      <Segmented
+        options={UNITS.map((u) => ({ value: u, label: UNIT_SYMBOL[u] }))}
+        value={unit}
+        onChange={setUnit}
+      />
+    </div>
+  )
+
+  // What to say over the live chart when it has no line to draw (null = it has one)
+  const liveHint = (() => {
+    if (n === 0)
+      return link === 'connected' || link === 'listening'
+        ? t('tools.thermometer.waiting')
+        : t('tools.thermometer.emptyLive')
+    if (!visible.some(Boolean)) return t('tools.thermometer.noCurve.hidden')
+    const from = windowSec === null ? -Infinity : view.times[n - 1] - windowSec * 1000
+    let anyProbe = false
+    for (let k = n - 1; k >= 0 && view.times[k] >= from; k--) {
+      for (let c = 0; c < 4; c++) {
+        if (view.temps[k][c] === null) continue
+        if (visible[c]) return null
+        anyProbe = true
+      }
+    }
+    return anyProbe
+      ? t('tools.thermometer.noCurve.unchecked')
+      : t('tools.thermometer.noCurve.noProbe')
+  })()
+
   return (
     <div className="space-y-6">
       <Link
@@ -471,14 +503,23 @@ export function Thermometer() {
             onChange={setTab}
             size="md"
           />
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t('tools.thermometer.unit')}</span>
-            <Segmented
-              options={UNITS.map((u) => ({ value: u, label: UNIT_SYMBOL[u] }))}
-              value={unit}
-              onChange={setUnit}
-              size="md"
-            />
+          <div className="ml-auto">
+            {tab === 'live' ? (
+              <ExportMenu
+                disabled={n === 0}
+                onSelect={exportLive}
+                label={t('tools.thermometer.export')}
+                png
+                size="default"
+              />
+            ) : (
+              <ExportMenu
+                disabled={!records?.list.length}
+                onSelect={(k) => k !== 'png' && exportAll(k)}
+                label={t('tools.thermometer.records.exportAll')}
+                size="default"
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -590,12 +631,7 @@ export function Thermometer() {
                   <Button variant="ghost" size="sm" onClick={clearLive} disabled={n === 0}>
                     {t('tools.thermometer.clear')}
                   </Button>
-                  <ExportMenu
-                    disabled={n === 0}
-                    onSelect={exportLive}
-                    label={t('tools.thermometer.export')}
-                    png
-                  />
+                  {unitPicker}
                 </div>
               </div>
               <div className="relative min-h-0 flex-1">
@@ -608,11 +644,9 @@ export function Thermometer() {
                   yLabel={yLabel}
                   version={view.version}
                 />
-                {n === 0 && (
+                {liveHint && (
                   <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                    {link === 'connected' || link === 'listening'
-                      ? t('tools.thermometer.waiting')
-                      : t('tools.thermometer.emptyLive')}
+                    {liveHint}
                   </p>
                 )}
               </div>
@@ -652,13 +686,7 @@ export function Thermometer() {
                   </span>
                 )
               )}
-              <div className="ml-auto">
-                <ExportMenu
-                  disabled={!records?.list.length}
-                  onSelect={(k) => k !== 'png' && exportAll(k)}
-                  label={t('tools.thermometer.records.exportAll')}
-                />
-              </div>
+              <div className="ml-auto">{unitPicker}</div>
             </div>
 
             {!records || records.segments.length === 0 ? (
@@ -889,17 +917,19 @@ function ExportMenu({
   label,
   disabled,
   png,
+  size = 'sm',
 }: {
   onSelect: (kind: 'xlsx' | 'csv' | 'png') => void
   label: string
   disabled?: boolean
   png?: boolean
+  size?: 'sm' | 'default'
 }) {
   const { t } = useTranslation()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>
+        <Button variant="outline" size={size} disabled={disabled}>
           <Download className="size-4" />
           {label}
           <ChevronDown className="size-4" />
