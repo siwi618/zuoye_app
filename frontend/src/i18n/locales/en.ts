@@ -721,6 +721,12 @@ export const en = {
         ldsFailed: 'Could not open {{name}}: no recorded data found.',
         autoZeroSkipped:
           'The reading at start was about {{v}} mA, so the circuit may already be closed; auto-zero was skipped this time. Open the circuit and press Zero to zero by hand.',
+        notAmmeter:
+          'The selected device isn\'t the ammeter, so nothing was sent to it. Click "Change device" and pick another one.',
+      },
+      notAmmeter: {
+        title: "This device isn't the ammeter",
+        body: 'It keeps sending data on its own, like a USB thermometer or another device. Nothing was sent to it, so its settings are untouched. Click "Change device" and pick the other "USB Serial".',
       },
       discard: {
         title: 'Current data not exported',

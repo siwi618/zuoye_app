@@ -31,6 +31,8 @@ export class FrameParser {
   private buf: number[] = []
   /** Set when the reply to SENSOR_INFO_COMMAND comes in. */
   sensorId: number | null = null
+  /** Frames with a good checksum, of any kind: proof the bytes come from the logger. */
+  validFrames = 0
 
   feed(chunk: Uint8Array): number[] {
     for (const b of chunk) this.buf.push(b)
@@ -50,6 +52,7 @@ export class FrameParser {
       }
       if (this.buf[e] === 0xf2) {
         const body = unescape(this.buf.slice(s + 1, e))
+        if (valid(body)) this.validFrames++
         const v = decode(body)
         if (v !== null) values.push(v)
         else if (valid(body) && body[0] === 0xfd && body[1] === 0x00 && body[2] >= 1)

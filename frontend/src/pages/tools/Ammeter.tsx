@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CurrentChart } from '@/components/ammeter/CurrentChart'
-import { Acquisition, readSensorId } from '@/lib/ammeter/acquisition'
+import { Acquisition, NotAmmeterError, readSensorId } from '@/lib/ammeter/acquisition'
 import { chartPng } from '@/lib/ammeter/chart'
 import { CH340_VENDOR_ID } from '@/lib/ammeter/protocol'
 import { parseLds } from '@/lib/ammeter/lds'
@@ -94,6 +94,11 @@ export function Ammeter() {
   const [showHelp, setShowHelp] = useState(false)
   // Sensor on channel 0 of the port it was read from; id null = the logger didn't say
   const [sensor, setSensor] = useState<{ port: SerialPort; id: number | null } | null>(null)
+  // Last port that turned out to be some other CH340 device (e.g. a USB thermometer)
+  const [wrongPort, setWrongPort] = useState<SerialPort | null>(null)
+  // Ports known not to be the logger: never written to, skipped when reusing allowed ports
+  const notLogger = useRef(new Set<SerialPort>())
+  const pickRef = useRef<() => void>(() => {})
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [view, setView] = useState<View>({
     t: [],
@@ -119,16 +124,24 @@ export function Ammeter() {
   // Sensor reads queue up so two never hold the port at once
   const identifying = useRef<Promise<void>>(Promise.resolve())
 
+  // Resolves false when the port is some other device (nothing was written to it)
   const identify = useCallback((p: SerialPort) => {
-    identifying.current = identifying.current.then(async () => {
+    const run = identifying.current.then(async () => {
       try {
         const id = await readSensorId(p)
         setSensor({ port: p, id })
-      } catch {
-        // port busy (another tab / app): keep what we had
+        setWrongPort(null) // the logger answered: no need to warn about another port
+        return true
+      } catch (e) {
+        if (!(e instanceof NotAmmeterError)) return true // port busy: start() reports it
+        notLogger.current.add(p)
+        setWrongPort(p)
+        pickRef.current() // another allowed port may be the logger
+        return false
       }
     })
-    return identifying.current
+    identifying.current = run.then(() => {})
+    return run
   }, [])
 
   useEffect(() => {
@@ -140,12 +153,14 @@ export function Ammeter() {
     if (!serial) return
     const pick = async () => {
       const ports = await serial.getPorts()
+      const usable = (p: SerialPort) => ports.includes(p) && !notLogger.current.has(p)
       setPort((cur) =>
-        cur && ports.includes(cur)
+        cur && usable(cur)
           ? cur
-          : (ports.find((p) => p.getInfo().usbVendorId === CH340_VENDOR_ID) ?? null),
+          : (ports.find((p) => usable(p) && p.getInfo().usbVendorId === CH340_VENDOR_ID) ?? null),
       )
     }
+    pickRef.current = pick
     pick()
     serial.addEventListener('connect', pick)
     serial.addEventListener('disconnect', pick)
@@ -251,6 +266,8 @@ export function Ammeter() {
   const choosePort = async (): Promise<SerialPort | null> => {
     try {
       const p = await serial!.requestPort({ filters: [{ usbVendorId: CH340_VENDOR_ID }] })
+      notLogger.current.delete(p) // check it again: the user picked it on purpose
+      setWrongPort(null)
       setPort(p)
       setShowHelp(false)
       return p
@@ -265,7 +282,11 @@ export function Ammeter() {
     setConfirmDiscard(false)
     const p = port ?? (await choosePort())
     if (!p) return
-    await identify(p) // the sensor may have been swapped since the port was picked
+    // the sensor may have been swapped since the port was picked
+    if (!(await identify(p))) {
+      toast.error(t('tools.ammeter.errors.notAmmeter'), { duration: 10000 })
+      return
+    }
     const a = new Acquisition(p, periodMs * 1000, onValues, () => {
       acq.current = null
       setRunning(false)
@@ -533,6 +554,23 @@ export function Ammeter() {
           />
         </CardContent>
       </Card>
+
+      {wrongPort && !running && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          <TriangleAlert className="size-5 shrink-0" />
+          <div className="flex-1 space-y-0.5">
+            <p className="font-medium">{t('tools.ammeter.notAmmeter.title')}</p>
+            <p>{t('tools.ammeter.notAmmeter.body')}</p>
+          </div>
+          <Button size="sm" variant="outline" className="shrink-0" onClick={choosePort}>
+            <Plug className="size-4" />
+            {t('tools.ammeter.changeDevice')}
+          </Button>
+        </div>
+      )}
 
       {showHelp && serial && <DeviceHelp onClose={() => setShowHelp(false)} />}
 

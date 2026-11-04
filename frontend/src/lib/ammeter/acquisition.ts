@@ -3,14 +3,67 @@ import { BAUD_RATE, FrameParser, SENSOR_INFO_COMMAND, STOP_COMMAND, startCommand
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /**
+ * How long to listen before writing anything. The logger is silent when idle; other CH340
+ * devices (e.g. a USB thermometer, which sends every ~0.36 s) talk on their own.
+ */
+const LISTEN_MS = 600
+
+/** The port answers like some other CH340 device, not the DISPRO logger: nothing was sent to it. */
+export class NotAmmeterError extends Error {
+  constructor() {
+    super('not a DISPRO logger')
+    this.name = 'NotAmmeterError'
+  }
+}
+
+type Read = ReadableStreamReadResult<Uint8Array>
+
+/**
+ * read() with a timeout (null when it runs out). A read that timed out stays pending and is
+ * reused by the next call; starting a new one would let the old one swallow the next chunk.
+ */
+function timedReader(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  let pending: Promise<Read> | null = null
+  return async (ms: number): Promise<Read | null> => {
+    pending ??= reader.read()
+    const r = await Promise.race([pending, sleep(ms).then(() => null)])
+    if (r) pending = null
+    return r
+  }
+}
+
+/**
+ * Listen without writing. Silence or well-formed logger frames (a run left over from last
+ * time) mean the logger; bytes that never form a frame mean some other device.
+ */
+async function isLogger(read: (ms: number) => Promise<Read | null>): Promise<boolean> {
+  const parser = new FrameParser()
+  let bytes = 0
+  const deadline = Date.now() + LISTEN_MS
+  for (;;) {
+    const left = deadline - Date.now()
+    if (left <= 0) break
+    const r = await read(left)
+    if (!r || r.done) break
+    bytes += r.value.length
+    parser.feed(r.value)
+    if (parser.validFrames > 0) return true
+  }
+  return bytes === 0
+}
+
+/**
  * Which sensor is on channel 0, read from its EEPROM while the logger is idle.
- * null if the logger doesn't answer; throws if the port can't be opened (e.g. in use).
+ * null if the logger doesn't answer; throws NotAmmeterError (without writing) if the port is
+ * some other device, or an error if it can't be opened (e.g. in use).
  */
 export async function readSensorId(port: SerialPort): Promise<number | null> {
   await port.open({ baudRate: BAUD_RATE })
   const reader = port.readable!.getReader()
   const parser = new FrameParser()
+  const read = timedReader(reader)
   try {
+    if (!(await isLogger(read))) throw new NotAmmeterError()
     const writer = port.writable!.getWriter()
     try {
       await writer.write(STOP_COMMAND)
@@ -23,7 +76,7 @@ export async function readSensorId(port: SerialPort): Promise<number | null> {
     while (parser.sensorId === null) {
       const left = deadline - Date.now()
       if (left <= 0) break
-      const r = await Promise.race([reader.read(), sleep(left).then(() => null)])
+      const r = await read(left)
       if (!r || r.done) break
       parser.feed(r.value)
     }

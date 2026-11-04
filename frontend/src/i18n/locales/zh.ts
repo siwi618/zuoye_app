@@ -719,6 +719,11 @@ export const zh: Translations = {
         ldsFailed: '打不开 {{name}}：文件里没有找到采集数据。',
         autoZeroSkipped:
           '开始时读数约 {{v}} mA，电路可能已经接通，这次没有自动调零。断开电路后可以手动点「调零」。',
+        notAmmeter: '选中的设备不是电流仪，没有向它发送任何命令。请点「更换设备」选另一个。',
+      },
+      notAmmeter: {
+        title: '这个设备不是电流仪',
+        body: '它在自己不停地发数据，像是温度计等别的 USB 设备。为了不误改它的设置，没有向它发送任何命令。请点「更换设备」，选另一个「USB Serial」。',
       },
       discard: {
         title: '当前数据还没导出',
