@@ -9,7 +9,15 @@ import '@/components/toolbox/toolbox.css'
 const CATEGORIES: Subject[] = [
   {
     key: 'science',
-    tools: [{ key: 'ammeter', status: 'live', icon: '/tools/ammeter.svg', to: '/tools/ammeter' }],
+    tools: [
+      { key: 'ammeter', status: 'live', icon: '/tools/ammeter.svg', to: '/tools/ammeter' },
+      {
+        key: 'thermometer',
+        status: 'live',
+        icon: '/tools/thermometer.svg',
+        to: '/tools/thermometer',
+      },
+    ],
   },
   {
     key: 'humanities',
