@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
@@ -9,11 +9,11 @@ QuoteBodyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_lengt
 AnalysisBodyStr = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5000)
 ]
-# No "#", brackets or whitespace: they would break「(#tag)」references in an analysis.
+# No "#", "@", brackets or whitespace: they would break「(#tag)」「(@name)」references.
 TagNameStr = Annotated[
     str,
     StringConstraints(
-        strip_whitespace=True, min_length=1, max_length=20, pattern=r"^[^#()（）\s]+$"
+        strip_whitespace=True, min_length=1, max_length=20, pattern=r"^[^#@()（）\s]+$"
     ),
 ]
 WorkKeyStr = Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{1,40}$")]
@@ -55,9 +55,14 @@ class QuoteRead(BaseModel):
     edited_at: datetime | None = None
 
 
+# device = a #literary device, shared by every work; character = an @character of one work.
+TagKind = Literal["device", "character"]
+
+
 class TagRead(BaseModel):
     id: str
     name: str
+    kind: TagKind = "device"
     # Analyses using the tag: in the work asked about, or in all works.
     count: int
 
@@ -94,6 +99,7 @@ class AnalysisCreate(BaseModel):
     quote_ids: list[str] = Field(min_length=1, max_length=MAX_ANALYSIS_QUOTES)
     highlights: list[HighlightIn] = Field(default_factory=list, max_length=MAX_HIGHLIGHTS)
     tags: list[TagNameStr] = Field(min_length=1, max_length=MAX_ANALYSIS_TAGS)
+    characters: list[TagNameStr] = Field(default_factory=list, max_length=MAX_ANALYSIS_TAGS)
     body: AnalysisBodyStr
 
 

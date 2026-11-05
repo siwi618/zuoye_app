@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import NamedTuple
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import HTTPException, status
@@ -57,11 +58,11 @@ _ANALYSIS_FULL = (
     "lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, version_id, "
     "lit_highlights(number, start_offset, end_offset)), "
-    "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
+    "lit_analysis_tags(lit_tags(id, name, kind, moderation_flagged))"
 )
 _ANALYSIS_TAGS = (
     f"work_key, {_ANALYSIS_AUTHOR}(is_deleted), "
-    "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
+    "lit_analysis_tags(lit_tags(id, name, kind, moderation_flagged))"
 )
 
 
@@ -100,14 +101,17 @@ def _tags_of(analysis: dict) -> list[dict]:
     return [t for t in tags if t and not t["moderation_flagged"]]
 
 
-def _usage() -> list[tuple[str, dict]]:
-    """(work_key, tag) for every tag on every visible analysis, in all works.
+def _usage(kind: str = "device") -> list[tuple[str, dict]]:
+    """(work_key, tag) for every tag of that kind on every visible analysis, in all works.
 
     One query for all of them, counted in Python: fine while there are up to a
     thousand analyses; move into a database view once the tool is busy.
     """
     return [
-        (a["work_key"], tag) for a in _analyses(_ANALYSIS_TAGS, limit=1000) for tag in _tags_of(a)
+        (a["work_key"], tag)
+        for a in _analyses(_ANALYSIS_TAGS, limit=1000)
+        for tag in _tags_of(a)
+        if tag["kind"] == kind
     ]
 
 
@@ -145,7 +149,7 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
 
     quote_ids = {q["id"] for q in quotes}
     counts = Counter(t["id"] for a in analyses for t in _tags_of(a))
-    names = {t["id"]: t["name"] for a in analyses for t in _tags_of(a)}
+    tag_rows = {t["id"]: t for a in analyses for t in _tags_of(a)}
     cited = Counter(
         c["quote_id"] for a in analyses for c in a.get("lit_analysis_quotes") or []
     )
@@ -154,7 +158,8 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
     }
 
     def tag_read(tag_id: str) -> TagRead:
-        return TagRead(id=tag_id, name=names[tag_id], count=counts[tag_id])
+        t = tag_rows[tag_id]
+        return TagRead(id=tag_id, name=t["name"], kind=t["kind"], count=counts[tag_id])
 
     def analysis_read(a: dict) -> AnalysisRead:
         # The analysis shows the version of each quote it was written on, but a quote taken
@@ -211,24 +216,25 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
     )
 
 
-def list_tags(query: str | None, limit: int) -> list[TagRead]:
-    """Every tag for the tag picker, most used (in all works) first."""
+def list_tags(
+    query: str | None, limit: int, kind: str = "device", work_key: str | None = None
+) -> list[TagRead]:
+    """Tags for the tag picker, most used first: every #device, or one work's @characters."""
     def load_tags() -> list[dict]:
-        return (
-            get_supabase().table("lit_tags").select("id, name")
-            .eq("moderation_flagged", False).execute().data
-            or []
-        )
+        q = get_supabase().table("lit_tags").select("id, name, kind").eq("kind", kind)
+        if kind == "character":
+            q = q.eq("work_key", work_key)
+        return q.eq("moderation_flagged", False).execute().data or []
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        usage_job = pool.submit(_usage)
+        usage_job = pool.submit(_usage, kind)
         tags_job = pool.submit(load_tags)
         counts = Counter(tag["id"] for _, tag in usage_job.result())
         tags = tags_job.result()
 
-    q = (query or "").strip().lower().lstrip("#")
+    q = (query or "").strip().lower().lstrip("#@")
     found = [
-        TagRead(id=t["id"], name=t["name"], count=counts[t["id"]])
+        TagRead(id=t["id"], name=t["name"], kind=t["kind"], count=counts[t["id"]])
         for t in tags
         if not q or q in t["name"].lower()
     ]
@@ -344,28 +350,42 @@ def delete_quote(user_id: str, quote_id: str) -> None:
 # ---------------------------------------------------------------- analyses
 
 
-def _find_tag(name: str) -> dict | None:
-    # ilike without wildcards = equality ignoring case, matching the unique index on lower(name).
+def _find_tag(name: str, kind: str, work_key: str | None) -> dict | None:
+    # ilike without wildcards = equality ignoring case, matching the unique indexes on lower(name)
+    # (devices across the site, characters within their work).
     pattern = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    rows = (
-        get_supabase().table("lit_tags").select("id, name, moderation_flagged")
-        .ilike("name", pattern).limit(1).execute().data
-        or []
+    query = (
+        get_supabase().table("lit_tags").select("id, name, kind, moderation_flagged")
+        .ilike("name", pattern).eq("kind", kind)
     )
+    if kind == "character":
+        query = query.eq("work_key", work_key)
+    rows = query.limit(1).execute().data or []
     return rows[0] if rows else None
 
 
-def _resolve_tags(user_id: str, names: list[str], moderated: bool) -> list[dict]:
-    """Existing tags by name (ignoring case), creating the missing ones."""
+def _resolve_tags(
+    user_id: str,
+    names: list[str],
+    moderated: bool,
+    kind: str = "device",
+    work_key: str | None = None,
+) -> list[dict]:
+    """Existing tags by name (ignoring case), creating the missing ones. Characters belong to
+    `work_key`; devices to no work."""
     tags: list[dict] = []
     for name in names:
-        tag = _find_tag(name)
+        tag = _find_tag(name, kind, work_key)
         if not tag:
             try:
                 created = (
                     get_supabase()
                     .table("lit_tags")
-                    .insert({"name": name, "created_by": user_id, "moderated": moderated})
+                    .insert({
+                        "name": name, "kind": kind,
+                        "work_key": work_key if kind == "character" else None,
+                        "created_by": user_id, "moderated": moderated,
+                    })
                     .execute()
                     .data
                 )
@@ -373,11 +393,27 @@ def _resolve_tags(user_id: str, names: list[str], moderated: bool) -> list[dict]
             except APIError as exc:
                 if exc.code != _UNIQUE_VIOLATION:
                     raise
-                tag = _find_tag(name)
+                tag = _find_tag(name, kind, work_key)
         if not tag or tag.get("moderation_flagged"):
             raise _reject(CONTENT_REJECTED)
         tags.append(tag)
     return tags
+
+
+class _ResolvedTags(NamedTuple):
+    rows: list[dict]
+    moderated: bool  # whether the text and new names were checked
+
+
+def _resolve_all_tags(user_id: str, payload: AnalysisCreate, work_key: str) -> _ResolvedTags:
+    """An analysis's #devices and its work's @characters, moderated with its text."""
+    devices = _unique_names(payload.tags)
+    characters = _unique_names(payload.characters)
+    moderated = ensure_allowed(payload.body, " ".join(devices + characters))
+    rows = _resolve_tags(user_id, devices, moderated) + _resolve_tags(
+        user_id, characters, moderated, "character", work_key
+    )
+    return _ResolvedTags(rows, moderated)
 
 
 def _unique_names(names: list[str]) -> list[str]:
@@ -426,9 +462,7 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         raise _reject(INVALID_ANALYSIS)
     _check_highlights(payload, quotes)
 
-    names = _unique_names(payload.tags)
-    moderated = ensure_allowed(payload.body, " ".join(names))
-    tags = _resolve_tags(user_id, names, moderated)
+    tags, moderated = _resolve_all_tags(user_id, payload, work_key)
 
     db = get_supabase()
     inserted = (
@@ -473,7 +507,7 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         body=row["body"], quote_ids=quote_ids,
         quotes=[CitedQuote(quote_id=q, version_id=quotes[q]["id"]) for q in quote_ids],
         highlights=[HighlightRead(**h.model_dump()) for h in payload.highlights],
-        tags=[TagRead(id=t["id"], name=t["name"], count=0) for t in tags],
+        tags=[TagRead(id=t["id"], name=t["name"], kind=t["kind"], count=0) for t in tags],
         like_count=0, liked_by_me=False, created_at=row["created_at"],
     )
 
@@ -502,9 +536,7 @@ def update_analysis(user_id: str, analysis_id: str, payload: AnalysisCreate) -> 
         raise _reject(INVALID_ANALYSIS)
     _check_highlights(payload, {q: covered[q]["lit_quote_versions"] for q in quote_ids})
 
-    names = _unique_names(payload.tags)
-    moderated = ensure_allowed(payload.body, " ".join(names))
-    tags = _resolve_tags(user_id, names, moderated)
+    tags, moderated = _resolve_all_tags(user_id, payload, row["work_key"])
 
     # Applied in one database transaction (migration 0016): all of it or nothing.
     db.rpc("lit_update_analysis", {
@@ -519,7 +551,9 @@ def update_analysis(user_id: str, analysis_id: str, payload: AnalysisCreate) -> 
 
 def _analysis_row(analysis_id: str) -> dict:
     rows = (
-        get_supabase().table("lit_analyses").select("author_id, like_count, moderation_flagged")
+        get_supabase()
+        .table("lit_analyses")
+        .select("author_id, work_key, like_count, moderation_flagged")
         .eq("id", analysis_id).limit(1).execute().data
         or []
     )

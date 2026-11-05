@@ -8,6 +8,7 @@ from app.schemas.literature import (
     OverviewRead,
     QuoteCreate,
     QuoteRead,
+    TagKind,
     TagRead,
     WorkKeyStr,
     WorkRead,
@@ -28,9 +29,11 @@ def list_tags(
     user: CurrentUserDep,
     q: str | None = Query(default=None, max_length=20),
     limit: int = Query(default=20, ge=1, le=100),
+    kind: TagKind = Query(default="device"),
+    work: WorkKeyStr | None = Query(default=None),  # characters: the work they belong to
 ) -> list[TagRead]:
     _ = user
-    return svc.list_tags(q, limit)
+    return svc.list_tags(q, limit, kind, work)
 
 
 @router.get("/works/{work_key}", response_model=WorkRead)
