@@ -1,6 +1,6 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { AtSign, Hash, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { searchTags } from '@/api/literature'
@@ -8,6 +8,7 @@ import { TAG_SYMBOL, TAG_TONE, cleanTag, isValidTag, type TagKind } from '@/lib/
 
 const K = 'tools.literature'
 const MAX_TAGS = 8
+const SEARCH_DELAY_MS = 250
 
 // Tags for an analysis, like hashtags: pick one other students already use (most used first) or
 // create a new one by typing it. #devices are shared by every work; @characters by `workKey`'s.
@@ -28,15 +29,25 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const name = cleanTag(query)
+  // Ask the server once typing pauses, not on every keystroke (each search counts tag use over
+  // all analyses); meanwhile the last answer stays, narrowed to what is typed now.
+  const [term, setTerm] = useState(name)
+  useEffect(() => {
+    const id = window.setTimeout(() => setTerm(name), SEARCH_DELAY_MS)
+    return () => window.clearTimeout(id)
+  }, [name])
   const found = useQuery({
-    queryKey: ['literature-tags', kind, workKey, name.toLowerCase()],
-    queryFn: () => searchTags(name, kind, workKey),
+    queryKey: ['literature-tags', kind, workKey, term.toLowerCase()],
+    queryFn: () => searchTags(term, kind, workKey),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
     enabled: open,
   })
 
   const has = (n: string) => value.some((v) => v.toLowerCase() === n.toLowerCase())
-  const options = (found.data ?? []).filter((tag) => !has(tag.name)).slice(0, 8)
+  const options = (found.data ?? [])
+    .filter((tag) => !has(tag.name) && tag.name.toLowerCase().includes(name.toLowerCase()))
+    .slice(0, 8)
   const exact = (found.data ?? []).some((tag) => tag.name.toLowerCase() === name.toLowerCase())
   const canCreate = isValidTag(name) && !exact && !has(name)
   const rows = [

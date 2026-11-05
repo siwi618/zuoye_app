@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -15,12 +16,28 @@ import { MyRequests } from '@/pages/MyRequests'
 import { MyTasks } from '@/pages/MyTasks'
 import { NewPost } from '@/pages/NewPost'
 import { PostDetail } from '@/pages/PostDetail'
-import { Toolbox } from '@/pages/Toolbox'
-import { Ammeter } from '@/pages/tools/Ammeter'
-import { Literature } from '@/pages/tools/Literature'
-import { LiteratureWork } from '@/pages/tools/LiteratureWork'
-import { Thermometer } from '@/pages/tools/Thermometer'
 import { ToolShell } from '@/components/tools/ToolShell'
+
+// The toolbox and its tools are big and only some visitors open them: their code downloads when
+// one is first opened, not with every page of the site.
+const Toolbox = lazy(() => import('@/pages/Toolbox').then((m) => ({ default: m.Toolbox })))
+const Ammeter = lazy(() => import('@/pages/tools/Ammeter').then((m) => ({ default: m.Ammeter })))
+const Thermometer = lazy(() =>
+  import('@/pages/tools/Thermometer').then((m) => ({ default: m.Thermometer })),
+)
+const Literature = lazy(() =>
+  import('@/pages/tools/Literature').then((m) => ({ default: m.Literature })),
+)
+const LiteratureWork = lazy(() =>
+  import('@/pages/tools/LiteratureWork').then((m) => ({ default: m.LiteratureWork })),
+)
+
+// While a page's code is on its way the header stays and this shows below it.
+const later = (page: ReactNode) => (
+  <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">…</div>}>
+    {page}
+  </Suspense>
+)
 
 export default function App() {
   return (
@@ -43,14 +60,14 @@ export default function App() {
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewPost />} />
             <Route path="/forum/:id" element={<PostDetail />} />
-            <Route path="/tools" element={<Toolbox />} />
+            <Route path="/tools" element={later(<Toolbox />)} />
             <Route element={<ToolShell />}>
-              <Route path="/tools/ammeter" element={<Ammeter />} />
+              <Route path="/tools/ammeter" element={later(<Ammeter />)} />
             </Route>
             {/* Outside ToolShell: its settings (auto-zero) only apply to the ammeter. */}
-            <Route path="/tools/thermometer" element={<Thermometer />} />
-            <Route path="/tools/literature" element={<Literature />} />
-            <Route path="/tools/literature/works/:key" element={<LiteratureWork />} />
+            <Route path="/tools/thermometer" element={later(<Thermometer />)} />
+            <Route path="/tools/literature" element={later(<Literature />)} />
+            <Route path="/tools/literature/works/:key" element={later(<LiteratureWork />)} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>
