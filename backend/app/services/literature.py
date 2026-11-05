@@ -506,31 +506,15 @@ def update_analysis(user_id: str, analysis_id: str, payload: AnalysisCreate) -> 
     moderated = ensure_allowed(payload.body, " ".join(names))
     tags = _resolve_tags(user_id, names, moderated)
 
-    # Fragments are replaced wholesale; dropped quotes go (their fragments with them).
-    db.table("lit_highlights").delete().eq("analysis_id", analysis_id).execute()
-    dropped = [q for q in covered if q not in quote_ids]
-    if dropped:
-        db.table("lit_analysis_quotes").delete().eq("analysis_id", analysis_id).in_(
-            "quote_id", dropped
-        ).execute()
-    if payload.highlights:
-        db.table("lit_highlights").insert([
-            {
-                "analysis_id": analysis_id, "quote_id": h.quote_id, "number": h.number,
-                "start_offset": h.start, "end_offset": h.end,
-            }
-            for h in payload.highlights
-        ]).execute()
-    keep = {t["id"] for t in tags}
-    db.table("lit_analysis_tags").delete().eq("analysis_id", analysis_id).not_.in_(
-        "tag_id", list(keep)
-    ).execute()
-    db.table("lit_analysis_tags").upsert(
-        [{"analysis_id": analysis_id, "tag_id": t} for t in keep], ignore_duplicates=True
-    ).execute()
-    db.table("lit_analyses").update({"body": payload.body, "moderated": moderated}).eq(
-        "id", analysis_id
-    ).execute()
+    # Applied in one database transaction (migration 0016): all of it or nothing.
+    db.rpc("lit_update_analysis", {
+        "p_analysis_id": analysis_id,
+        "p_body": payload.body,
+        "p_moderated": moderated,
+        "p_quote_ids": quote_ids,
+        "p_highlights": [h.model_dump() for h in payload.highlights],
+        "p_tag_ids": [t["id"] for t in tags],
+    }).execute()
 
 
 def _analysis_row(analysis_id: str) -> dict:
