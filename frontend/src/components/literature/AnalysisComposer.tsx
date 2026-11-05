@@ -186,7 +186,7 @@ export function AnalysisComposer({
         {quotes.map((q) => (
           <div key={q.id} className="rounded-xl bg-secondary/60 p-3">
             <div className="mb-1 flex items-center gap-2">
-              <PageLabel start={q.page_start} end={q.page_end} />
+              <PageLabel start={q.page_start} end={q.page_end} edition={q.edition} />
               <button
                 type="button"
                 onClick={() => onUnpick(q.id)}

@@ -8,6 +8,7 @@ export interface QuoteRead {
   body: string
   page_start: number
   page_end: number
+  edition: string | null // edition / publisher the pages refer to
   // Analyses citing it; a cited quote can no longer be deleted.
   cited_count: number
   created_at: string
@@ -37,6 +38,8 @@ export interface AnalysisRead {
   quote_ids: string[]
   highlights: Highlight[]
   tags: TagRead[]
+  like_count: number
+  liked_by_me: boolean
   created_at: string
 }
 
@@ -57,6 +60,7 @@ export interface QuoteCreate {
   body: string
   page_start: number
   page_end: number
+  edition?: string | null
 }
 
 export interface AnalysisCreate {
@@ -98,4 +102,10 @@ export function createAnalysis(workKey: string, payload: AnalysisCreate): Promis
 
 export function deleteAnalysis(id: string): Promise<void> {
   return apiFetch<void>(`/literature/analyses/${id}`, { method: 'DELETE' })
+}
+
+export function toggleAnalysisLike(id: string): Promise<{ liked: boolean; like_count: number }> {
+  return apiFetch<{ liked: boolean; like_count: number }>(`/literature/analyses/${id}/like`, {
+    method: 'POST',
+  })
 }

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trash2 } from 'lucide-react'
+import { Heart, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { AnalysisRead, QuoteRead } from '@/api/literature'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 
@@ -16,6 +17,7 @@ export function AnalysisCard({
   mine,
   deleting,
   onTag,
+  onLike,
   onDelete,
 }: {
   analysis: AnalysisRead
@@ -23,6 +25,7 @@ export function AnalysisCard({
   mine: boolean
   deleting: boolean
   onTag: (name: string) => void
+  onLike: () => void
   onDelete: () => void
 }) {
   const { t } = useTranslation()
@@ -75,7 +78,7 @@ export function AnalysisCard({
               key={id}
               className="rounded-xl border-l-4 border-amber-300 bg-secondary/50 px-3 py-2"
             >
-              <PageLabel start={q.page_start} end={q.page_end} />
+              <PageLabel start={q.page_start} end={q.page_end} edition={q.edition} />
               <QuoteText
                 body={q.body}
                 spans={a.highlights.filter((h) => h.quote_id === id)}
@@ -87,6 +90,18 @@ export function AnalysisCard({
       </div>
 
       <AnalysisBody body={a.body} numbers={numbers} onTag={onTag} onQuote={setLit} />
+
+      <Button
+        variant="outline"
+        size="sm"
+        aria-pressed={a.liked_by_me}
+        aria-label={t(a.liked_by_me ? `${K}.unlike` : `${K}.like`)}
+        onClick={onLike}
+        className={cn('gap-1.5 rounded-full', a.liked_by_me && 'border-rose-200 text-rose-600')}
+      >
+        <Heart className={cn('size-4', a.liked_by_me && 'fill-rose-500 text-rose-500')} />
+        {a.like_count}
+      </Button>
     </article>
   )
 }

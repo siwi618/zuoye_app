@@ -281,7 +281,7 @@ export const en = {
       quotePlaceholder: 'Copy the passage from the book…',
       pageStart: 'From page',
       pageEnd: 'To page',
-      pageHint: 'Pages of the copy you have; leave “To page” empty for a single page.',
+      pageHint: 'Pages of the copy you have; leave “To page” empty for a single page. Editions number pages differently, so naming yours helps.',
       submitQuote: 'Add quote',
       quoteAdded: 'Quote added',
       cancel: 'Cancel',
@@ -336,6 +336,11 @@ export const en = {
       unknownRef: '(Quote {{n}}) in the text hasn’t been marked yet.',
       published: 'Analysis published',
       invalidAnalysis: 'Some picked quotes or marked words are no longer valid. Reload the page and try again.',
+      edition: 'Edition / publisher',
+      optional: '(optional)',
+      editionPlaceholder: 'e.g. People’s Literature, 2010',
+      like: 'Like this analysis',
+      unlike: 'Unlike',
     },
     thermometer: {
       subtitle:

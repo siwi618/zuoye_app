@@ -5,11 +5,21 @@ import { parseBody, segments, type Span } from '@/lib/literature/text'
 
 const K = 'tools.literature'
 
-export function PageLabel({ start, end }: { start: number; end: number }) {
+// 「第 12–13 页 · 人民文学出版社 2010」: the pages, and the edition they refer to if given.
+export function PageLabel({
+  start,
+  end,
+  edition,
+}: {
+  start: number
+  end: number
+  edition?: string | null
+}) {
   const { t } = useTranslation()
   return (
     <span className="text-xs font-medium text-muted-foreground tabular-nums">
       {start === end ? t(`${K}.pageOne`, { start }) : t(`${K}.pageRange`, { start, end })}
+      {edition && <span className="font-normal"> · {edition}</span>}
     </span>
   )
 }

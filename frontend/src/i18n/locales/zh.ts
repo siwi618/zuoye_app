@@ -282,7 +282,7 @@ export const zh: Translations = {
       quotePlaceholder: '照着书抄下这段原文……',
       pageStart: '起始页',
       pageEnd: '结束页',
-      pageHint: '按你手上那本书的页码；只有一页就只填起始页。',
+      pageHint: '按你手上那本书的页码；只有一页就只填起始页。不同版本页码不一样，最好注明出版社。',
       submitQuote: '上传引文',
       quoteAdded: '引文已添加',
       cancel: '取消',
@@ -337,6 +337,11 @@ export const zh: Translations = {
       unknownRef: '正文里的（引文{{n}}）还没有划出来。',
       published: '分析已发布',
       invalidAnalysis: '选的引文或划的片段有误，请刷新页面后再试。',
+      edition: '出版社 / 版本',
+      optional: '（可选）',
+      editionPlaceholder: '如 人民文学出版社 2010',
+      like: '给这篇分析点赞',
+      unlike: '取消点赞',
     },
     thermometer: {
       subtitle:

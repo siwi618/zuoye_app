@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +14,8 @@ import {
   deleteAnalysis,
   deleteQuote,
   getWork,
+  toggleAnalysisLike,
+  type AnalysisRead,
   type QuoteRead,
   type WorkRead,
 } from '@/api/literature'
@@ -62,19 +64,35 @@ function useRemove(
   })
 }
 
-function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void }) {
+function QuoteForm({
+  workKey,
+  editions,
+  onClose,
+}: {
+  workKey: string
+  editions: string[] // editions other quotes of this work give, offered as suggestions
+  onClose: () => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const editionList = useId()
   const [body, setBody] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [edition, setEdition] = useState('')
   const from = Number(start)
   const to = end ? Number(end) : from
   const valid =
     body.trim() !== '' && Number.isInteger(from) && from >= 1 && Number.isInteger(to) && to >= from
 
   const add = useMutation({
-    mutationFn: () => createQuote(workKey, { body: body.trim(), page_start: from, page_end: to }),
+    mutationFn: () =>
+      createQuote(workKey, {
+        body: body.trim(),
+        page_start: from,
+        page_end: to,
+        edition: edition.trim() || null,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['literature-work', workKey] })
       toast.success(t(`${K}.quoteAdded`))
@@ -91,7 +109,7 @@ function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void 
   return (
     <form onSubmit={submit} className="space-y-3 rounded-2xl border border-primary/40 bg-card p-4">
       <label className="block space-y-1.5">
-        <span className="text-sm font-medium">{t(`${K}.quoteBody`)}</span>
+        <span className="block text-sm font-medium">{t(`${K}.quoteBody`)}</span>
         <Textarea
           autoFocus
           value={body}
@@ -103,7 +121,7 @@ function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void 
       </label>
       <div className="flex flex-wrap items-end gap-3">
         <label className="space-y-1.5">
-          <span className="text-sm font-medium">{t(`${K}.pageStart`)}</span>
+          <span className="block text-sm font-medium">{t(`${K}.pageStart`)}</span>
           <Input
             type="number"
             min={1}
@@ -115,7 +133,7 @@ function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void 
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-sm font-medium">{t(`${K}.pageEnd`)}</span>
+          <span className="block text-sm font-medium">{t(`${K}.pageEnd`)}</span>
           <Input
             type="number"
             min={from || 1}
@@ -127,9 +145,25 @@ function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void 
             className="w-28"
           />
         </label>
-        <p className="basis-full text-xs text-muted-foreground sm:basis-auto sm:flex-1">
-          {t(`${K}.pageHint`)}
-        </p>
+        <label className="min-w-48 flex-1 space-y-1.5">
+          <span className="block text-sm font-medium">
+            {t(`${K}.edition`)}
+            <span className="ml-1 font-normal text-muted-foreground">{t(`${K}.optional`)}</span>
+          </span>
+          <Input
+            value={edition}
+            maxLength={60}
+            list={editionList}
+            placeholder={t(`${K}.editionPlaceholder`)}
+            onChange={(e) => setEdition(e.target.value)}
+          />
+          <datalist id={editionList}>
+            {editions.map((e) => (
+              <option key={e} value={e} />
+            ))}
+          </datalist>
+        </label>
+        <p className="basis-full text-xs text-muted-foreground">{t(`${K}.pageHint`)}</p>
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>
@@ -181,7 +215,7 @@ function QuoteRow({
         {picked && <Check className="size-3.5" />}
       </button>
       <div className="min-w-0 flex-1 space-y-1">
-        <PageLabel start={q.page_start} end={q.page_end} />
+        <PageLabel start={q.page_start} end={q.page_end} edition={q.edition} />
         <QuoteText body={q.body} />
         <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
           <span>{t(`${K}.addedBy`, { name: q.author.display_name })}</span>
@@ -208,7 +242,13 @@ export function LiteratureWork() {
   const { key } = useParams<{ key: string }>()
   const work = findWork(key)
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const userId = useAuthStore((s) => s.user?.id)
+  const patchAnalysis = (id: string, fn: (a: AnalysisRead) => AnalysisRead) =>
+    queryClient.setQueryData<WorkRead>(
+      ['literature-work', key],
+      (w) => w && { ...w, analyses: w.analyses.map((a) => (a.id === id ? fn(a) : a)) },
+    )
   const [params, setParams] = useSearchParams()
   const tagFilter = params.get('tag')
   const [adding, setAdding] = useState(false)
@@ -224,11 +264,38 @@ export function LiteratureWork() {
   })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
+  // Editions already given for this work, most used first.
+  const editions = useMemo(() => {
+    const n = new Map<string, number>()
+    for (const q of quotes) if (q.edition) n.set(q.edition, (n.get(q.edition) ?? 0) + 1)
+    return [...n.keys()].sort((a, b) => n.get(b)! - n.get(a)!)
+  }, [quotes])
 
   const removeAnalysis = useRemove(key ?? '', deleteAnalysis, (w, id) => ({
     ...w,
     analyses: w.analyses.filter((a) => a.id !== id),
   }))
+  // Liking shows at once; the server's count replaces the guess when it answers.
+  const like = useMutation({
+    mutationFn: toggleAnalysisLike,
+    onMutate: async (id: string) => {
+      const queryKey = ['literature-work', key]
+      await queryClient.cancelQueries({ queryKey })
+      const prev = queryClient.getQueryData<WorkRead>(queryKey)
+      patchAnalysis(id, (a) => ({
+        ...a,
+        liked_by_me: !a.liked_by_me,
+        like_count: a.like_count + (a.liked_by_me ? -1 : 1),
+      }))
+      return { prev }
+    },
+    onSuccess: (res, id) =>
+      patchAnalysis(id, (a) => ({ ...a, liked_by_me: res.liked, like_count: res.like_count })),
+    onError: (e, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['literature-work', key], ctx.prev)
+      toast.error(e instanceof Error ? e.message : t('common.error'))
+    },
+  })
   const removeQuote = useRemove(key ?? '', deleteQuote, (w, id) => ({
     ...w,
     quotes: w.quotes.filter((q) => q.id !== id),
@@ -304,7 +371,9 @@ export function LiteratureWork() {
             </Button>
           )}
         </div>
-        {adding && <QuoteForm workKey={work.key} onClose={() => setAdding(false)} />}
+        {adding && (
+          <QuoteForm workKey={work.key} editions={editions} onClose={() => setAdding(false)} />
+        )}
         {data.isLoading ? (
           <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
         ) : quotes.length === 0 ? (
@@ -446,6 +515,7 @@ export function LiteratureWork() {
                   mine={a.author.id === userId}
                   deleting={removeAnalysis.isPending && removeAnalysis.variables === a.id}
                   onTag={(name) => filterBy(name)}
+                  onLike={() => like.mutate(a.id)}
                   onDelete={() => removeAnalysis.mutate(a.id)}
                 />
               ))}
