@@ -45,7 +45,12 @@ export function AnalysisCard({
   const [lit, setLit] = useState<number | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(false)
   // The covered quote whose whole text is unfolded under the labels, if any.
-  const [open, setOpen] = useState<string | null>(null)
+  // The page label clicked open (one quote can have several, in different colours).
+  const [open, setOpen] = useState<{
+    key: string
+    quoteId: string
+    color: HighlightColor | null
+  } | null>(null)
   // quote id → the version of it this analysis cites
   const quoteOf = new Map(
     a.quotes.flatMap((c) => {
@@ -87,7 +92,7 @@ export function AnalysisCard({
       .filter((q) => !a.highlights.some((h) => h.quote_id === q.quote_id))
       .map((q) => ({ key: q.quote_id, quote: q, number: null, color: null })),
   ]
-  const unfolded = open ? quoteOf.get(open) : undefined
+  const unfolded = open ? quoteOf.get(open.quoteId) : undefined
 
   // The author edits in place, on the versions the analysis cites; dropping a quote there only
   // takes effect when saved.
@@ -165,21 +170,28 @@ export function AnalysisCard({
       <div className="space-y-2">
         <div className="flex flex-wrap gap-1.5">
           {labels.map((l) => {
-            const on = open === l.quote.quote_id
+            const on = open?.key === l.key
+            const tone = l.color ? HIGHLIGHT_TONE[l.color] : null
             return (
               <button
                 key={l.key}
                 type="button"
                 aria-expanded={on}
                 title={t(on ? `${K}.hideQuote` : `${K}.showQuote`)}
-                onClick={() => setOpen(on ? null : l.quote.quote_id)}
+                onClick={() =>
+                  setOpen(on ? null : { key: l.key, quoteId: l.quote.quote_id, color: l.color })
+                }
                 onMouseEnter={() => l.number !== null && setLit(l.number)}
                 onMouseLeave={() => setLit(null)}
                 className={cn(
                   'rounded-md border px-2 py-0.5 text-xs tabular-nums transition-colors',
+                  // In the fragment's own colour; a quote covered without fragments stays grey.
                   on
-                    ? 'border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100'
-                    : 'border-border/70 text-muted-foreground hover:border-amber-400 hover:text-foreground',
+                    ? (tone?.chip ?? 'border-foreground/40 bg-secondary text-foreground')
+                    : [
+                        'border-border/70 text-muted-foreground hover:text-foreground',
+                        tone?.hover ?? 'hover:border-foreground/40',
+                      ],
                   l.number !== null &&
                     lit === l.number &&
                     l.color && [
@@ -205,7 +217,12 @@ export function AnalysisCard({
           })}
         </div>
         {unfolded && (
-          <blockquote className="rounded-xl border-l-4 border-amber-300 bg-secondary/50 px-3 py-2">
+          <blockquote
+            className={cn(
+              'rounded-xl border-l-4 bg-secondary/50 px-3 py-2',
+              open?.color ? HIGHLIGHT_TONE[open.color].bar : 'border-border',
+            )}
+          >
             <PageLabel
               start={unfolded.page_start}
               end={unfolded.page_end}

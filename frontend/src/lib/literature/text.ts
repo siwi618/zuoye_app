@@ -15,7 +15,17 @@ export type HighlightColor = 'amber' | 'sky' | 'pink' | 'lime'
 export const HIGHLIGHT_COLORS: HighlightColor[] = ['amber', 'sky', 'pink', 'lime']
 export const HIGHLIGHT_TONE: Record<
   HighlightColor,
-  { mark: string; number: string; before: string; swatch: string; ring: string; border: string }
+  {
+    mark: string
+    number: string
+    before: string
+    swatch: string
+    ring: string
+    border: string
+    chip: string // a page label while its quote is unfolded
+    hover: string // a page label under the pointer
+    bar: string // the unfolded quote's side bar
+  }
 > = {
   amber: {
     mark: 'bg-amber-200/70 dark:bg-amber-400/25',
@@ -24,6 +34,9 @@ export const HIGHLIGHT_TONE: Record<
     swatch: 'bg-amber-300',
     ring: 'ring-amber-500',
     border: 'border-amber-400',
+    chip: 'border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100',
+    hover: 'hover:border-amber-400',
+    bar: 'border-amber-300',
   },
   sky: {
     mark: 'bg-sky-200/70 dark:bg-sky-400/25',
@@ -32,6 +45,9 @@ export const HIGHLIGHT_TONE: Record<
     swatch: 'bg-sky-300',
     ring: 'ring-sky-500',
     border: 'border-sky-400',
+    chip: 'border-sky-400 bg-sky-100 text-sky-900 dark:bg-sky-400/20 dark:text-sky-100',
+    hover: 'hover:border-sky-400',
+    bar: 'border-sky-300',
   },
   pink: {
     mark: 'bg-pink-200/70 dark:bg-pink-400/25',
@@ -40,6 +56,9 @@ export const HIGHLIGHT_TONE: Record<
     swatch: 'bg-pink-300',
     ring: 'ring-pink-500',
     border: 'border-pink-400',
+    chip: 'border-pink-400 bg-pink-100 text-pink-900 dark:bg-pink-400/20 dark:text-pink-100',
+    hover: 'hover:border-pink-400',
+    bar: 'border-pink-300',
   },
   lime: {
     mark: 'bg-lime-200/80 dark:bg-lime-400/25',
@@ -48,6 +67,9 @@ export const HIGHLIGHT_TONE: Record<
     swatch: 'bg-lime-300',
     ring: 'ring-lime-600',
     border: 'border-lime-500',
+    chip: 'border-lime-500 bg-lime-100 text-lime-900 dark:bg-lime-400/20 dark:text-lime-100',
+    hover: 'hover:border-lime-500',
+    bar: 'border-lime-400',
   },
 }
 
