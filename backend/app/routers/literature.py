@@ -9,6 +9,7 @@ from app.schemas.literature import (
     AnalysisPage,
     AnalysisSort,
     CommentSort,
+    DeviceRead,
     IntroKind,
     IntroRead,
     IntroUpdate,
@@ -154,3 +155,9 @@ def delete_comment(user: CurrentUserDep, comment_id: str) -> None:
 @router.post("/comments/{comment_id}/like", response_model=LikeResult)
 def toggle_comment_like(user: CurrentUserDep, comment_id: str) -> LikeResult:
     return svc.toggle_comment_like(user.id, comment_id)
+
+
+@router.get("/devices/{name}", response_model=DeviceRead)
+def get_device(user: CurrentUserDep, name: str) -> DeviceRead:
+    _ = user
+    return svc.get_device(_intro_key_ok("device", name))

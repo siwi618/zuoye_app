@@ -10,6 +10,7 @@ from app.schemas.literature import (
     AnalysisPage,
     AnalysisSort,
     CommentSort,
+    DeviceRead,
     AnalysisRead,
     CitedQuote,
     HighlightRead,
@@ -852,3 +853,18 @@ def toggle_comment_like(user_id: str, comment_id: str) -> LikeResult:
         or [{"like_count": 0}]
     )[0]["like_count"]
     return LikeResult(liked=liked, like_count=count)
+
+
+def get_device(name: str) -> DeviceRead:
+    """Where a #device is used: every work whose visible analyses carry it, with counts."""
+    usage = [(w, t) for w, t in _usage("device") if t["name"].lower() == name.lower()]
+    per_work = Counter(w for w, _ in usage)
+    return DeviceRead(
+        name=usage[0][1]["name"] if usage else name,
+        tag_id=usage[0][1]["id"] if usage else None,
+        total=len(usage),
+        works=[
+            WorkLink(work_key=w, tag_id=usage[0][1]["id"], count=n)
+            for w, n in sorted(per_work.items(), key=lambda x: (-x[1], x[0]))
+        ],
+    )

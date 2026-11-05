@@ -211,3 +211,11 @@ class LitCommentRead(BaseModel):
     # Replies only: the thread's top-level comment, and whose comment was answered.
     parent_id: str | None = None
     reply_to: ProfileSummary | None = None
+
+
+class DeviceRead(BaseModel):
+    """A #device across the works: which works' analyses use it, and how often."""
+    name: str
+    tag_id: str | None  # None: no analysis uses it (yet)
+    total: int
+    works: list[WorkLink]  # most used first
