@@ -3,10 +3,12 @@ import { useEffect, type RefObject } from 'react'
 const MAX = 72 // the furthest the box gives, in px
 const SETTLE = 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)' // springs back, a touch past
 // A wheel pull lets go when the wheel pauses or after HOLD at most (about 0.5 s with the spring),
-// then ignores the rest of that push — a trackpad keeps coasting — until the wheel is quiet.
+// then ignores the rest of that push (a trackpad keeps coasting, each step weaker than the last)
+// until a stronger step says a new swipe has begun, or the wheel goes quiet for COAST.
 const WHEEL_IDLE = 50
 const HOLD = 200
 const COAST = 150
+const NEW_SWIPE = 1.5 // a step this much stronger than the last starts a new swipe
 
 // A scroll box pushed past its top or bottom (wheel, trackpad or finger) gives a little, harder
 // the further it goes, then springs back when let go. The whole box moves, not its content
@@ -20,10 +22,16 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     let since = 0 // when the current wheel pull began
     let coasting = false
     let quiet = 0
+    let lastStep = 0
     let touchY: number | null = null
 
     const atTop = () => el.scrollTop <= 0
     const atBottom = () => el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+    // Where the box is now, maybe halfway through springing back.
+    const offset = () => {
+      const m = getComputedStyle(el).transform
+      return m === 'none' ? 0 : new DOMMatrix(m).m42
+    }
     const draw = () => {
       const give = MAX * (1 - Math.exp(-Math.abs(pull) / (MAX * 2)))
       el.style.transition = 'none'
@@ -40,9 +48,16 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     }
     // A push of dy (positive = scrolling down); true if it went into the pull instead.
     const push = (dy: number) => {
-      if (pull > 0 || (!pull && dy < 0 && atTop())) pull = Math.max(0, pull - dy)
-      else if (pull < 0 || (!pull && dy > 0 && atBottom())) pull = Math.min(0, pull - dy)
-      else return false
+      let dir = Math.sign(pull) // +1 past the top, -1 past the bottom
+      if (!dir) {
+        dir = dy < 0 && atTop() ? 1 : dy > 0 && atBottom() ? -1 : 0
+        if (!dir) return false
+        // Pushed again while still springing back: carry on from where the box is.
+        const now = offset()
+        if (Math.sign(now) === dir)
+          pull = dir * -2 * MAX * Math.log(1 - Math.min(Math.abs(now) / MAX, 0.95))
+      }
+      pull = dir > 0 ? Math.max(0, pull - dy) : Math.min(0, pull - dy)
       draw()
       return true
     }
@@ -52,6 +67,9 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1) * 0.4
       window.clearTimeout(quiet)
       quiet = window.setTimeout(() => (coasting = false), COAST)
+      const step = Math.abs(dy)
+      if (coasting && step > Math.max(lastStep * NEW_SWIPE, 2)) coasting = false
+      lastStep = step
       if (coasting) {
         // The same push still coming in: no second pull, and no browser bounce on top.
         if ((dy < 0 && atTop()) || (dy > 0 && atBottom())) e.preventDefault()
