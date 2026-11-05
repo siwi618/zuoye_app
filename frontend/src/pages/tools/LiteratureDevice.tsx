@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -18,6 +19,29 @@ import { IntroBlock } from '@/components/literature/IntroBlock'
 
 const K = 'tools.literature'
 const NONE = 'none' // Radix Select can't hold an empty value
+
+// The works last chosen on a device page, remembered in this browser for the next one.
+type Side = 'work' | 'compare'
+const MEMORY: Record<Side, string> = {
+  work: 'coral.literature.deviceWork',
+  compare: 'coral.literature.deviceCompare',
+}
+const recall = (side: Side): string | null => {
+  try {
+    const key = localStorage.getItem(MEMORY[side])
+    return findWork(key ?? undefined) ? key : null
+  } catch {
+    return null
+  }
+}
+const remember = (side: Side, key: string | null) => {
+  try {
+    if (key) localStorage.setItem(MEMORY[side], key)
+    else localStorage.removeItem(MEMORY[side])
+  } catch {
+    // storage unavailable: nothing is remembered
+  }
+}
 
 // One half of the comparison: a work picker and that work's analyses using the device.
 function Column({
@@ -94,10 +118,18 @@ export function LiteratureDevice() {
     queryKey: ['literature-device', name.toLowerCase()],
     queryFn: () => getDevice(name),
   })
-  // Opened without a work: the right half starts on the work using the device most.
-  const right = params.get('work') ?? device.data?.works[0]?.work_key ?? null
-  const left = params.get('compare')
-  const choose = (side: 'work' | 'compare', key: string | null) =>
+  // Opened without a work: each half starts on the work last chosen there; the right one, the
+  // first time, on the work using the device most.
+  const right = params.get('work') ?? recall('work') ?? device.data?.works[0]?.work_key ?? null
+  const leftWanted = params.get('compare') ?? recall('compare')
+  const left = leftWanted !== right ? leftWanted : null
+  // Coming in with a work chosen (from the side panel's list) counts as choosing it.
+  const fromLink = params.get('work')
+  useEffect(() => {
+    if (fromLink) remember('work', fromLink)
+  }, [fromLink])
+  const choose = (side: Side, key: string | null) => {
+    remember(side, key)
     setParams(
       (p) => {
         const next = new URLSearchParams(p)
@@ -108,6 +140,7 @@ export function LiteratureDevice() {
       },
       { replace: true },
     )
+  }
   // A device chip opens that device's page with the same works; a character goes to its work.
   const onTag = (tag: string, kind: TagKind, workKey: string | null) =>
     kind === 'device'
