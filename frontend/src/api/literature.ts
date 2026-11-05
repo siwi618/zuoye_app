@@ -41,6 +41,9 @@ export interface AnalysisRead {
   like_count: number
   liked_by_me: boolean
   created_at: string
+  // Client-only: the like count the list is ranked by, frozen while a like is pending so the
+  // card doesn't jump away under the pointer.
+  rank?: number
 }
 
 export interface WorkRead {

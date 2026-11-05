@@ -6,6 +6,13 @@ import { toast } from 'sonner'
 import { ArrowLeft, Check, PenLine, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
@@ -20,6 +27,7 @@ import {
   type WorkRead,
 } from '@/api/literature'
 import { findWork } from '@/lib/literature/corpus'
+import { sliceChars } from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisCard } from '@/components/literature/AnalysisCard'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
@@ -28,6 +36,10 @@ const K = 'tools.literature'
 // Quotes shown before「显示全部」.
 const SHOWN_QUOTES = 5
 const MAX_PICKED = 10
+// Radix Select can't hold an empty value; this one stands for "no filter".
+const ALL = 'all'
+type Sort = 'hot' | 'new' | 'mine'
+const SORTS: Sort[] = ['hot', 'new', 'mine']
 
 // Deleting hides the item at once instead of when the work has reloaded (a few seconds later),
 // so it can't be pressed a second time meanwhile; a 404 means it is already gone, which is done.
@@ -184,6 +196,7 @@ function QuoteRow({
   mine,
   onToggle,
   onDelete,
+  onShowAnalyses,
 }: {
   quote: QuoteRead
   picked: boolean
@@ -191,6 +204,7 @@ function QuoteRow({
   mine: boolean
   onToggle: () => void
   onDelete: () => void
+  onShowAnalyses: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -219,7 +233,11 @@ function QuoteRow({
         <QuoteText body={q.body} />
         <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
           <span>{t(`${K}.addedBy`, { name: q.author.display_name })}</span>
-          {q.cited_count > 0 && <span>{t(`${K}.citedBy`, { count: q.cited_count })}</span>}
+          {q.cited_count > 0 && (
+            <button type="button" onClick={onShowAnalyses} className="hover:text-primary">
+              {t(`${K}.citedBy`, { count: q.cited_count })}
+            </button>
+          )}
           {mine && q.cited_count === 0 && (
             <button
               type="button"
@@ -249,8 +267,22 @@ export function LiteratureWork() {
       ['literature-work', key],
       (w) => w && { ...w, analyses: w.analyses.map((a) => (a.id === id ? fn(a) : a)) },
     )
+  // Sort and filters live in the URL, so they survive a reload and can be shared.
   const [params, setParams] = useSearchParams()
   const tagFilter = params.get('tag')
+  const quoteFilter = params.get('quote')
+  const sort: Sort = SORTS.find((x) => x === params.get('sort')) ?? 'hot'
+  const setParam = (name: string, value: string | null) =>
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p)
+        if (value) next.set(name, value)
+        else next.delete(name)
+        return next
+      },
+      { replace: true },
+    )
+  const analysesAt = useRef<HTMLElement>(null)
   const [adding, setAdding] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
@@ -284,6 +316,7 @@ export function LiteratureWork() {
       const prev = queryClient.getQueryData<WorkRead>(queryKey)
       patchAnalysis(id, (a) => ({
         ...a,
+        rank: a.rank ?? a.like_count,
         liked_by_me: !a.liked_by_me,
         like_count: a.like_count + (a.liked_by_me ? -1 : 1),
       }))
@@ -316,10 +349,38 @@ export function LiteratureWork() {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const pickedQuotes = quotes.filter((q) => picked.includes(q.id))
   const shown = showAll ? quotes : quotes.slice(0, SHOWN_QUOTES)
-  const filterBy = (name: string | null) => setParams(name ? { tag: name } : {}, { replace: true })
-  const analyses = (data.data?.analyses ?? []).filter(
-    (a) => !tagFilter || a.tags.some((x) => x.name.toLowerCase() === tagFilter.toLowerCase()),
-  )
+  const filterBy = (name: string | null) => setParam('tag', name)
+  const showAnalysesOf = (quoteId: string) => {
+    setParam('quote', quoteId)
+    requestAnimationFrame(() =>
+      analysesAt.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    )
+  }
+  const all = data.data?.analyses ?? []
+  const likes = (a: AnalysisRead) => a.rank ?? a.like_count
+  const newest = (a: AnalysisRead, b: AnalysisRead) => b.created_at.localeCompare(a.created_at)
+  const hottest = (a: AnalysisRead, b: AnalysisRead) => likes(b) - likes(a) || newest(a, b)
+  const own = (a: AnalysisRead) => (a.author.id === userId ? 0 : 1)
+  // 「我的」: the reader's own analyses on top (newest first), then everyone else's by likes.
+  const order = {
+    hot: hottest,
+    new: newest,
+    mine: (a: AnalysisRead, b: AnalysisRead) =>
+      own(a) - own(b) || (own(a) === 0 ? newest(a, b) : hottest(a, b)),
+  }[sort]
+  const analyses = all
+    .filter(
+      (a) =>
+        (!tagFilter || a.tags.some((x) => x.name.toLowerCase() === tagFilter.toLowerCase())) &&
+        (!quoteFilter || a.quote_ids.includes(quoteFilter)),
+    )
+    .sort(order)
+  const filtering = !!tagFilter || !!quoteFilter
+  const pageText = (q: QuoteRead) =>
+    q.page_start === q.page_end
+      ? t(`${K}.pageOne`, { start: q.page_start })
+      : t(`${K}.pageRange`, { start: q.page_start, end: q.page_end })
+  const citedQuotes = quotes.filter((q) => q.cited_count > 0)
   const compose = () => {
     setComposing(true)
     requestAnimationFrame(() =>
@@ -395,6 +456,7 @@ export function LiteratureWork() {
                     setPicked((p) => p.filter((x) => x !== q.id))
                     removeQuote.mutate(q.id)
                   }}
+                  onShowAnalyses={() => showAnalysesOf(q.id)}
                 />
               ))}
             </ul>
@@ -451,7 +513,7 @@ export function LiteratureWork() {
       </section>
 
       {/* Analyses */}
-      <section className="space-y-4">
+      <section ref={analysesAt} className="scroll-mt-24 space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">
@@ -491,17 +553,79 @@ export function LiteratureWork() {
           )}
         </div>
 
-        {tagFilter && (
-          <div className="flex items-center gap-2 text-sm">
-            <span>{t(`${K}.filterOn`, { tag: `#${tagFilter}` })}</span>
-            <button
-              type="button"
-              onClick={() => filterBy(null)}
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+        {all.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={sort} onValueChange={(v) => setParam('sort', v === 'hot' ? null : v)}>
+              <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORTS.map((x) => (
+                  <SelectItem key={x} value={x}>
+                    {t(`${K}.sort_${x}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={quoteFilter && byId.has(quoteFilter) ? quoteFilter : ALL}
+              onValueChange={(v) => setParam('quote', v === ALL ? null : v)}
             >
-              <X className="size-3.5" />
-              {t(`${K}.clearFilter`)}
-            </button>
+              <SelectTrigger aria-label={t(`${K}.filterQuote`)} className="w-56 max-w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t(`${K}.allQuotes`)}</SelectItem>
+                {citedQuotes.map((q) => (
+                  <SelectItem key={q.id} value={q.id}>
+                    {pageText(q)} · {sliceChars(q.body, 0, 12)}
+                    {[...q.body].length > 12 && '…'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={
+                data.data?.tags.find((x) => x.name.toLowerCase() === tagFilter?.toLowerCase())
+                  ?.name ?? ALL
+              }
+              onValueChange={(v) => filterBy(v === ALL ? null : v)}
+            >
+              <SelectTrigger aria-label={t(`${K}.filterTag`)} className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t(`${K}.allTags`)}</SelectItem>
+                {data.data?.tags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.name}>
+                    #{tag.name} ({tag.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {filtering && (
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                {t(`${K}.matchCount`, { count: analyses.length })}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setParams(
+                      (p) => {
+                        const next = new URLSearchParams(p)
+                        next.delete('tag')
+                        next.delete('quote')
+                        return next
+                      },
+                      { replace: true },
+                    )
+                  }
+                  className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                >
+                  <X className="size-3.5" />
+                  {t(`${K}.clearFilters`)}
+                </button>
+              </span>
+            )}
           </div>
         )}
         {data.data &&
@@ -522,9 +646,7 @@ export function LiteratureWork() {
             </div>
           ) : (
             <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              {tagFilter
-                ? t(`${K}.noAnalysesForTag`, { tag: `#${tagFilter}` })
-                : t(`${K}.noAnalyses`)}
+              {filtering ? t(`${K}.noMatch`) : t(`${K}.noAnalyses`)}
             </p>
           ))}
       </section>
