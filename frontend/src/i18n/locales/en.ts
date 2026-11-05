@@ -368,6 +368,8 @@ export const en = {
       scopeCharacter: 'Characters',
       searchCharacters: 'Search characters',
       noCharacters: 'No analysis tags a character yet.',
+      loadMore: 'Load more',
+      allShown: 'All {{count}} shown',
     },
     thermometer: {
       subtitle:

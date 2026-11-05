@@ -369,6 +369,8 @@ export const zh: Translations = {
       scopeCharacter: '人物',
       searchCharacters: '搜人物',
       noCharacters: '还没有分析写到人物。',
+      loadMore: '加载更多',
+      allShown: '已显示全部 {{count}} 篇',
     },
     thermometer: {
       subtitle:

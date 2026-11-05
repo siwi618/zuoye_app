@@ -1,7 +1,15 @@
-import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryKey,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Check, PenLine, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +29,9 @@ import {
   deleteAnalysis,
   deleteQuote,
   getWork,
+  listAnalyses,
+  type AnalysisPage,
+  type QuoteVersion,
   toggleAnalysisLike,
   updateQuote,
   type AnalysisRead,
@@ -38,6 +49,8 @@ const K = 'tools.literature'
 // Quotes shown before「显示全部」.
 const SHOWN_QUOTES = 5
 const MAX_PICKED = 10
+// Analyses loaded per page while scrolling.
+const PAGE_SIZE = 20
 type Sort = 'hot' | 'new' | 'mine'
 const SORTS: Sort[] = ['hot', 'new', 'mine']
 
@@ -307,11 +320,6 @@ export function LiteratureWork() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const userId = useAuthStore((s) => s.user?.id)
-  const patchAnalysis = (id: string, fn: (a: AnalysisRead) => AnalysisRead) =>
-    queryClient.setQueryData<WorkRead>(
-      ['literature-work', key],
-      (w) => w && { ...w, analyses: w.analyses.map((a) => (a.id === id ? fn(a) : a)) },
-    )
   // Sort and filters live in the URL, so they survive a reload and can be shared.
   const [params, setParams] = useSearchParams()
   const tagFilter = params.get('tag') // a #device
@@ -342,10 +350,83 @@ export function LiteratureWork() {
   })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
-  const versions = useMemo(
-    () => new Map((data.data?.versions ?? []).map((v) => [v.id, v])),
-    [data.data],
-  )
+
+  // The analyses come PAGE_SIZE at a time, sorted and filtered by the server; scrolling to the
+  // end of the list loads the next page.
+  const list = useInfiniteQuery({
+    queryKey: ['literature-analyses', key, sort, tagFilter, whoFilter, quoteFilter],
+    queryFn: ({ pageParam }) =>
+      listAnalyses(key!, {
+        sort,
+        tag: tagFilter,
+        who: whoFilter,
+        quote: quoteFilter,
+        offset: pageParam,
+        limit: PAGE_SIZE,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.next_offset ?? undefined,
+    // Changing the sort or a filter keeps the old list on screen until the new one arrives.
+    placeholderData: keepPreviousData,
+    enabled: !!work,
+  })
+  const { analyses, versions } = useMemo(() => {
+    // A page boundary can shift while scrolling (a new analysis, a changed like count): skip
+    // anything already shown.
+    const seen = new Set<string>()
+    const items: AnalysisRead[] = []
+    const vs = new Map<string, QuoteVersion>()
+    for (const page of list.data?.pages ?? []) {
+      for (const a of page.items) {
+        if (seen.has(a.id)) continue
+        seen.add(a.id)
+        items.push(a)
+      }
+      for (const v of page.versions) vs.set(v.id, v)
+    }
+    return { analyses: items, versions: vs }
+  }, [list.data])
+  const matching = list.data?.pages[0]?.total ?? 0
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = list
+  const listEnd = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = listEnd.current
+    if (!el || !hasNextPage) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
+      },
+      { rootMargin: '400px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // Optimistic changes apply to every loaded list of this work's analyses (any sort or filter).
+  const analysesKey = ['literature-analyses', key]
+  const patchAnalyses = (fn: (a: AnalysisRead) => AnalysisRead | null) =>
+    queryClient.setQueriesData<InfiniteData<AnalysisPage>>(
+      { queryKey: analysesKey },
+      (d) =>
+        d && {
+          ...d,
+          pages: d.pages.map((p) => ({
+            ...p,
+            items: p.items.flatMap((a) => {
+              const next = fn(a)
+              return next ? [next] : []
+            }),
+          })),
+        },
+    )
+  const optimistic = async (fn: (a: AnalysisRead) => AnalysisRead | null) => {
+    await queryClient.cancelQueries({ queryKey: analysesKey })
+    const prev = queryClient.getQueriesData<InfiniteData<AnalysisPage>>({ queryKey: analysesKey })
+    patchAnalyses(fn)
+    return { prev }
+  }
+  const rollback = (ctx?: { prev: [QueryKey, unknown][] }) =>
+    ctx?.prev.forEach(([k, d]) => queryClient.setQueryData(k, d))
   // Editions already given for this work, most used first.
   const editions = useMemo(() => {
     const n = new Map<string, number>()
@@ -353,29 +434,46 @@ export function LiteratureWork() {
     return [...n.keys()].sort((a, b) => n.get(b)! - n.get(a)!)
   }, [quotes])
 
-  const removeAnalysis = useRemove(key ?? '', deleteAnalysis, (w, id) => ({
-    ...w,
-    analyses: w.analyses.filter((a) => a.id !== id),
-  }))
-  // Liking shows at once; the server's count replaces the guess when it answers.
+  // Deleting hides the analysis at once (a 404 means it is already gone, which is done).
+  const removeAnalysis = useMutation({
+    mutationFn: async (id: string) => {
+      try {
+        await deleteAnalysis(id)
+      } catch (e) {
+        if (!(e instanceof Error && e.message.startsWith('API 404'))) throw e
+      }
+    },
+    onMutate: (id: string) => optimistic((a) => (a.id === id ? null : a)),
+    onError: (e, _id, ctx) => {
+      rollback(ctx)
+      toast.error(e instanceof Error ? e.message : t('common.error'))
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: analysesKey })
+      void queryClient.invalidateQueries({ queryKey: ['literature-work', key] })
+      void queryClient.invalidateQueries({ queryKey: ['literature-overview'] })
+    },
+  })
+  // Liking shows at once; the server's count replaces the guess when it answers. The list keeps
+  // its order until it is next loaded, so the card doesn't jump away under the pointer.
   const like = useMutation({
     mutationFn: toggleAnalysisLike,
-    onMutate: async (id: string) => {
-      const queryKey = ['literature-work', key]
-      await queryClient.cancelQueries({ queryKey })
-      const prev = queryClient.getQueryData<WorkRead>(queryKey)
-      patchAnalysis(id, (a) => ({
-        ...a,
-        rank: a.rank ?? a.like_count,
-        liked_by_me: !a.liked_by_me,
-        like_count: a.like_count + (a.liked_by_me ? -1 : 1),
-      }))
-      return { prev }
-    },
+    onMutate: (id: string) =>
+      optimistic((a) =>
+        a.id === id
+          ? {
+              ...a,
+              liked_by_me: !a.liked_by_me,
+              like_count: a.like_count + (a.liked_by_me ? -1 : 1),
+            }
+          : a,
+      ),
     onSuccess: (res, id) =>
-      patchAnalysis(id, (a) => ({ ...a, liked_by_me: res.liked, like_count: res.like_count })),
+      patchAnalyses((a) =>
+        a.id === id ? { ...a, liked_by_me: res.liked, like_count: res.like_count } : a,
+      ),
     onError: (e, _id, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['literature-work', key], ctx.prev)
+      rollback(ctx)
       toast.error(e instanceof Error ? e.message : t('common.error'))
     },
   })
@@ -401,34 +499,13 @@ export function LiteratureWork() {
   const shown = showAll ? quotes : quotes.slice(0, SHOWN_QUOTES)
   const filterBy = (name: string | null, kind: TagKind = 'device') =>
     setParam(kind === 'device' ? 'tag' : 'who', name)
-  const tagged = (a: AnalysisRead, kind: TagKind, name: string | null) =>
-    !name || a.tags.some((x) => x.kind === kind && x.name.toLowerCase() === name.toLowerCase())
   const showAnalysesOf = (quoteId: string) => {
     setParam('quote', quoteId)
     requestAnimationFrame(() =>
       analysesAt.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     )
   }
-  const all = data.data?.analyses ?? []
-  const likes = (a: AnalysisRead) => a.rank ?? a.like_count
-  const newest = (a: AnalysisRead, b: AnalysisRead) => b.created_at.localeCompare(a.created_at)
-  const hottest = (a: AnalysisRead, b: AnalysisRead) => likes(b) - likes(a) || newest(a, b)
-  const own = (a: AnalysisRead) => (a.author.id === userId ? 0 : 1)
-  // 「我的」: the reader's own analyses on top (newest first), then everyone else's by likes.
-  const order = {
-    hot: hottest,
-    new: newest,
-    mine: (a: AnalysisRead, b: AnalysisRead) =>
-      own(a) - own(b) || (own(a) === 0 ? newest(a, b) : hottest(a, b)),
-  }[sort]
-  const analyses = all
-    .filter(
-      (a) =>
-        tagged(a, 'device', tagFilter) &&
-        tagged(a, 'character', whoFilter) &&
-        (!quoteFilter || a.quote_ids.includes(quoteFilter)),
-    )
-    .sort(order)
+  const total = data.data?.analysis_count ?? 0
   const filtering = !!tagFilter || !!whoFilter || !!quoteFilter
   const pageText = (q: QuoteRead) =>
     q.page_start === q.page_end
@@ -589,9 +666,7 @@ export function LiteratureWork() {
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">
               {t(`${K}.analyses`)}
-              <span className="ml-2 text-base font-normal text-muted-foreground">
-                {data.data?.analyses.length ?? 0}
-              </span>
+              <span className="ml-2 text-base font-normal text-muted-foreground">{total}</span>
             </h2>
             {!composing && (
               <p className="text-sm text-muted-foreground">
@@ -624,7 +699,7 @@ export function LiteratureWork() {
           )}
         </div>
 
-        {all.length > 0 && (
+        {total > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <Select value={sort} onValueChange={(v) => setParam('sort', v === 'hot' ? null : v)}>
               <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-28">
@@ -646,7 +721,7 @@ export function LiteratureWork() {
             />
           </div>
         )}
-        {all.length > 0 && filtering && (
+        {total > 0 && filtering && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {activeQuote && (
               <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 py-1 pr-1 pl-3 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100">
@@ -696,7 +771,7 @@ export function LiteratureWork() {
               </span>
             )}
             <span className="flex items-center gap-2 text-muted-foreground">
-              {t(`${K}.matchCount`, { count: analyses.length })}
+              {t(`${K}.matchCount`, { count: matching })}
               <button
                 type="button"
                 onClick={() =>
@@ -719,8 +794,8 @@ export function LiteratureWork() {
             </span>
           </div>
         )}
-        {data.data &&
-          (analyses.length ? (
+        {total > 0 || list.data ? (
+          analyses.length ? (
             <div className="space-y-4">
               {analyses.map((a) => (
                 <AnalysisCard
@@ -734,12 +809,26 @@ export function LiteratureWork() {
                   onDelete={() => removeAnalysis.mutate(a.id)}
                 />
               ))}
+              <div ref={listEnd} className="py-2 text-center text-sm text-muted-foreground">
+                {isFetchingNextPage ? (
+                  t('common.loading')
+                ) : hasNextPage ? (
+                  <Button variant="ghost" size="sm" onClick={() => void fetchNextPage()}>
+                    {t(`${K}.loadMore`)}
+                  </Button>
+                ) : (
+                  analyses.length > PAGE_SIZE && t(`${K}.allShown`, { count: analyses.length })
+                )}
+              </div>
             </div>
+          ) : list.isLoading ? (
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               {filtering ? t(`${K}.noMatch`) : t(`${K}.noAnalyses`)}
             </p>
-          ))}
+          )
+        ) : null}
       </section>
 
       {/* Picked quotes, always in reach while scrolling */}

@@ -59,9 +59,6 @@ export interface AnalysisRead {
   like_count: number
   liked_by_me: boolean
   created_at: string
-  // Client-only: the like count the list is ranked by, frozen while a like is pending so the
-  // card doesn't jump away under the pointer.
-  rank?: number
 }
 
 // What the composer needs of a quote: a picked quote, or the version an analysis cites.
@@ -70,11 +67,20 @@ export type ComposerQuote = Pick<QuoteRead, 'id' | 'body' | 'page_start' | 'page
 export interface WorkRead {
   work_key: string
   quotes: QuoteRead[]
-  analyses: AnalysisRead[]
-  // The quote versions the analyses cite, each sent once.
-  versions: QuoteVersion[]
   // Tags used by this work's analyses, most used first.
   tags: TagRead[]
+  // The analyses come a page at a time (listAnalyses); this is how many there are.
+  analysis_count: number
+}
+
+export type AnalysisSort = 'hot' | 'new' | 'mine'
+
+export interface AnalysisPage {
+  items: AnalysisRead[]
+  // The quote versions these analyses cite, each sent once.
+  versions: QuoteVersion[]
+  total: number // analyses matching the filters
+  next_offset: number | null // null when this was the last page
 }
 
 export interface OverviewRead {
@@ -109,6 +115,29 @@ export function searchTags(q: string, kind: TagKind = 'device', work?: string): 
 
 export function getWork(workKey: string): Promise<WorkRead> {
   return apiFetch<WorkRead>(`/literature/works/${workKey}`)
+}
+
+// One page of a work's analyses, sorted and filtered over all of them by the server.
+export function listAnalyses(
+  workKey: string,
+  p: {
+    sort: AnalysisSort
+    tag?: string | null
+    who?: string | null
+    quote?: string | null
+    offset: number
+    limit: number
+  },
+): Promise<AnalysisPage> {
+  const params = new URLSearchParams({
+    sort: p.sort,
+    offset: String(p.offset),
+    limit: String(p.limit),
+  })
+  if (p.tag) params.set('tag', p.tag)
+  if (p.who) params.set('who', p.who)
+  if (p.quote) params.set('quote', p.quote)
+  return apiFetch<AnalysisPage>(`/literature/works/${workKey}/analyses?${params}`)
 }
 
 export function createQuote(workKey: string, payload: QuoteCreate): Promise<QuoteRead> {

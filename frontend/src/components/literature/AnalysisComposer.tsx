@@ -159,6 +159,7 @@ export function AnalysisComposer({
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['literature-work', workKey] })
+      void queryClient.invalidateQueries({ queryKey: ['literature-analyses', workKey] })
       void queryClient.invalidateQueries({ queryKey: ['literature-overview'] })
       void queryClient.invalidateQueries({ queryKey: ['literature-tags'] })
       toast.success(t(initial ? `${K}.analysisUpdated` : `${K}.published`))
