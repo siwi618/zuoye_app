@@ -244,6 +244,11 @@ export function DetailPanel({
           {w.author} · {w.year}
         </p>
       </header>
+      {/* The same introduction as on the work's page: editing either changes both. */}
+      <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
+        <h3 className="text-xs font-medium text-primary">{t(`${K}.introLabel`)}</h3>
+        <IntroBlock key={w.key} kind="work" subject={w.key} compact />
+      </section>
       <Button asChild className="w-full">
         <Link to={workPath(w.key)}>
           <BookOpen className="size-4" />
