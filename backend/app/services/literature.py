@@ -558,51 +558,33 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
 
     tags, moderated = _resolve_all_tags(user_id, payload, work_key)
 
-    db = get_supabase()
-    inserted = (
-        db.table("lit_analyses")
-        .insert({
-            "work_key": work_key, "author_id": user_id, "body": payload.body,
-            "moderated": moderated,
+    # Written in one database transaction (migration 0020): all of it or nothing.
+    made = (
+        get_supabase()
+        .rpc("lit_create_analysis", {
+            "p_work_key": work_key,
+            "p_author_id": user_id,
+            "p_body": payload.body,
+            "p_moderated": moderated,
+            "p_quotes": [{"quote_id": q, "version_id": quotes[q]["id"]} for q in quote_ids],
+            "p_highlights": [h.model_dump() for h in payload.highlights],
+            "p_tag_ids": [t["id"] for t in tags],
         })
         .execute()
         .data
     )
-    row = (inserted or [None])[0]
-    if not row:
+    if not made:
         raise _reject("Failed to create analysis", status.HTTP_500_INTERNAL_SERVER_ERROR)
-    analysis_id = row["id"]
-    try:
-        db.table("lit_analysis_quotes").insert([
-            {
-                "analysis_id": analysis_id, "quote_id": q, "position": i,
-                "version_id": quotes[q]["id"],
-            }
-            for i, q in enumerate(quote_ids)
-        ]).execute()
-        if payload.highlights:
-            db.table("lit_highlights").insert([
-                {
-                    "analysis_id": analysis_id, "quote_id": h.quote_id, "number": h.number,
-                    "start_offset": h.start, "end_offset": h.end, "color": h.color,
-                }
-                for h in payload.highlights
-            ]).execute()
-        db.table("lit_analysis_tags").insert([
-            {"analysis_id": analysis_id, "tag_id": t["id"]} for t in tags
-        ]).execute()
-    except Exception:
-        db.table("lit_analyses").delete().eq("id", analysis_id).execute()
-        raise
+    analysis_id = made["id"]
 
     profiles = _fetch_profiles({user_id})
     return AnalysisRead(
         id=analysis_id, work_key=work_key, author=ProfileSummary(**profiles[user_id]),
-        body=row["body"], quote_ids=quote_ids,
+        body=payload.body, quote_ids=quote_ids,
         quotes=[CitedQuote(quote_id=q, version_id=quotes[q]["id"]) for q in quote_ids],
         highlights=[HighlightRead(**h.model_dump()) for h in payload.highlights],
         tags=[TagRead(id=t["id"], name=t["name"], kind=t["kind"], count=0) for t in tags],
-        like_count=0, liked_by_me=False, created_at=row["created_at"],
+        like_count=0, liked_by_me=False, created_at=made["created_at"],
     )
 
 
