@@ -4,6 +4,8 @@ from app.deps import CurrentUserDep
 from app.schemas.forum import LikeResult
 from app.schemas.literature import (
     AnalysisCreate,
+    AnalysisPage,
+    AnalysisSort,
     AnalysisRead,
     OverviewRead,
     QuoteCreate,
@@ -39,6 +41,22 @@ def list_tags(
 @router.get("/works/{work_key}", response_model=WorkRead)
 def get_work(user: CurrentUserDep, work_key: WorkKeyStr) -> WorkRead:
     return svc.get_work(user.id, work_key)
+
+
+@router.get("/works/{work_key}/analyses", response_model=AnalysisPage)
+def list_analyses(
+    user: CurrentUserDep,
+    work_key: WorkKeyStr,
+    sort: AnalysisSort = Query(default=AnalysisSort.hot),
+    tag: str | None = Query(default=None, max_length=20),  # a #device name
+    who: str | None = Query(default=None, max_length=20),  # an @character name
+    quote: str | None = Query(default=None, max_length=40),  # a quote id
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=50),
+) -> AnalysisPage:
+    return svc.list_analyses(
+        user.id, work_key, sort=sort, tag=tag, who=who, quote=quote, offset=offset, limit=limit
+    )
 
 
 @router.post("/works/{work_key}/quotes", response_model=QuoteRead, status_code=201)

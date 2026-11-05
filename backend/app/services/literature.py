@@ -7,6 +7,8 @@ from postgrest.exceptions import APIError
 
 from app.schemas.literature import (
     AnalysisCreate,
+    AnalysisPage,
+    AnalysisSort,
     AnalysisRead,
     CitedQuote,
     HighlightRead,
@@ -47,9 +49,9 @@ _PROFILE = "id, display_name, avatar_url, is_deleted"
 # the query.
 _ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
 _QUOTE_AUTHOR = "author:profiles!lit_quotes_author_id_fkey"
-_VERSION = (
-    "id, number, body, page_start, page_end, edition, created_at, "
-    f"editor:profiles!lit_quote_versions_edited_by_fkey({_PROFILE})"
+# Who last changed each quote (its versions' editors), for 「X 上次整理」.
+_QUOTE_EDITS = (
+    f"number, created_at, editor:profiles!lit_quote_versions_edited_by_fkey({_PROFILE})"
 )
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
@@ -57,7 +59,14 @@ _ANALYSIS_FULL = (
     f"id, work_key, body, like_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
     "lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, version_id, "
+    "lit_quote_versions(id, number, body, page_start, page_end, edition), "
     "lit_highlights(number, start_offset, end_offset)), "
+    "lit_analysis_tags(lit_tags(id, name, kind, moderation_flagged))"
+)
+# Without the text: for counting, sorting and filtering all of a work's analyses.
+_ANALYSIS_INDEX = (
+    f"id, created_at, like_count, {_ANALYSIS_AUTHOR}(id, is_deleted), "
+    "lit_analysis_quotes(quote_id), "
     "lit_analysis_tags(lit_tags(id, name, kind, moderation_flagged))"
 )
 _ANALYSIS_TAGS = (
@@ -122,74 +131,51 @@ def _author(row: dict) -> ProfileSummary:
 # ---------------------------------------------------------------- reading
 
 
-def get_work(user_id: str, work_key: str) -> WorkRead:
-    def load_quotes() -> list[dict]:
-        rows = (
-            get_supabase()
-            .table("lit_quotes")
-            .select(f"*, {_QUOTE_AUTHOR}({_PROFILE}), lit_quote_versions({_VERSION})")
-            .eq("work_key", work_key)
-            .eq("moderation_flagged", False)
-            .order("page_start").order("created_at")
-            .limit(_MAX_QUOTES)
-            .execute()
-            .data
-            or []
-        )
-        # By page; on the same page the longest passage first (PostgREST can't order by
-        # length, so it's done here; the sort is stable, keeping the earliest first on ties).
-        rows.sort(key=lambda r: (r["page_start"], -len(r["body"])))
-        return [r for r in rows if _shown(r)]
-
-    # The two queries don't depend on each other: run them side by side.
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        quotes_job = pool.submit(load_quotes)
-        analyses_job = pool.submit(_analyses, _ANALYSIS_FULL, work_key, liked_by=user_id)
-        quotes, analyses = quotes_job.result(), analyses_job.result()
-
-    quote_ids = {q["id"] for q in quotes}
-    counts = Counter(t["id"] for a in analyses for t in _tags_of(a))
-    tag_rows = {t["id"]: t for a in analyses for t in _tags_of(a)}
-    cited = Counter(
-        c["quote_id"] for a in analyses for c in a.get("lit_analysis_quotes") or []
+def _quote_rows(work_key: str, select: str) -> list[dict]:
+    """A work's visible quotes: by page; on the same page the longest passage first (PostgREST
+    can't order by length, so it's done here; the sort is stable, keeping the earliest first on
+    ties)."""
+    rows = (
+        get_supabase()
+        .table("lit_quotes")
+        .select(select)
+        .eq("work_key", work_key)
+        .eq("moderation_flagged", False)
+        .order("page_start").order("created_at")
+        .limit(_MAX_QUOTES)
+        .execute()
+        .data
+        or []
     )
-    cited_versions = {
-        c["version_id"] for a in analyses for c in a.get("lit_analysis_quotes") or []
-    }
+    rows.sort(key=lambda r: (r["page_start"], -len(r.get("body") or "")))
+    return [r for r in rows if _shown(r)]
 
-    def tag_read(tag_id: str) -> TagRead:
-        t = tag_rows[tag_id]
-        return TagRead(id=tag_id, name=t["name"], kind=t["kind"], count=counts[tag_id])
 
-    def analysis_read(a: dict) -> AnalysisRead:
-        # The analysis shows the version of each quote it was written on, but a quote taken
-        # down by moderation drops out of the analyses citing it.
-        covered = sorted(
-            (c for c in a.get("lit_analysis_quotes") or [] if c["quote_id"] in quote_ids),
-            key=lambda c: c["position"],
+def _analysis_index(work_key: str) -> list[dict]:
+    """Every visible analysis of a work, without its text: enough to count tags and citations,
+    and to sort and filter before fetching one page in full."""
+    return _analyses(_ANALYSIS_INDEX, work_key, limit=1000)
+
+
+def _tag_counts(index: list[dict]) -> tuple[Counter, dict[str, dict]]:
+    counts = Counter(t["id"] for a in index for t in _tags_of(a))
+    rows = {t["id"]: t for a in index for t in _tags_of(a)}
+    return counts, rows
+
+
+def get_work(user_id: str, work_key: str) -> WorkRead:
+    """A work's quotes, the tags its analyses use (with counts) and how many analyses there
+    are; the analyses themselves come a page at a time from list_analyses()."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        quotes_job = pool.submit(
+            _quote_rows, work_key,
+            f"*, {_QUOTE_AUTHOR}({_PROFILE}), lit_quote_versions({_QUOTE_EDITS})",
         )
-        highlights = sorted(
-            (
-                HighlightRead(
-                    quote_id=c["quote_id"], number=h["number"],
-                    start=h["start_offset"], end=h["end_offset"],
-                )
-                for c in covered
-                for h in c.get("lit_highlights") or []
-            ),
-            key=lambda h: h.number,
-        )
-        return AnalysisRead(
-            id=a["id"], work_key=a["work_key"], author=_author(a), body=a["body"],
-            quote_ids=[c["quote_id"] for c in covered],
-            quotes=[
-                CitedQuote(quote_id=c["quote_id"], version_id=c["version_id"]) for c in covered
-            ],
-            highlights=highlights,
-            tags=sorted((tag_read(t["id"]) for t in _tags_of(a)), key=lambda t: -t.count),
-            like_count=a["like_count"], liked_by_me=bool(a.get("lit_analysis_likes")),
-            created_at=a["created_at"],
-        )
+        index_job = pool.submit(_analysis_index, work_key)
+        quotes, index = quotes_job.result(), index_job.result()
+
+    counts, tag_rows = _tag_counts(index)
+    cited = Counter(c["quote_id"] for a in index for c in a.get("lit_analysis_quotes") or [])
 
     def quote_read(q: dict) -> QuoteRead:
         latest = max(q.get("lit_quote_versions") or [{}], key=lambda v: v.get("number", 0))
@@ -205,14 +191,129 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
     return WorkRead(
         work_key=work_key,
         quotes=[quote_read(q) for q in quotes],
-        analyses=[analysis_read(a) for a in analyses],
-        versions=[
-            QuoteVersion(quote_id=q["id"], **v)
-            for q in quotes
-            for v in q.get("lit_quote_versions") or []
-            if v["id"] in cited_versions
-        ],
-        tags=sorted((tag_read(t) for t in counts), key=lambda t: (-t.count, t.name)),
+        tags=sorted(
+            (
+                TagRead(id=t, name=tag_rows[t]["name"], kind=tag_rows[t]["kind"], count=n)
+                for t, n in counts.items()
+            ),
+            key=lambda t: (-t.count, t.name),
+        ),
+        analysis_count=len(index),
+        # Transition only (see WorkRead): every analysis, for the frontend before paging.
+        **_all_analyses(user_id, work_key),
+    )
+
+
+def _all_analyses(user_id: str, work_key: str) -> dict:
+    page = list_analyses(
+        user_id, work_key, sort=AnalysisSort.hot, tag=None, who=None, quote=None,
+        offset=0, limit=1000,
+    )
+    return {"analyses": page.items, "versions": page.versions}
+
+
+def _order(index: list[dict], sort: AnalysisSort, user_id: str) -> list[dict]:
+    newest = sorted(index, key=lambda a: a["created_at"], reverse=True)
+    # Stable sorts: most liked first, newest first among equals.
+    hottest = sorted(newest, key=lambda a: -a["like_count"])
+    if sort == AnalysisSort.new:
+        return newest
+    if sort == AnalysisSort.mine:
+        # The reader's own on top (newest first), then everyone else's by likes.
+        own = [a for a in newest if a["author"]["id"] == user_id]
+        return own + [a for a in hottest if a["author"]["id"] != user_id]
+    return hottest
+
+
+def list_analyses(
+    user_id: str,
+    work_key: str,
+    *,
+    sort: AnalysisSort,
+    tag: str | None,
+    who: str | None,
+    quote: str | None,
+    offset: int,
+    limit: int,
+) -> AnalysisPage:
+    """One page of a work's analyses, sorted and filtered (by #device, @character, quote) over
+    all of them, then fetched in full for just that page."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        index_job = pool.submit(_analysis_index, work_key)
+        quotes_job = pool.submit(_quote_rows, work_key, f"id, {_QUOTE_AUTHOR}(is_deleted)")
+        index, visible = index_job.result(), {q["id"] for q in quotes_job.result()}
+
+    def tagged(a: dict, kind: str, name: str | None) -> bool:
+        return not name or any(
+            t["kind"] == kind and t["name"].lower() == name.lower() for t in _tags_of(a)
+        )
+
+    matching = [
+        a for a in index
+        if tagged(a, "device", tag) and tagged(a, "character", who)
+        and (not quote or any(c["quote_id"] == quote for c in a["lit_analysis_quotes"] or []))
+    ]
+    page_ids = [a["id"] for a in _order(matching, sort, user_id)[offset:offset + limit]]
+    full = {
+        a["id"]: a
+        for a in (
+            get_supabase().table("lit_analyses").select(_ANALYSIS_FULL)
+            .in_("id", page_ids).eq("lit_analysis_likes.user_id", user_id)
+            .execute().data
+            or []
+        )
+    } if page_ids else {}
+    counts, _ = _tag_counts(index)
+
+    items, versions = [], {}
+    for analysis_id in page_ids:
+        a = full.get(analysis_id)
+        if not a:
+            continue
+        items.append(_analysis_read(a, visible, counts))
+        for c in a.get("lit_analysis_quotes") or []:
+            v = c.get("lit_quote_versions")
+            if v and c["quote_id"] in visible:
+                versions[v["id"]] = QuoteVersion(quote_id=c["quote_id"], **v)
+    end = offset + len(page_ids)
+    return AnalysisPage(
+        items=items,
+        versions=list(versions.values()),
+        total=len(matching),
+        next_offset=end if end < len(matching) else None,
+    )
+
+
+def _analysis_read(a: dict, visible_quotes: set[str], counts: Counter) -> AnalysisRead:
+    # The analysis shows the version of each quote it was written on, but a quote taken down
+    # by moderation drops out of the analyses citing it.
+    covered = sorted(
+        (c for c in a.get("lit_analysis_quotes") or [] if c["quote_id"] in visible_quotes),
+        key=lambda c: c["position"],
+    )
+    highlights = sorted(
+        (
+            HighlightRead(
+                quote_id=c["quote_id"], number=h["number"],
+                start=h["start_offset"], end=h["end_offset"],
+            )
+            for c in covered
+            for h in c.get("lit_highlights") or []
+        ),
+        key=lambda h: h.number,
+    )
+    tags = [
+        TagRead(id=t["id"], name=t["name"], kind=t["kind"], count=counts[t["id"]])
+        for t in _tags_of(a)
+    ]
+    return AnalysisRead(
+        id=a["id"], work_key=a["work_key"], author=_author(a), body=a["body"],
+        quote_ids=[c["quote_id"] for c in covered],
+        quotes=[CitedQuote(quote_id=c["quote_id"], version_id=c["version_id"]) for c in covered],
+        highlights=highlights,
+        tags=sorted(tags, key=lambda t: -t.count),
+        like_count=a["like_count"], liked_by_me=bool(a.get("lit_analysis_likes")),
+        created_at=a["created_at"],
     )
 
 

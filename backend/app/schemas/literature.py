@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
@@ -120,11 +121,28 @@ class AnalysisRead(BaseModel):
 class WorkRead(BaseModel):
     work_key: str
     quotes: list[QuoteRead]
-    analyses: list[AnalysisRead]
-    # The quote versions the analyses cite, each sent once.
-    versions: list[QuoteVersion]
     # Tags used by this work's analyses, most used first.
     tags: list[TagRead]
+    # The analyses come a page at a time (AnalysisPage); this is how many there are.
+    analysis_count: int
+    # Transition only: the frontend before paging still reads every analysis from here.
+    # Remove once the paged frontend is live.
+    analyses: list[AnalysisRead] = []
+    versions: list[QuoteVersion] = []
+
+
+class AnalysisSort(str, Enum):
+    hot = "hot"  # most liked first
+    new = "new"
+    mine = "mine"  # the reader's own on top (newest first), then the rest by likes
+
+
+class AnalysisPage(BaseModel):
+    items: list[AnalysisRead]
+    # The quote versions these analyses cite, each sent once.
+    versions: list[QuoteVersion]
+    total: int  # analyses matching the filters
+    next_offset: int | None  # None when this was the last page
 
 
 class WorkLink(BaseModel):
