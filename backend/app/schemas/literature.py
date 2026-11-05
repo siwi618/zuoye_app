@@ -70,6 +70,15 @@ class HighlightRead(HighlightIn):
     pass
 
 
+class CoveredQuote(BaseModel):
+    """A quote as it was when the analysis was published; highlights point into this text."""
+    quote_id: str
+    body: str
+    page_start: int
+    page_end: int
+    edition: str | None = None
+
+
 class AnalysisCreate(BaseModel):
     quote_ids: list[str] = Field(min_length=1, max_length=MAX_ANALYSIS_QUOTES)
     highlights: list[HighlightIn] = Field(default_factory=list, max_length=MAX_HIGHLIGHTS)
@@ -83,6 +92,7 @@ class AnalysisRead(BaseModel):
     author: ProfileSummary
     body: str
     quote_ids: list[str]
+    quotes: list[CoveredQuote]
     highlights: list[HighlightRead]
     tags: list[TagRead]
     like_count: int

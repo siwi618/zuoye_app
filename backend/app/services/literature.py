@@ -7,6 +7,7 @@ from postgrest.exceptions import APIError
 from app.schemas.literature import (
     AnalysisCreate,
     AnalysisRead,
+    CoveredQuote,
     HighlightRead,
     OverviewRead,
     QuoteCreate,
@@ -50,7 +51,8 @@ _ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
 _ANALYSIS_FULL = (
     f"id, work_key, body, like_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
     "lit_analysis_likes(user_id), "
-    "lit_analysis_quotes(quote_id, position, lit_highlights(number, start_offset, end_offset)), "
+    "lit_analysis_quotes(quote_id, position, body, page_start, page_end, edition, "
+    "lit_highlights(number, start_offset, end_offset)), "
     "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
 )
 _ANALYSIS_TAGS = (
@@ -148,7 +150,8 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
         return TagRead(id=tag_id, name=names[tag_id], count=counts[tag_id])
 
     def analysis_read(a: dict) -> AnalysisRead:
-        # A quote taken down by moderation drops out of the analyses citing it.
+        # The analysis shows its own copy of each quote (taken when it was published), but a
+        # quote taken down by moderation drops out of the analyses citing it.
         covered = sorted(
             (c for c in a.get("lit_analysis_quotes") or [] if c["quote_id"] in quote_ids),
             key=lambda c: c["position"],
@@ -166,7 +169,15 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
         )
         return AnalysisRead(
             id=a["id"], work_key=a["work_key"], author=_author(a), body=a["body"],
-            quote_ids=[c["quote_id"] for c in covered], highlights=highlights,
+            quote_ids=[c["quote_id"] for c in covered],
+            quotes=[
+                CoveredQuote(
+                    quote_id=c["quote_id"], body=c["body"], page_start=c["page_start"],
+                    page_end=c["page_end"], edition=c.get("edition"),
+                )
+                for c in covered
+            ],
+            highlights=highlights,
             tags=sorted((tag_read(t["id"]) for t in _tags_of(a)), key=lambda t: -t.count),
             like_count=a["like_count"], liked_by_me=bool(a.get("lit_analysis_likes")),
             created_at=a["created_at"],
@@ -340,7 +351,9 @@ def _check_highlights(payload: AnalysisCreate, quotes: dict[str, dict]) -> None:
 def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> AnalysisRead:
     quote_ids = list(dict.fromkeys(payload.quote_ids))
     rows = (
-        get_supabase().table("lit_quotes").select("id, work_key, body, moderation_flagged")
+        get_supabase()
+        .table("lit_quotes")
+        .select("id, work_key, body, page_start, page_end, edition, moderation_flagged")
         .in_("id", quote_ids).execute().data
         or []
     )
@@ -373,8 +386,13 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         raise _reject("Failed to create analysis", status.HTTP_500_INTERNAL_SERVER_ERROR)
     analysis_id = row["id"]
     try:
+        # A copy of each quote as it is now: the analysis stays as written if the quote changes.
         db.table("lit_analysis_quotes").insert([
-            {"analysis_id": analysis_id, "quote_id": q, "position": i}
+            {
+                "analysis_id": analysis_id, "quote_id": q, "position": i,
+                "body": quotes[q]["body"], "page_start": quotes[q]["page_start"],
+                "page_end": quotes[q]["page_end"], "edition": quotes[q].get("edition"),
+            }
             for i, q in enumerate(quote_ids)
         ]).execute()
         if payload.highlights:
@@ -396,6 +414,13 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
     return AnalysisRead(
         id=analysis_id, work_key=work_key, author=ProfileSummary(**profiles[user_id]),
         body=row["body"], quote_ids=quote_ids,
+        quotes=[
+            CoveredQuote(
+                quote_id=q, body=quotes[q]["body"], page_start=quotes[q]["page_start"],
+                page_end=quotes[q]["page_end"], edition=quotes[q].get("edition"),
+            )
+            for q in quote_ids
+        ],
         highlights=[HighlightRead(**h.model_dump()) for h in payload.highlights],
         tags=[TagRead(id=t["id"], name=t["name"], count=0) for t in tags],
         like_count=0, liked_by_me=False, created_at=row["created_at"],
