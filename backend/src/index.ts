@@ -42,7 +42,7 @@ function containerStub(env: Env) {
 }
 
 // Must match the weekly entry in wrangler.jsonc's triggers.crons.
-const WEEKLY_CRON = '0 20 * * 0'
+const WEEKLY_CRON = '0 20 * * SUN'
 
 function serviceHeaders(env: Env): Record<string, string> {
   const key = env.SUPABASE_SERVICE_ROLE_KEY

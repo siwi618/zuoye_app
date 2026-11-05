@@ -43,7 +43,7 @@
   // Sundays 20:00 UTC (Monday 04:00 in China): delete literature tags no analysis uses.
   // src/index.ts tells them apart by the cron string, so keep the two in step.
   "triggers": {
-    "crons": ["*/10 * * * *", "0 20 * * 0"]
+    "crons": ["*/10 * * * *", "0 20 * * SUN"]
   },
 
   "vars": {
