@@ -60,7 +60,7 @@ _ANALYSIS_FULL = (
     "lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, version_id, "
     "lit_quote_versions(id, number, body, page_start, page_end, edition), "
-    "lit_highlights(number, start_offset, end_offset)), "
+    "lit_highlights(number, start_offset, end_offset, color)), "
     "lit_analysis_tags(lit_tags(id, name, kind, moderation_flagged))"
 )
 # Without the text: for counting, sorting and filtering all of a work's analyses.
@@ -288,7 +288,7 @@ def _analysis_read(a: dict, visible_quotes: set[str], counts: Counter) -> Analys
         (
             HighlightRead(
                 quote_id=c["quote_id"], number=h["number"],
-                start=h["start_offset"], end=h["end_offset"],
+                start=h["start_offset"], end=h["end_offset"], color=h.get("color", "amber"),
             )
             for c in covered
             for h in c.get("lit_highlights") or []
@@ -584,7 +584,7 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
             db.table("lit_highlights").insert([
                 {
                     "analysis_id": analysis_id, "quote_id": h.quote_id, "number": h.number,
-                    "start_offset": h.start, "end_offset": h.end,
+                    "start_offset": h.start, "end_offset": h.end, "color": h.color,
                 }
                 for h in payload.highlights
             ]).execute()

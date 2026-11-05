@@ -68,11 +68,16 @@ class TagRead(BaseModel):
     count: int
 
 
+# Highlighter colours: yellow, light blue, pink, light green.
+HighlightColor = Literal["amber", "sky", "pink", "lime"]
+
+
 class HighlightIn(BaseModel):
     quote_id: str
     number: int = Field(ge=1, le=99)
     start: int = Field(ge=0)
     end: int = Field(ge=1)
+    color: HighlightColor = "amber"
 
 
 class HighlightRead(HighlightIn):
