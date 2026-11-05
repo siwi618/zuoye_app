@@ -5,7 +5,13 @@ import { toast } from 'sonner'
 import { Highlighter, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { createAnalysis, type Highlight, type QuoteRead } from '@/api/literature'
+import {
+  createAnalysis,
+  updateAnalysis,
+  type AnalysisRead,
+  type ComposerQuote,
+  type Highlight,
+} from '@/api/literature'
 import {
   cleanTag,
   isValidTag,
@@ -32,15 +38,18 @@ interface Pending {
 
 // Writing an analysis of the quotes picked on the work page: highlight fragments of them as
 // 「引文1」「引文2」…, tag the devices used, then write the analysis referring to both.
+// With `initial`, the author edits that analysis instead, on the quote versions it was written on.
 export function AnalysisComposer({
   workKey,
   quotes,
+  initial,
   onUnpick,
   onCancel,
   onDone,
 }: {
   workKey: string
-  quotes: QuoteRead[] // the picked quotes, in page order
+  quotes: ComposerQuote[] // the picked quotes (or the analysis's own versions), in page order
+  initial?: AnalysisRead
   onUnpick: (quoteId: string) => void
   onCancel: () => void
   onDone: () => void
@@ -49,9 +58,9 @@ export function AnalysisComposer({
   const queryClient = useQueryClient()
   const box = useRef<HTMLDivElement>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
-  const [marks, setMarks] = useState<Highlight[]>([])
-  const [tags, setTags] = useState<string[]>([])
-  const [body, setBody] = useState('')
+  const [marks, setMarks] = useState<Highlight[]>(initial?.highlights ?? [])
+  const [tags, setTags] = useState<string[]>(initial?.tags.map((x) => x.name) ?? [])
+  const [body, setBody] = useState(initial?.body ?? '')
   const [pending, setPending] = useState<Pending | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -130,18 +139,21 @@ export function AnalysisComposer({
   }, [body])
 
   const publish = useMutation({
-    mutationFn: (payload: { tags: string[] }) =>
-      createAnalysis(workKey, {
+    mutationFn: async (payload: { tags: string[] }) => {
+      const analysis = {
         quote_ids: quotes.map((q) => q.id),
         highlights,
         tags: payload.tags,
         body: body.trim(),
-      }),
+      }
+      if (initial) await updateAnalysis(initial.id, analysis)
+      else await createAnalysis(workKey, analysis)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['literature-work', workKey] })
       void queryClient.invalidateQueries({ queryKey: ['literature-overview'] })
       void queryClient.invalidateQueries({ queryKey: ['literature-tags'] })
-      toast.success(t(`${K}.published`))
+      toast.success(t(initial ? `${K}.analysisUpdated` : `${K}.published`))
       onDone()
     },
     onError: (e) => setError(e instanceof Error ? e.message : t('common.error')),
@@ -181,7 +193,9 @@ export function AnalysisComposer({
       className="relative space-y-6 rounded-2xl border border-primary/40 bg-card p-5 shadow-soft"
     >
       <div className="flex items-center gap-2">
-        <h3 className="text-lg font-semibold">{t(`${K}.composeTitle`)}</h3>
+        <h3 className="text-lg font-semibold">
+          {t(initial ? `${K}.editAnalysisTitle` : `${K}.composeTitle`)}
+        </h3>
         <Button variant="ghost" size="sm" className="ml-auto" onClick={onCancel}>
           {t(`${K}.cancel`)}
         </Button>
@@ -302,7 +316,9 @@ export function AnalysisComposer({
           {t(`${K}.cancel`)}
         </Button>
         <Button onClick={submit} disabled={publish.isPending}>
-          {publish.isPending ? t(`${K}.publishing`) : t(`${K}.publish`)}
+          {publish.isPending
+            ? t(`${K}.publishing`)
+            : t(initial ? `${K}.saveAnalysis` : `${K}.publish`)}
         </Button>
       </div>
 

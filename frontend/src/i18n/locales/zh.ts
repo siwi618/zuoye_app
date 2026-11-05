@@ -359,6 +359,10 @@ export const zh: Translations = {
       saveQuote: '保存整理',
       quoteUpdated: '引文已整理',
       lastEditedBy: '{{name}} 上次整理',
+      editAnalysis: '编辑',
+      editAnalysisTitle: '编辑我的分析',
+      saveAnalysis: '保存修改',
+      analysisUpdated: '分析已更新',
     },
     thermometer: {
       subtitle:

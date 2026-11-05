@@ -358,6 +358,10 @@ export const en = {
       saveQuote: 'Save changes',
       quoteUpdated: 'Quote updated',
       lastEditedBy: 'last edited by {{name}}',
+      editAnalysis: 'Edit',
+      editAnalysisTitle: 'Edit my analysis',
+      saveAnalysis: 'Save changes',
+      analysisUpdated: 'Analysis updated',
     },
     thermometer: {
       subtitle:

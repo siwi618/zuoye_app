@@ -62,6 +62,9 @@ export interface AnalysisRead {
   rank?: number
 }
 
+// What the composer needs of a quote: a picked quote, or the version an analysis cites.
+export type ComposerQuote = Pick<QuoteRead, 'id' | 'body' | 'page_start' | 'page_end' | 'edition'>
+
 export interface WorkRead {
   work_key: string
   quotes: QuoteRead[]
@@ -125,6 +128,14 @@ export function deleteQuote(id: string): Promise<void> {
 export function createAnalysis(workKey: string, payload: AnalysisCreate): Promise<AnalysisRead> {
   return apiFetch<AnalysisRead>(`/literature/works/${workKey}/analyses`, {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+// The author rewrites their analysis (text, tags, fragments; may drop quotes, not add any).
+export function updateAnalysis(id: string, payload: AnalysisCreate): Promise<void> {
+  return apiFetch<void>(`/literature/analyses/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }

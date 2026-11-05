@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Heart, Trash2 } from 'lucide-react'
+import { Heart, Pencil, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AnalysisRead, QuoteVersion } from '@/api/literature'
 import { sliceChars } from '@/lib/literature/text'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
+import { AnalysisComposer } from './AnalysisComposer'
 
 const K = 'tools.literature'
 
@@ -66,6 +67,25 @@ export function AnalysisCard({
   ]
   const unfolded = open ? quoteOf.get(open) : undefined
 
+  // The author edits in place, on the versions the analysis cites; dropping a quote there only
+  // takes effect when saved.
+  const [editing, setEditing] = useState<string[] | null>(null)
+  if (editing) {
+    const own = covered
+      .filter((v) => editing.includes(v.quote_id))
+      .map((v) => ({ ...v, id: v.quote_id }))
+    return (
+      <AnalysisComposer
+        workKey={a.work_key}
+        quotes={own}
+        initial={a}
+        onUnpick={(id) => setEditing((ids) => ids && ids.filter((x) => x !== id))}
+        onCancel={() => setEditing(null)}
+        onDone={() => setEditing(null)}
+      />
+    )
+  }
+
   return (
     <article className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -80,7 +100,18 @@ export function AnalysisCard({
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto gap-1.5 text-muted-foreground hover:text-destructive"
+            className="ml-auto gap-1.5 text-muted-foreground hover:text-primary"
+            onClick={() => setEditing(covered.map((v) => v.quote_id))}
+          >
+            <Pencil className="size-4" />
+            {t(`${K}.editAnalysis`)}
+          </Button>
+        )}
+        {mine && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-destructive"
             disabled={deleting}
             onClick={() => window.confirm(t(`${K}.deleteAnalysisConfirm`)) && onDelete()}
           >
