@@ -41,16 +41,40 @@ function containerStub(env: Env) {
   return env.CONTAINER.get(env.CONTAINER.idFromName('primary'))
 }
 
+// Must match the weekly entry in wrangler.jsonc's triggers.crons.
+const WEEKLY_CRON = '0 20 * * 0'
+
+function serviceHeaders(env: Env): Record<string, string> {
+  const key = env.SUPABASE_SERVICE_ROLE_KEY
+  const headers: Record<string, string> = { apikey: key }
+  // Legacy JWT keys also go in Authorization; new sb_secret_ keys must not.
+  if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`
+  return headers
+}
+
+/**
+ * Delete literature tags no analysis uses any more (see migration 0019). Runs in the
+ * database, so the container isn't woken.
+ */
+async function runTagCleanup(env: Env): Promise<void> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/lit_delete_unused_tags`, {
+    method: 'POST',
+    headers: { ...serviceHeaders(env), 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  if (!res.ok) {
+    console.error('tag clean-up failed', res.status, await res.text())
+    return
+  }
+  console.log('tag clean-up: deleted', await res.text())
+}
+
 /**
  * Re-moderate rows saved while OpenAI was unreachable (moderated = false).
  * Checks the queue first so an empty queue doesn't wake the container.
  */
 async function runModerationSweep(env: Env): Promise<void> {
-  const key = env.SUPABASE_SERVICE_ROLE_KEY
-  const headers: Record<string, string> = { apikey: key }
-  // Legacy JWT keys also go in Authorization; new sb_secret_ keys must not.
-  if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`
-
+  const headers = serviceHeaders(env)
   const queue = await fetch(`${env.SUPABASE_URL}/rest/v1/moderation_queue?select=id&limit=1`, {
     headers,
   })
@@ -79,7 +103,7 @@ export default {
     return containerStub(env).fetch(request)
   },
 
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runModerationSweep(env))
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(controller.cron === WEEKLY_CRON ? runTagCleanup(env) : runModerationSweep(env))
   },
 }
