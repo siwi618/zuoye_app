@@ -59,6 +59,7 @@ export interface AnalysisRead {
   tags: TagRead[]
   like_count: number
   liked_by_me: boolean
+  comment_count: number
   created_at: string
 }
 
@@ -219,5 +220,48 @@ export function saveIntro(kind: IntroKind, key: string, body: string): Promise<I
   return apiFetch<IntroRead>(introPath(kind, key), {
     method: 'PUT',
     body: JSON.stringify({ body }),
+  })
+}
+
+// Comments on analyses, like the forum's: two levels, likes, no attachments.
+export type CommentSort = 'top' | 'new'
+
+export interface LitComment {
+  id: string
+  analysis_id: string
+  author: ProfileSummary
+  body: string
+  like_count: number
+  liked_by_me: boolean
+  created_at: string
+  // Replies only: the thread's top-level comment, and whose comment was answered.
+  parent_id: string | null
+  reply_to: ProfileSummary | null
+  // Client-only: shown at once, greyed out, while it is being sent.
+  pending?: boolean
+}
+
+export function listComments(analysisId: string, sort: CommentSort): Promise<LitComment[]> {
+  return apiFetch<LitComment[]>(`/literature/analyses/${analysisId}/comments?sort=${sort}`)
+}
+
+export function createComment(
+  analysisId: string,
+  body: string,
+  replyToId?: string,
+): Promise<LitComment> {
+  return apiFetch<LitComment>(`/literature/analyses/${analysisId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body, reply_to_id: replyToId ?? null }),
+  })
+}
+
+export function deleteComment(id: string): Promise<void> {
+  return apiFetch<void>(`/literature/comments/${id}`, { method: 'DELETE' })
+}
+
+export function toggleCommentLike(id: string): Promise<{ liked: boolean; like_count: number }> {
+  return apiFetch<{ liked: boolean; like_count: number }>(`/literature/comments/${id}/like`, {
+    method: 'POST',
   })
 }

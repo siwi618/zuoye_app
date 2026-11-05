@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Heart, Pencil, Trash2 } from 'lucide-react'
+import { Heart, MessageCircle, Pencil, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/literature/text'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 import { AnalysisComposer } from './AnalysisComposer'
+import { AnalysisComments } from './AnalysisComments'
 
 const K = 'tools.literature'
 
@@ -28,6 +29,7 @@ export function AnalysisCard({
   deleting,
   onTag,
   onLike,
+  onCommentCount,
   onDelete,
 }: {
   analysis: AnalysisRead
@@ -36,10 +38,12 @@ export function AnalysisCard({
   deleting: boolean
   onTag: (name: string, kind: TagKind) => void
   onLike: () => void
+  onCommentCount: (delta: number) => void
   onDelete: () => void
 }) {
   const { t } = useTranslation()
   const [lit, setLit] = useState<number | null>(null)
+  const [commentsOpen, setCommentsOpen] = useState(false)
   // The covered quote whose whole text is unfolded under the labels, if any.
   const [open, setOpen] = useState<string | null>(null)
   // quote id → the version of it this analysis cites
@@ -218,17 +222,31 @@ export function AnalysisCard({
 
       <AnalysisBody body={a.body} fragments={fragments} lit={lit} onTag={onTag} onQuote={setLit} />
 
-      <Button
-        variant="outline"
-        size="sm"
-        aria-pressed={a.liked_by_me}
-        aria-label={t(a.liked_by_me ? `${K}.unlike` : `${K}.like`)}
-        onClick={onLike}
-        className={cn('gap-1.5 rounded-full', a.liked_by_me && 'border-rose-200 text-rose-600')}
-      >
-        <Heart className={cn('size-4', a.liked_by_me && 'fill-rose-500 text-rose-500')} />
-        {a.like_count}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          aria-pressed={a.liked_by_me}
+          aria-label={t(a.liked_by_me ? `${K}.unlike` : `${K}.like`)}
+          onClick={onLike}
+          className={cn('gap-1.5 rounded-full', a.liked_by_me && 'border-rose-200 text-rose-600')}
+        >
+          <Heart className={cn('size-4', a.liked_by_me && 'fill-rose-500 text-rose-500')} />
+          {a.like_count}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-expanded={commentsOpen}
+          aria-label={t(`${K}.comments`, { count: a.comment_count })}
+          onClick={() => setCommentsOpen(!commentsOpen)}
+          className={cn('gap-1.5 rounded-full', commentsOpen && 'border-primary/50 text-primary')}
+        >
+          <MessageCircle className="size-4" />
+          {a.comment_count}
+        </Button>
+      </div>
+      {commentsOpen && <AnalysisComments analysisId={a.id} onCount={onCommentCount} />}
     </article>
   )
 }

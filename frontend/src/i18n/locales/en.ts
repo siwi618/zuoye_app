@@ -395,6 +395,7 @@ export const en = {
       restoreIntroConfirm: 'Bring back version {{n}}? (It is saved as a new version; nothing is lost.)',
       introEmptyVersion: '(cleared)',
       introLabel: 'Introduction',
+      comments: 'Comments ({{count}})',
     },
     thermometer: {
       subtitle:

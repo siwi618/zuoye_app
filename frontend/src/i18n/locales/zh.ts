@@ -396,6 +396,7 @@ export const zh: Translations = {
       restoreIntroConfirm: '把简介恢复成第 {{n}} 版？（会存成新的一版，原来的都保留）',
       introEmptyVersion: '（清空了）',
       introLabel: '简介',
+      comments: '评论（{{count}}）',
     },
     thermometer: {
       subtitle:

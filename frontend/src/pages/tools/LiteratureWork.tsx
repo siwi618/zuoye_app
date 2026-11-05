@@ -808,6 +808,11 @@ export function LiteratureWork() {
                   deleting={removeAnalysis.isPending && removeAnalysis.variables === a.id}
                   onTag={(name, kind) => filterBy(name, kind)}
                   onLike={() => like.mutate(a.id)}
+                  onCommentCount={(d) =>
+                    patchAnalyses((x) =>
+                      x.id === a.id ? { ...x, comment_count: x.comment_count + d } : x,
+                    )
+                  }
                   onDelete={() => removeAnalysis.mutate(a.id)}
                 />
               ))}
