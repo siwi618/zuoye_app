@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -611,51 +611,59 @@ export function LiteratureWork() {
           <h2 className="text-xl font-semibold">{t(`${K}.relatedTags`)}</h2>
           <p className="text-sm text-muted-foreground">{t(`${K}.relatedHint`)}</p>
         </div>
-        {(['device', 'character'] as const).map((kind) => {
-          const list = (data.data?.tags ?? []).filter((x) => x.kind === kind)
-          const active = kind === 'device' ? tagFilter : whoFilter
-          return (
-            <div key={kind} className="flex flex-wrap items-center gap-2">
-              <span className="w-10 shrink-0 text-xs font-medium text-muted-foreground">
-                {t(kind === 'device' ? `${K}.kindDeviceShort` : `${K}.kindCharacter`)}
-              </span>
-              {list.length === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {t(kind === 'device' ? `${K}.noRelated` : `${K}.noCharacters`)}
+        {/* Labels in a column as wide as the longest one (「Characters」 in English). */}
+        <div className="grid grid-cols-[max-content_1fr] items-start gap-x-3 gap-y-2">
+          {(['device', 'character'] as const).map((kind) => {
+            const list = (data.data?.tags ?? []).filter((x) => x.kind === kind)
+            const active = kind === 'device' ? tagFilter : whoFilter
+            return (
+              <Fragment key={kind}>
+                <span className="flex h-7.5 items-center text-xs font-medium text-muted-foreground">
+                  {t(kind === 'device' ? `${K}.kindDeviceShort` : `${K}.kindCharacter`)}
                 </span>
-              )}
-              {list.map((tag) => {
-                const on = active?.toLowerCase() === tag.name.toLowerCase()
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => filterBy(on ? null : tag.name, kind)}
-                    className={cn(
-                      'rounded-full border px-3 py-1 text-sm transition-colors',
-                      on
-                        ? kind === 'device'
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-violet-600 bg-violet-600 text-white'
-                        : kind === 'device'
-                          ? 'border-border/70 hover:border-primary/60 hover:text-primary'
-                          : 'border-border/70 hover:border-violet-400 hover:text-violet-700 dark:hover:text-violet-200',
-                    )}
-                  >
-                    {TAG_SYMBOL[kind]}
-                    {tag.name}
-                    <span
-                      className={cn('ml-1.5 text-xs', on ? 'opacity-80' : 'text-muted-foreground')}
-                    >
-                      {tag.count}
+                <div className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-2">
+                  {list.length === 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {t(kind === 'device' ? `${K}.noRelated` : `${K}.noCharacters`)}
                     </span>
-                  </button>
-                )
-              })}
-            </div>
-          )
-        })}
+                  )}
+                  {list.map((tag) => {
+                    const on = active?.toLowerCase() === tag.name.toLowerCase()
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => filterBy(on ? null : tag.name, kind)}
+                        className={cn(
+                          'rounded-full border px-3 py-1 text-sm transition-colors',
+                          on
+                            ? kind === 'device'
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-violet-600 bg-violet-600 text-white'
+                            : kind === 'device'
+                              ? 'border-border/70 hover:border-primary/60 hover:text-primary'
+                              : 'border-border/70 hover:border-violet-400 hover:text-violet-700 dark:hover:text-violet-200',
+                        )}
+                      >
+                        {TAG_SYMBOL[kind]}
+                        {tag.name}
+                        <span
+                          className={cn(
+                            'ml-1.5 text-xs',
+                            on ? 'opacity-80' : 'text-muted-foreground',
+                          )}
+                        >
+                          {tag.count}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </Fragment>
+            )
+          })}
+        </div>
       </section>
 
       {/* Analyses */}
@@ -700,7 +708,7 @@ export function LiteratureWork() {
         {total > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <Select value={sort} onValueChange={(v) => setParam('sort', v === 'hot' ? null : v)}>
-              <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-28">
+              <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-auto min-w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

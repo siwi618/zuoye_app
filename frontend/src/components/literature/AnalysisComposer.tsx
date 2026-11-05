@@ -329,7 +329,7 @@ export function AnalysisComposer({
 
       <section className="space-y-2">
         <h4 className="text-sm font-medium">{t(`${K}.step2`)}</h4>
-        <div className="grid gap-2 sm:grid-cols-[6rem_1fr] sm:items-start">
+        <div className="grid gap-2 sm:grid-cols-[max-content_1fr] sm:items-start sm:gap-x-3">
           <span className="pt-2 text-xs font-medium whitespace-nowrap text-muted-foreground">
             {t(`${K}.kindDeviceShort`)}
           </span>

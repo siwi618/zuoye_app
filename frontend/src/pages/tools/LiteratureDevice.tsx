@@ -185,10 +185,13 @@ function WorkCard({
         </div>
         <Link
           to={workPath(work.key)}
+          aria-label={t(`${K}.openWork`)}
+          title={t(`${K}.openWork`)}
           className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-primary"
         >
           <BookOpen className="size-3.5" />
-          {t(`${K}.openWork`)}
+          {/* Just the icon on a phone, so the title keeps its room. */}
+          <span className="hidden sm:inline">{t(`${K}.openWork`)}</span>
         </Link>
         <button
           type="button"
@@ -295,7 +298,10 @@ export function LiteratureDevice() {
           <h1 className="text-3xl font-bold tracking-tight">#{title}</h1>
           {data && (
             <p className="text-muted-foreground">
-              {t(`${K}.deviceUsage`, { count: data.total, works: data.works.length })}
+              {t(`${K}.deviceUsage`, {
+                count: data.total,
+                works: t(`${K}.worksCount`, { count: data.works.length }),
+              })}
             </p>
           )}
         </header>
