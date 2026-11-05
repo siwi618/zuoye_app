@@ -79,7 +79,12 @@ export function BodyEditor({
       return
     }
     const tone = HIGHLIGHT_TONE[f.color ?? 'amber']
-    el.className = cn(CHIP, 'font-normal text-foreground', tone.mark)
+    // Inline like a highlighter mark (as on the published card): a long quote wraps with the
+    // sentence, each line keeping its own background, instead of becoming a block.
+    el.className = cn(
+      'cursor-default rounded-sm px-0.5 text-foreground [box-decoration-break:clone]',
+      tone.mark,
+    )
     el.replaceChildren()
     const sup = document.createElement('sup')
     sup.className = cn('mr-0.5 text-[10px] font-semibold', tone.number)
@@ -135,14 +140,25 @@ export function BodyEditor({
     onChange(text)
   }
 
-  const placeCaretAfter = (node: Node) => {
+  // The caret after a chip goes into a text node, never onto the bare boundary next to it:
+  // there an input method (pinyin…) can't start composing, so the first key typed came out
+  // as a Latin letter. An invisible character holds the place; it is never saved.
+  const caretAt = (text: Text, offset: number) => {
     const r = document.createRange()
-    r.setStartAfter(node)
+    r.setStart(text, offset)
     r.collapse(true)
     const sel = document.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(r)
     range.current = r.cloneRange()
+  }
+  const placeCaretAfter = (node: Node) => {
+    let next = node.nextSibling
+    if (!(next instanceof Text)) {
+      next = document.createTextNode(ZWSP)
+      node.parentNode!.insertBefore(next, node.nextSibling)
+    } else if (!next.data.startsWith(ZWSP)) next.insertData(0, ZWSP)
+    caretAt(next as Text, 1)
   }
 
   // Puts nodes where the caret is (or was, before a button took the focus), or at the end.
@@ -218,15 +234,11 @@ export function BodyEditor({
       tail = /\s/.test(tag![3]) ? '' : tag![3]
     }
     const start = before.length - m[0].length
-    const rest = document.createTextNode(tail + text.slice(at))
+    const rest = document.createTextNode(ZWSP + tail + text.slice(at))
     node.textContent = text.slice(0, start)
     node.parentNode!.insertBefore(rest, node.nextSibling)
     node.parentNode!.insertBefore(made, rest)
-    const r = document.createRange()
-    r.setStart(rest, tail.length)
-    r.collapse(true)
-    sel.removeAllRanges()
-    sel.addRange(r)
+    caretAt(rest, 1 + tail.length)
   }
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
@@ -237,7 +249,22 @@ export function BodyEditor({
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+    if (e.nativeEvent.isComposing) return
+    if (e.key === 'Backspace') {
+      // Step back over the invisible placeholder, so Backspace removes the chip in one press.
+      const sel = document.getSelection()
+      const r = sel?.rangeCount ? sel.getRangeAt(0) : null
+      if (r?.collapsed && r.startContainer instanceof Text && r.startOffset > 0) {
+        const t = r.startContainer
+        const at = r.startOffset // read first: deleting moves the live range
+        if (t.data[at - 1] === ZWSP) {
+          t.deleteData(at - 1, 1)
+          caretAt(t, at - 1)
+        }
+      }
+      return
+    }
+    if (e.key !== 'Enter') return
     e.preventDefault()
     const el = root.current!
     const atEnd = (() => {
