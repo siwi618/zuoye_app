@@ -6,6 +6,7 @@ import {
   TAG_SYMBOL,
   TAG_TONE,
   parseBody,
+  quoteMarks,
   type HighlightColor,
   segments,
   type Span,
@@ -91,7 +92,7 @@ export function AnalysisBody({
   const { t } = useTranslation()
   return (
     <p className="whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">
-      {parseBody(body).map((part, i) => {
+      {parseBody(body).map((part, i, parts) => {
         if (part.type === 'text') return <Fragment key={i}>{part.text}</Fragment>
         if (part.type === 'tag')
           return (
@@ -112,6 +113,8 @@ export function AnalysisBody({
         const fragment = fragments.get(part.number)
         if (fragment === undefined)
           return <Fragment key={i}>{t(`${K}.quoteRef`, { n: part.number })}</Fragment>
+        const near = (p?: (typeof parts)[number]) => (p?.type === 'text' ? p.text : '')
+        const marks = quoteMarks(fragment.text, near(parts[i - 1]), near(parts[i + 1]))
         return (
           <mark
             key={i}
@@ -134,7 +137,9 @@ export function AnalysisBody({
             >
               {part.number}
             </sup>
+            {marks.open}
             {fragment.text}
+            {marks.close}
           </mark>
         )
       })}

@@ -6,6 +6,7 @@ import {
   TAG_SYMBOL,
   TAG_TONE,
   parseBody,
+  quoteMarks,
   quoteToken,
   tagToken,
   type HighlightColor,
@@ -83,7 +84,19 @@ export function BodyEditor({
     const sup = document.createElement('sup')
     sup.className = cn('mr-0.5 text-[10px] font-semibold', tone.number)
     sup.textContent = String(n)
-    el.append(sup, f.text)
+    // The text right next to the chip, looking past empty text nodes the browser leaves around.
+    const near = (start: ChildNode | null, step: 'previousSibling' | 'nextSibling') => {
+      let text = ''
+      for (let n = start; n && n.nodeType === Node.TEXT_NODE && !text; n = n[step])
+        text = (n.textContent ?? '').replaceAll(ZWSP, '')
+      return text
+    }
+    const marks = quoteMarks(
+      f.text,
+      near(el.previousSibling, 'previousSibling'),
+      near(el.nextSibling, 'nextSibling'),
+    )
+    el.append(sup, `${marks.open}${f.text}${marks.close}`)
   }
 
   const nodesFor = (text: string): Node[] =>

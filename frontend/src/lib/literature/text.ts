@@ -118,3 +118,14 @@ export const tagToken = (name: string, lang: string, kind: TagKind = 'device') =
   return zh(lang) ? `（${ref}）` : `(${ref})`
 }
 export const quoteToken = (n: number, lang: string) => (zh(lang) ? `（引文${n}）` : `(Quote ${n})`)
+
+// A cited fragment reads in double quotes, unless the quote marks are already there: in the
+// fragment itself, or typed around the reference in the text.
+const OPENS = /[“「『"]/
+const CLOSES = /[”」』"]/
+export function quoteMarks(fragment: string, before: string, after: string) {
+  return {
+    open: !(OPENS.test(before.slice(-1)) || OPENS.test(fragment.slice(0, 1))) ? '“' : '',
+    close: !(CLOSES.test(after.slice(0, 1)) || CLOSES.test(fragment.slice(-1))) ? '”' : '',
+  }
+}
