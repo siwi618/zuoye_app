@@ -3,12 +3,14 @@ import { useEffect, type RefObject } from 'react'
 const MAX = 72 // the furthest the box gives, in px
 const SETTLE = 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)' // springs back, a touch past
 // A wheel pull lets go when the wheel pauses or after HOLD at most (about 0.5 s with the spring),
-// then ignores the rest of that push (a trackpad keeps coasting, each step weaker than the last)
-// until a stronger step says a new swipe has begun, or the wheel goes quiet for COAST.
+// then ignores the rest of that push (a trackpad keeps coasting, weaker and weaker, its steps
+// jittering up and down) until the wheel goes quiet for COAST, or a step well above the
+// weakest since says a new swipe has begun.
 const WHEEL_IDLE = 50
 const HOLD = 200
 const COAST = 150
-const NEW_SWIPE = 1.5 // a step this much stronger than the last starts a new swipe
+const NEW_SWIPE = 3 // times the weakest step since letting go
+const NEW_SWIPE_MIN = 12 // px, so a jitter at the very end of the coasting doesn't count
 
 // A scroll box pushed past its top or bottom (wheel, trackpad or finger) gives a little, harder
 // the further it goes, then springs back when let go. The whole box moves, not its content
@@ -22,7 +24,7 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     let since = 0 // when the current wheel pull began
     let coasting = false
     let quiet = 0
-    let lastStep = 0
+    let weakest = Infinity // the weakest wheel step since letting go
     let touchY: number | null = null
 
     const atTop = () => el.scrollTop <= 0
@@ -64,12 +66,13 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
 
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return // zoom, sideways
-      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1) * 0.4
+      const step = e.deltaY * (e.deltaMode === 1 ? 16 : 1)
+      const dy = step * 0.4
       window.clearTimeout(quiet)
       quiet = window.setTimeout(() => (coasting = false), COAST)
-      const step = Math.abs(dy)
-      if (coasting && step > Math.max(lastStep * NEW_SWIPE, 2)) coasting = false
-      lastStep = step
+      if (coasting && Math.abs(step) > Math.max(weakest * NEW_SWIPE, NEW_SWIPE_MIN))
+        coasting = false
+      weakest = Math.min(weakest, Math.abs(step))
       if (coasting) {
         // The same push still coming in: no second pull, and no browser bounce on top.
         if ((dy < 0 && atTop()) || (dy > 0 && atBottom())) e.preventDefault()
@@ -85,6 +88,7 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     const letGo = () => {
       release()
       coasting = true
+      weakest = Infinity
     }
     const onTouchStart = (e: TouchEvent) => {
       touchY = e.touches[0]?.clientY ?? null
