@@ -135,6 +135,8 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
   const { t } = useTranslation()
   const prefetch = usePrefetch()
   const device = useQuery(deviceQuery(tag.name))
+  // Opening the device's page is the likely next step: start loading it now.
+  useEffect(() => prefetch.load.device(tag.name), [prefetch, tag.name])
   return (
     <div className="space-y-5">
       <header className="space-y-2">
@@ -215,6 +217,11 @@ export function DetailPanel({
   const links = overview?.links ?? []
   const pickTag = (key: string) => onSelect({ kind: 'device', key })
   const pickWork = (key: string) => onSelect({ kind: 'work', key })
+  // A work's details lead to its page: start loading it as soon as they show.
+  const shownWork = selected?.kind === 'work' ? findWork(selected.key)?.key : undefined
+  useEffect(() => {
+    if (shownWork) prefetch.load.work(shownWork)
+  }, [prefetch, shownWork])
 
   // List pages: the tags on the core, or all works.
   if (!selected && home) {
