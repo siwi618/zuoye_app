@@ -10,12 +10,23 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { QuoteRead, TagRead } from '@/api/literature'
+import { TAG_SYMBOL, type TagKind } from '@/lib/literature/text'
 import { PageLabel } from './QuoteText'
 
 const K = 'tools.literature'
 const MAX_ROWS = 8
+const PLACEHOLDER: Record<Scope, string> = {
+  quote: `${K}.searchQuotes`,
+  device: `${K}.searchTags`,
+  character: `${K}.searchCharacters`,
+}
+const EMPTY: Record<Scope, string> = {
+  quote: `${K}.noCitedQuotes`,
+  device: `${K}.noRelated`,
+  character: `${K}.noCharacters`,
+}
 
-type Scope = 'quote' | 'tag'
+type Scope = 'quote' | TagKind
 type Row = { kind: 'quote'; quote: QuoteRead; snippet: string } | { kind: 'tag'; tag: TagRead }
 
 // A stretch of the quote around the first match (or its opening), so the reader sees why it
@@ -28,8 +39,9 @@ function snippet(body: string, query: string) {
   return `${from > 0 ? '…' : ''}${text}${from + 26 < chars.length ? '…' : ''}`
 }
 
-// One search box for filtering the analyses: choose whether to search the quotes (their text or
-// page number; only quotes some analysis cites) or the #devices, then pick a match.
+// One search box for filtering the analyses: choose whether to search the quotes (their text,
+// page number or edition; only quotes some analysis cites), the #devices or the @characters, then
+// pick a match.
 export function AnalysisFilter({
   quotes,
   tags,
@@ -37,9 +49,9 @@ export function AnalysisFilter({
   onTag,
 }: {
   quotes: QuoteRead[] // the quotes cited by at least one analysis
-  tags: TagRead[] // the work's tags, most used first
+  tags: TagRead[] // the work's tags of both kinds, most used first
   onQuote: (id: string) => void
-  onTag: (name: string) => void
+  onTag: (name: string, kind: TagKind) => void
 }) {
   const { t } = useTranslation()
   const listId = useId()
@@ -49,7 +61,7 @@ export function AnalysisFilter({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
 
-  const q = query.trim().toLowerCase().replace(/^#/, '')
+  const q = query.trim().toLowerCase().replace(/^[#@]/, '')
   const rows: Row[] =
     scope === 'quote'
       ? quotes
@@ -63,7 +75,7 @@ export function AnalysisFilter({
           .slice(0, MAX_ROWS)
           .map((quote) => ({ kind: 'quote', quote, snippet: snippet(quote.body, query.trim()) }))
       : tags
-          .filter((x) => !q || x.name.toLowerCase().includes(q))
+          .filter((x) => x.kind === scope && (!q || x.name.toLowerCase().includes(q)))
           .slice(0, MAX_ROWS)
           .map((tag) => ({ kind: 'tag', tag }))
   const at = Math.min(active, rows.length - 1)
@@ -75,7 +87,7 @@ export function AnalysisFilter({
   }
   const choose = (row: Row) => {
     if (row.kind === 'quote') onQuote(row.quote.id)
-    else onTag(row.tag.name)
+    else onTag(row.tag.name, row.tag.kind)
     close()
     input.current?.blur()
   }
@@ -117,7 +129,8 @@ export function AnalysisFilter({
             }}
           >
             <SelectItem value="quote">{t(`${K}.scopeQuote`)}</SelectItem>
-            <SelectItem value="tag">{t(`${K}.scopeTag`)}</SelectItem>
+            <SelectItem value="device">{t(`${K}.scopeTag`)}</SelectItem>
+            <SelectItem value="character">{t(`${K}.scopeCharacter`)}</SelectItem>
           </SelectContent>
         </Select>
         <Search className="ml-2.5 size-4 shrink-0 text-muted-foreground" />
@@ -128,9 +141,9 @@ export function AnalysisFilter({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={open && rows[at] ? `${listId}-${at}` : undefined}
-          aria-label={t(scope === 'quote' ? `${K}.searchQuotes` : `${K}.searchTags`)}
+          aria-label={t(PLACEHOLDER[scope])}
           value={query}
-          placeholder={t(scope === 'quote' ? `${K}.searchQuotes` : `${K}.searchTags`)}
+          placeholder={t(PLACEHOLDER[scope])}
           onChange={(e) => {
             setQuery(e.target.value)
             setActive(0)
@@ -154,9 +167,7 @@ export function AnalysisFilter({
         >
           {rows.length === 0 && (
             <p className="px-3 py-2 text-sm text-muted-foreground">
-              {query.trim()
-                ? t(`${K}.searchEmpty`, { query: query.trim() })
-                : t(scope === 'quote' ? `${K}.noCitedQuotes` : `${K}.noRelated`)}
+              {query.trim() ? t(`${K}.searchEmpty`, { query: query.trim() }) : t(EMPTY[scope])}
             </p>
           )}
           {rows.map((row, i) => (
@@ -183,7 +194,10 @@ export function AnalysisFilter({
                 </>
               ) : (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">#{row.tag.name}</span>
+                  <span className="font-medium">
+                    {TAG_SYMBOL[row.tag.kind]}
+                    {row.tag.name}
+                  </span>
                   <span className="ml-auto text-xs text-muted-foreground">
                     {t(`${K}.analysisCount`, { count: row.tag.count })}
                   </span>

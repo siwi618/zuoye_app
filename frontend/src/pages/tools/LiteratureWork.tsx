@@ -28,7 +28,7 @@ import {
   type WorkRead,
 } from '@/api/literature'
 import { findWork } from '@/lib/literature/corpus'
-import { sliceChars } from '@/lib/literature/text'
+import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisCard } from '@/components/literature/AnalysisCard'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
@@ -314,7 +314,8 @@ export function LiteratureWork() {
     )
   // Sort and filters live in the URL, so they survive a reload and can be shared.
   const [params, setParams] = useSearchParams()
-  const tagFilter = params.get('tag')
+  const tagFilter = params.get('tag') // a #device
+  const whoFilter = params.get('who') // an @character
   const quoteFilter = params.get('quote')
   const sort: Sort = SORTS.find((x) => x === params.get('sort')) ?? 'hot'
   const setParam = (name: string, value: string | null) =>
@@ -398,7 +399,10 @@ export function LiteratureWork() {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const pickedQuotes = quotes.filter((q) => picked.includes(q.id))
   const shown = showAll ? quotes : quotes.slice(0, SHOWN_QUOTES)
-  const filterBy = (name: string | null) => setParam('tag', name)
+  const filterBy = (name: string | null, kind: TagKind = 'device') =>
+    setParam(kind === 'device' ? 'tag' : 'who', name)
+  const tagged = (a: AnalysisRead, kind: TagKind, name: string | null) =>
+    !name || a.tags.some((x) => x.kind === kind && x.name.toLowerCase() === name.toLowerCase())
   const showAnalysesOf = (quoteId: string) => {
     setParam('quote', quoteId)
     requestAnimationFrame(() =>
@@ -420,11 +424,12 @@ export function LiteratureWork() {
   const analyses = all
     .filter(
       (a) =>
-        (!tagFilter || a.tags.some((x) => x.name.toLowerCase() === tagFilter.toLowerCase())) &&
+        tagged(a, 'device', tagFilter) &&
+        tagged(a, 'character', whoFilter) &&
         (!quoteFilter || a.quote_ids.includes(quoteFilter)),
     )
     .sort(order)
-  const filtering = !!tagFilter || !!quoteFilter
+  const filtering = !!tagFilter || !!whoFilter || !!quoteFilter
   const pageText = (q: QuoteRead) =>
     q.page_start === q.page_end
       ? t(`${K}.pageOne`, { start: q.page_start })
@@ -525,42 +530,57 @@ export function LiteratureWork() {
         )}
       </section>
 
-      {/* Related devices */}
+      {/* Related tags: #devices and @characters */}
       <section className="space-y-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">{t(`${K}.relatedTags`)}</h2>
           <p className="text-sm text-muted-foreground">{t(`${K}.relatedHint`)}</p>
         </div>
-        {data.data?.tags.length ? (
-          <div className="flex flex-wrap gap-2">
-            {data.data.tags.map((tag) => {
-              const on = tagFilter?.toLowerCase() === tag.name.toLowerCase()
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => filterBy(on ? null : tag.name)}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-sm transition-colors',
-                    on
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border/70 hover:border-primary/60 hover:text-primary',
-                  )}
-                >
-                  #{tag.name}
-                  <span
-                    className={cn('ml-1.5 text-xs', on ? 'opacity-80' : 'text-muted-foreground')}
+        {(['device', 'character'] as const).map((kind) => {
+          const list = (data.data?.tags ?? []).filter((x) => x.kind === kind)
+          const active = kind === 'device' ? tagFilter : whoFilter
+          return (
+            <div key={kind} className="flex flex-wrap items-center gap-2">
+              <span className="w-10 shrink-0 text-xs font-medium text-muted-foreground">
+                {t(kind === 'device' ? `${K}.kindDeviceShort` : `${K}.kindCharacter`)}
+              </span>
+              {list.length === 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {t(kind === 'device' ? `${K}.noRelated` : `${K}.noCharacters`)}
+                </span>
+              )}
+              {list.map((tag) => {
+                const on = active?.toLowerCase() === tag.name.toLowerCase()
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => filterBy(on ? null : tag.name, kind)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-sm transition-colors',
+                      on
+                        ? kind === 'device'
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-violet-600 bg-violet-600 text-white'
+                        : kind === 'device'
+                          ? 'border-border/70 hover:border-primary/60 hover:text-primary'
+                          : 'border-border/70 hover:border-violet-400 hover:text-violet-700 dark:hover:text-violet-200',
+                    )}
                   >
-                    {tag.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t(`${K}.noRelated`)}</p>
-        )}
+                    {TAG_SYMBOL[kind]}
+                    {tag.name}
+                    <span
+                      className={cn('ml-1.5 text-xs', on ? 'opacity-80' : 'text-muted-foreground')}
+                    >
+                      {tag.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
       </section>
 
       {/* Analyses */}
@@ -622,7 +642,7 @@ export function LiteratureWork() {
               quotes={citedQuotes}
               tags={data.data?.tags ?? []}
               onQuote={(id) => setParam('quote', id)}
-              onTag={(name) => filterBy(name)}
+              onTag={(name, kind) => filterBy(name, kind)}
             />
           </div>
         )}
@@ -657,6 +677,24 @@ export function LiteratureWork() {
                 </button>
               </span>
             )}
+            {whoFilter && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-3 font-medium',
+                  TAG_TONE.character,
+                )}
+              >
+                @{whoFilter}
+                <button
+                  type="button"
+                  aria-label={t(`${K}.removeFilter`)}
+                  onClick={() => filterBy(null, 'character')}
+                  className="grid size-5 place-items-center rounded-full hover:bg-black/10 dark:hover:bg-white/15"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            )}
             <span className="flex items-center gap-2 text-muted-foreground">
               {t(`${K}.matchCount`, { count: analyses.length })}
               <button
@@ -666,6 +704,7 @@ export function LiteratureWork() {
                     (p) => {
                       const next = new URLSearchParams(p)
                       next.delete('tag')
+                      next.delete('who')
                       next.delete('quote')
                       return next
                     },
@@ -690,7 +729,7 @@ export function LiteratureWork() {
                   versions={versions}
                   mine={a.author.id === userId}
                   deleting={removeAnalysis.isPending && removeAnalysis.variables === a.id}
-                  onTag={(name) => filterBy(name)}
+                  onTag={(name, kind) => filterBy(name, kind)}
                   onLike={() => like.mutate(a.id)}
                   onDelete={() => removeAnalysis.mutate(a.id)}
                 />

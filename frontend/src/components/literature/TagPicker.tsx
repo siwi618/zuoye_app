@@ -1,20 +1,24 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Hash, Plus, X } from 'lucide-react'
+import { AtSign, Hash, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { searchTags } from '@/api/literature'
-import { cleanTag, isValidTag } from '@/lib/literature/text'
+import { TAG_SYMBOL, TAG_TONE, cleanTag, isValidTag, type TagKind } from '@/lib/literature/text'
 
 const K = 'tools.literature'
 const MAX_TAGS = 8
 
-// #device tags for an analysis, like hashtags: pick one other students already use (most used
-// first) or create a new one by typing it.
+// Tags for an analysis, like hashtags: pick one other students already use (most used first) or
+// create a new one by typing it. #devices are shared by every work; @characters by `workKey`'s.
 export function TagPicker({
+  kind = 'device',
+  workKey,
   value,
   onChange,
 }: {
+  kind?: TagKind
+  workKey?: string
   value: string[]
   onChange: (tags: string[]) => void
 }) {
@@ -25,8 +29,8 @@ export function TagPicker({
   const [active, setActive] = useState(0)
   const name = cleanTag(query)
   const found = useQuery({
-    queryKey: ['literature-tags', name.toLowerCase()],
-    queryFn: () => searchTags(name),
+    queryKey: ['literature-tags', kind, workKey, name.toLowerCase()],
+    queryFn: () => searchTags(name, kind, workKey),
     staleTime: 30_000,
     enabled: open,
   })
@@ -47,6 +51,8 @@ export function TagPicker({
     onChange([...value, n])
     setQuery('')
     setActive(0)
+    // Close the list: left open it would cover the field below; typing opens it again.
+    setOpen(false)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -71,14 +77,18 @@ export function TagPicker({
           {value.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pr-1 pl-2.5 text-sm font-medium text-primary"
+              className={cn(
+                'inline-flex items-center gap-0.5 rounded-full py-0.5 pr-1 pl-2.5 text-sm font-medium',
+                TAG_TONE[kind],
+              )}
             >
-              #{tag}
+              {TAG_SYMBOL[kind]}
+              {tag}
               <button
                 type="button"
-                aria-label={t(`${K}.removeTag`, { name: tag })}
+                aria-label={t(`${K}.removeTag`, { name: `${TAG_SYMBOL[kind]}${tag}` })}
                 onClick={() => onChange(value.filter((v) => v !== tag))}
-                className="grid size-5 place-items-center rounded-full hover:bg-primary/15"
+                className="grid size-5 place-items-center rounded-full hover:bg-black/10 dark:hover:bg-white/15"
               >
                 <X className="size-3" />
               </button>
@@ -89,9 +99,15 @@ export function TagPicker({
               role="combobox"
               aria-expanded={open}
               aria-controls={listId}
-              aria-label={t(`${K}.tagPlaceholder`)}
+              aria-label={t(
+                kind === 'device' ? `${K}.tagPlaceholder` : `${K}.characterPlaceholder`,
+              )}
               value={query}
-              placeholder={value.length ? '' : t(`${K}.tagPlaceholder`)}
+              placeholder={
+                value.length
+                  ? ''
+                  : t(kind === 'device' ? `${K}.tagPlaceholder` : `${K}.characterPlaceholder`)
+              }
               onChange={(e) => {
                 setQuery(e.target.value)
                 setActive(0)
@@ -126,11 +142,15 @@ export function TagPicker({
                 {row.count === null ? (
                   <>
                     <Plus className="size-3.5 text-primary" />
-                    <span>{t(`${K}.createTag`, { name: row.name })}</span>
+                    <span>{t(`${K}.createTag`, { name: `${TAG_SYMBOL[kind]}${row.name}` })}</span>
                   </>
                 ) : (
                   <>
-                    <Hash className="size-3.5 text-muted-foreground" />
+                    {kind === 'device' ? (
+                      <Hash className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <AtSign className="size-3.5 text-muted-foreground" />
+                    )}
                     <span className="font-medium">{row.name}</span>
                     <span className="ml-auto text-xs text-muted-foreground">
                       {t(`${K}.analysisCount`, { count: row.count })}

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AnalysisRead, QuoteVersion } from '@/api/literature'
-import { sliceChars } from '@/lib/literature/text'
+import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 import { AnalysisComposer } from './AnalysisComposer'
 
@@ -27,7 +27,7 @@ export function AnalysisCard({
   versions: Map<string, QuoteVersion>
   mine: boolean
   deleting: boolean
-  onTag: (name: string) => void
+  onTag: (name: string, kind: TagKind) => void
   onLike: () => void
   onDelete: () => void
 }) {
@@ -122,16 +122,22 @@ export function AnalysisCard({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {a.tags.map((tag) => (
-          <button
-            key={tag.id}
-            type="button"
-            onClick={() => onTag(tag.name)}
-            className="rounded-full bg-primary/10 px-2.5 py-0.5 text-sm font-medium text-primary hover:bg-primary/20"
-          >
-            #{tag.name}
-          </button>
-        ))}
+        {[...a.tags]
+          .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'device' ? -1 : 1))
+          .map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              onClick={() => onTag(tag.name, tag.kind)}
+              className={cn(
+                'rounded-full px-2.5 py-0.5 text-sm font-medium hover:brightness-95',
+                TAG_TONE[tag.kind],
+              )}
+            >
+              {TAG_SYMBOL[tag.kind]}
+              {tag.name}
+            </button>
+          ))}
       </div>
 
       <div className="space-y-2">

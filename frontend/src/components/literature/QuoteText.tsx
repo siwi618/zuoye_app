@@ -1,7 +1,14 @@
 import { Fragment, type HTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { parseBody, segments, type Span } from '@/lib/literature/text'
+import {
+  TAG_SYMBOL,
+  TAG_TONE,
+  parseBody,
+  segments,
+  type Span,
+  type TagKind,
+} from '@/lib/literature/text'
 
 const K = 'tools.literature'
 
@@ -61,7 +68,7 @@ export function QuoteText({
   )
 }
 
-// An analysis body: 「（#tag）」 references drawn as chips, and 「（引文N）」 replaced by the words of
+// An analysis body: 「（#tag）」「（@character）」 references drawn as chips, and 「（引文N）」 replaced by the words of
 // that fragment, highlighted, with its number in front.
 export function AnalysisBody({
   body,
@@ -73,7 +80,7 @@ export function AnalysisBody({
   body: string
   fragments: Map<number, string> // fragment number → its words; other references stay as typed
   lit?: number | null
-  onTag?: (name: string) => void
+  onTag?: (name: string, kind: TagKind) => void
   onQuote?: (n: number | null) => void
 }) {
   const { t } = useTranslation()
@@ -87,10 +94,14 @@ export function AnalysisBody({
               key={i}
               type="button"
               disabled={!onTag}
-              onClick={() => onTag?.(part.name)}
-              className="mx-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-sm font-medium text-primary enabled:hover:bg-primary/20"
+              onClick={() => onTag?.(part.name, part.kind)}
+              className={cn(
+                'mx-0.5 rounded-md px-1.5 py-0.5 text-sm font-medium enabled:hover:brightness-95',
+                TAG_TONE[part.kind],
+              )}
             >
-              #{part.name}
+              {TAG_SYMBOL[part.kind]}
+              {part.name}
             </button>
           )
         const words = fragments.get(part.number)

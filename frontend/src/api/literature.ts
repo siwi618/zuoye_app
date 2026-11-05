@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import type { ProfileSummary } from './requests'
+import type { TagKind } from '@/lib/literature/text'
 
 export interface QuoteRead {
   id: string
@@ -20,6 +21,7 @@ export interface QuoteRead {
 export interface TagRead {
   id: string
   name: string
+  kind: TagKind
   // Analyses using it: in the work asked about, or in all works.
   count: number
 }
@@ -90,7 +92,8 @@ export interface QuoteCreate {
 export interface AnalysisCreate {
   quote_ids: string[]
   highlights: Highlight[]
-  tags: string[]
+  tags: string[] // #device names
+  characters: string[] // @character names, of the analysis's work
   body: string
 }
 
@@ -98,8 +101,10 @@ export function getOverview(): Promise<OverviewRead> {
   return apiFetch<OverviewRead>('/literature/overview')
 }
 
-export function searchTags(q: string): Promise<TagRead[]> {
-  return apiFetch<TagRead[]>(`/literature/tags?q=${encodeURIComponent(q)}`)
+// #devices across the site, or one work's @characters.
+export function searchTags(q: string, kind: TagKind = 'device', work?: string): Promise<TagRead[]> {
+  const params = new URLSearchParams({ q, kind, ...(work ? { work } : {}) })
+  return apiFetch<TagRead[]>(`/literature/tags?${params}`)
 }
 
 export function getWork(workKey: string): Promise<WorkRead> {

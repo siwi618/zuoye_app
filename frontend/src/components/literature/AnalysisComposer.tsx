@@ -19,8 +19,12 @@ import {
   quoteToken,
   sliceChars,
   tagToken,
+  TAG_SYMBOL,
+  TAG_TONE,
   toCharOffset,
+  type TagKind,
 } from '@/lib/literature/text'
+import { cn } from '@/lib/utils'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 import { TagPicker } from './TagPicker'
 
@@ -59,7 +63,10 @@ export function AnalysisComposer({
   const box = useRef<HTMLDivElement>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const [marks, setMarks] = useState<Highlight[]>(initial?.highlights ?? [])
-  const [tags, setTags] = useState<string[]>(initial?.tags.map((x) => x.name) ?? [])
+  const initialOf = (kind: TagKind) =>
+    initial?.tags.filter((x) => x.kind === kind).map((x) => x.name) ?? []
+  const [tags, setTags] = useState<string[]>(initialOf('device'))
+  const [characters, setCharacters] = useState<string[]>(initialOf('character'))
   const [body, setBody] = useState(initial?.body ?? '')
   const [pending, setPending] = useState<Pending | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -139,11 +146,12 @@ export function AnalysisComposer({
   }, [body])
 
   const publish = useMutation({
-    mutationFn: async (payload: { tags: string[] }) => {
+    mutationFn: async (payload: { tags: string[]; characters: string[] }) => {
       const analysis = {
         quote_ids: quotes.map((q) => q.id),
         highlights,
         tags: payload.tags,
+        characters: payload.characters,
         body: body.trim(),
       }
       if (initial) await updateAnalysis(initial.id, analysis)
@@ -163,19 +171,22 @@ export function AnalysisComposer({
     setError(null)
     const parts = parseBody(body)
     // Tags written into the text count as tags of the analysis too.
-    const all = [...tags]
+    const all = { device: [...tags], character: [...characters] }
     for (const p of parts) {
-      const name = p.type === 'tag' ? cleanTag(p.name) : ''
-      if (isValidTag(name) && !all.some((x) => x.toLowerCase() === name.toLowerCase()))
-        all.push(name)
+      if (p.type !== 'tag') continue
+      const name = cleanTag(p.name)
+      const list = all[p.kind]
+      if (isValidTag(name) && !list.some((x) => x.toLowerCase() === name.toLowerCase()))
+        list.push(name)
     }
     const numbers = new Set(highlights.map((h) => h.number))
     const missing = parts.find((p) => p.type === 'quote' && !numbers.has(p.number))
     if (!body.trim()) return setError(t(`${K}.needBody`))
-    if (!all.length) return setError(t(`${K}.needTag`))
-    if (all.length > 8) return setError(t(`${K}.maxTags`, { count: 8 }))
+    if (!all.device.length) return setError(t(`${K}.needTag`))
+    if (all.device.length > 8 || all.character.length > 8)
+      return setError(t(`${K}.maxTags`, { count: 8 }))
     if (missing?.type === 'quote') return setError(t(`${K}.unknownRef`, { n: missing.number }))
-    publish.mutate({ tags: all })
+    publish.mutate({ tags: all.device, characters: all.character })
   }
 
   // What each「引文N」will read as once published.
@@ -260,23 +271,45 @@ export function AnalysisComposer({
 
       <section className="space-y-2">
         <h4 className="text-sm font-medium">{t(`${K}.step2`)}</h4>
-        <TagPicker value={tags} onChange={setTags} />
+        <div className="grid gap-2 sm:grid-cols-[6rem_1fr] sm:items-start">
+          <span className="pt-2 text-xs font-medium whitespace-nowrap text-muted-foreground">
+            {t(`${K}.kindDeviceShort`)}
+          </span>
+          <TagPicker value={tags} onChange={setTags} />
+          <span className="pt-2 text-xs font-medium whitespace-nowrap text-muted-foreground">
+            {t(`${K}.kindCharacter`)}
+            <span className="ml-1 font-normal">{t(`${K}.optional`)}</span>
+          </span>
+          <TagPicker
+            kind="character"
+            workKey={workKey}
+            value={characters}
+            onChange={setCharacters}
+          />
+        </div>
       </section>
 
       <section className="space-y-2">
         <h4 className="text-sm font-medium">{t(`${K}.step3`)}</h4>
-        {(tags.length > 0 || byNumber.length > 0) && (
+        {(tags.length > 0 || characters.length > 0 || byNumber.length > 0) && (
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
             <span className="text-xs text-muted-foreground">{t(`${K}.insert`)}</span>
-            {tags.map((tag) => (
+            {[
+              ...tags.map((name) => ({ kind: 'device' as const, name })),
+              ...characters.map((name) => ({ kind: 'character' as const, name })),
+            ].map((tag) => (
               <button
-                key={tag}
+                key={`${tag.kind}:${tag.name}`}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insert(tagToken(tag, i18n.language))}
-                className="rounded-md bg-primary/10 px-1.5 py-0.5 font-medium text-primary hover:bg-primary/20"
+                onClick={() => insert(tagToken(tag.name, i18n.language, tag.kind))}
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 font-medium hover:brightness-95',
+                  TAG_TONE[tag.kind],
+                )}
               >
-                #{tag}
+                {TAG_SYMBOL[tag.kind]}
+                {tag.name}
               </button>
             ))}
             {byNumber.map((h) => (
