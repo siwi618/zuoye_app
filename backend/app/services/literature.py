@@ -223,6 +223,27 @@ def _order(index: list[dict], sort: AnalysisSort, user_id: str) -> list[dict]:
     return hottest
 
 
+def _page_guess(
+    user_id: str, work_key: str, sort: AnalysisSort, offset: int, limit: int
+) -> list[dict]:
+    """One page of a work's analyses in full, as the database orders them (most liked or newest).
+
+    Fetched alongside the index so an unfiltered page needs one round trip, not two. It is
+    only a guess: hidden analyses (author deleted) count in the database's offset but not in
+    the index's, so list_analyses() keeps just the rows its own page asks for and fetches any
+    it is missing.
+    """
+    query = (
+        get_supabase().table("lit_analyses").select(_ANALYSIS_FULL)
+        .eq("work_key", work_key).eq("moderation_flagged", False)
+        .eq("lit_analysis_likes.user_id", user_id)
+    )
+    if sort == AnalysisSort.hot:
+        query = query.order("like_count", desc=True)
+    query = query.order("created_at", desc=True)
+    return query.range(offset, offset + limit - 1).execute().data or []
+
+
 def list_analyses(
     user_id: str,
     work_key: str,
@@ -235,13 +256,19 @@ def list_analyses(
     limit: int,
 ) -> AnalysisPage:
     """One page of a work's analyses, sorted and filtered (by #device, @character, quote) over
-    all of them, then fetched in full for just that page."""
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    all of them, then fetched in full for just that page. Unfiltered, by likes or by date
+    (the usual first look), the page is guessed at the same time and rarely fetched again."""
+    guessable = not (tag or who or quote) and sort in (AnalysisSort.hot, AnalysisSort.new)
+    with ThreadPoolExecutor(max_workers=3) as pool:
         index_job = pool.submit(_analysis_index, work_key)
         quotes_job = pool.submit(
             _quote_rows, work_key, f"id, page_start, {_QUOTE_AUTHOR}(is_deleted)"
         )
+        guess_job = (
+            pool.submit(_page_guess, user_id, work_key, sort, offset, limit) if guessable else None
+        )
         index, visible = index_job.result(), {q["id"] for q in quotes_job.result()}
+        guessed = guess_job.result() if guess_job else []
 
     def tagged(a: dict, kind: str, name: str | None) -> bool:
         return not name or any(
@@ -254,15 +281,18 @@ def list_analyses(
         and (not quote or any(c["quote_id"] == quote for c in a["lit_analysis_quotes"] or []))
     ]
     page_ids = [a["id"] for a in _order(matching, sort, user_id)[offset:offset + limit]]
-    full = {
-        a["id"]: a
-        for a in (
-            get_supabase().table("lit_analyses").select(_ANALYSIS_FULL)
-            .in_("id", page_ids).eq("lit_analysis_likes.user_id", user_id)
-            .execute().data
-            or []
-        )
-    } if page_ids else {}
+    full = {a["id"]: a for a in guessed if a["id"] in page_ids}
+    missing = [i for i in page_ids if i not in full]
+    if missing:
+        full |= {
+            a["id"]: a
+            for a in (
+                get_supabase().table("lit_analyses").select(_ANALYSIS_FULL)
+                .in_("id", missing).eq("lit_analysis_likes.user_id", user_id)
+                .execute().data
+                or []
+            )
+        }
     counts, _ = _tag_counts(index)
 
     items, versions = [], {}
