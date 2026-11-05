@@ -397,6 +397,14 @@ export const zh: Translations = {
       introEmptyVersion: '（清空了）',
       introLabel: '简介',
       comments: '评论（{{count}}）',
+      chooseWork: '选一部作品',
+      deviceUsage: '共 {{count}} 篇分析用到，涉及 {{works}} 部作品',
+      deviceNoneInWork: '《{{title}}》还没有用到 {{name}} 的分析。',
+      compareWithWork: '在这里再选一部作品，对比它们怎么用 {{name}}。',
+      chooseWorkFor: '选一部作品，看它的分析怎么用 {{name}}。',
+      openDevice: '打开手法页',
+      searchDevices: '搜索手法',
+      deviceSearchEmpty: '没有找到「{{query}}」',
     },
     thermometer: {
       subtitle:

@@ -6,7 +6,7 @@ import { ArrowLeft, Minimize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { getOverview } from '@/api/literature'
+import { getOverview, type TagRead } from '@/api/literature'
 import {
   DysonScene,
   type CoreDevice,
@@ -27,6 +27,8 @@ export function Literature() {
   const [selected, setSelectedState] = useState<Selection | null>(null)
   // The side panel's list page of all devices or all works; any selection replaces it.
   const [home, setHome] = useState<Selection['kind'] | null>(null)
+  // Devices opened from the panel's search that aren't on the sphere's core.
+  const [knownTags, setKnownTags] = useState<TagRead[]>([])
   const setSelected = (s: Selection | null) => {
     setHome(null)
     setSelectedState(s)
@@ -162,6 +164,10 @@ export function Literature() {
               selected={selected}
               home={home}
               overview={overview.data}
+              knownTags={knownTags}
+              onKnowTag={(tag) =>
+                setKnownTags((ks) => (ks.some((k) => k.id === tag.id) ? ks : [...ks, tag]))
+              }
               onSelect={setSelected}
               onHome={openHome}
             />

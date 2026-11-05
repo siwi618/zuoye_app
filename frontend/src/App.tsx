@@ -28,6 +28,9 @@ const Thermometer = lazy(() =>
 const Literature = lazy(() =>
   import('@/pages/tools/Literature').then((m) => ({ default: m.Literature })),
 )
+const LiteratureDevice = lazy(() =>
+  import('@/pages/tools/LiteratureDevice').then((m) => ({ default: m.LiteratureDevice })),
+)
 const LiteratureWork = lazy(() =>
   import('@/pages/tools/LiteratureWork').then((m) => ({ default: m.LiteratureWork })),
 )
@@ -68,6 +71,7 @@ export default function App() {
             <Route path="/tools/thermometer" element={later(<Thermometer />)} />
             <Route path="/tools/literature" element={later(<Literature />)} />
             <Route path="/tools/literature/works/:key" element={later(<LiteratureWork />)} />
+            <Route path="/tools/literature/devices/:name" element={later(<LiteratureDevice />)} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>

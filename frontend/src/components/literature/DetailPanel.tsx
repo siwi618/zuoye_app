@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { BookOpen, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { OverviewRead } from '@/api/literature'
-import { WORKS, findWork, workPath } from '@/lib/literature/corpus'
+import { getDevice, searchTags, type OverviewRead, type TagRead } from '@/api/literature'
+import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
+import { cleanTag } from '@/lib/literature/text'
 import type { Selection } from './DysonScene'
 import { IntroBlock } from './IntroBlock'
 
@@ -80,21 +83,120 @@ function NoTags() {
   )
 }
 
+// The devices list page: the hottest devices, or with a query, every device matching it.
+function DeviceSearch({ hot, onPick }: { hot: TagRead[]; onPick: (tag: TagRead) => void }) {
+  const { t } = useTranslation()
+  const [query, setQuery] = useState('')
+  const [term, setTerm] = useState('')
+  useEffect(() => {
+    const id = window.setTimeout(() => setTerm(cleanTag(query)), 250)
+    return () => window.clearTimeout(id)
+  }, [query])
+  const found = useQuery({
+    queryKey: ['literature-tags', 'device', undefined, term.toLowerCase()],
+    queryFn: () => searchTags(term, 'device'),
+    enabled: !!term,
+    placeholderData: keepPreviousData,
+  })
+  const rows = term ? (found.data ?? []) : hot
+  return (
+    <>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t(`${K}.searchDevices`)}
+          aria-label={t(`${K}.searchDevices`)}
+          className="h-9 w-full rounded-full border border-border bg-background pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+        />
+      </div>
+      {rows.length ? (
+        rows.map((tag) => (
+          <TagRow key={tag.id} name={tag.name} count={tag.count} onClick={() => onPick(tag)} />
+        ))
+      ) : term ? (
+        <p className="text-sm text-muted-foreground">
+          {t(`${K}.deviceSearchEmpty`, { query: term })}
+        </p>
+      ) : (
+        <NoTags />
+      )}
+    </>
+  )
+}
+
+// A device: its introduction, the way into its own page, and the works using it; a work opens
+// the device page with that work on the right.
+function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
+  const { t } = useTranslation()
+  const device = useQuery({
+    queryKey: ['literature-device', tag.name.toLowerCase()],
+    queryFn: () => getDevice(tag.name),
+  })
+  return (
+    <div className="space-y-5">
+      <header className="space-y-2">
+        <BackLink label={t(`${K}.kindDevice`)} onClick={onHome} />
+        <h2 className="text-2xl font-bold tracking-tight">#{tag.name}</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          {t(`${K}.tagUsedBy`, { count: device.data?.total ?? tag.count })}
+        </p>
+      </header>
+      <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
+        <h3 className="text-xs font-medium text-primary">{t(`${K}.introLabel`)}</h3>
+        <IntroBlock key={tag.name} kind="device" subject={tag.name} compact />
+      </section>
+      <Button asChild className="w-full">
+        <Link to={devicePath(tag.name)}>
+          <BookOpen className="size-4" />
+          {t(`${K}.openDevice`)}
+        </Link>
+      </Button>
+      <div className="space-y-2">
+        {(device.data?.works ?? [])
+          .filter((l) => findWork(l.work_key))
+          .map((l) => {
+            const w = findWork(l.work_key)!
+            return (
+              <Link key={l.work_key} to={devicePath(tag.name, w.key)} className={rowClass}>
+                <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
+                <span className="text-sm text-muted-foreground">
+                  {t(`${K}.analysisCount`, { count: l.count })}
+                </span>
+                <span className="ml-auto text-xs text-muted-foreground group-hover:text-primary">
+                  {t(`${K}.readAnalyses`)}
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            )
+          })}
+      </div>
+    </div>
+  )
+}
+
 export function DetailPanel({
   selected,
   home,
   overview,
+  knownTags,
+  onKnowTag,
   onSelect,
   onHome,
 }: {
   selected: Selection | null
   home: Kind | null
   overview: OverviewRead | undefined
+  // Devices found by searching (not on the sphere's core), so their details can open too.
+  knownTags: TagRead[]
+  onKnowTag: (tag: TagRead) => void
   onSelect: (s: Selection | null) => void
   onHome: (kind: Kind) => void
 }) {
   const { t } = useTranslation()
-  const tags = overview?.tags ?? []
+  const hot = overview?.tags ?? []
+  const tags = [...hot, ...knownTags.filter((k) => !hot.some((h) => h.id === k.id))]
   const links = overview?.links ?? []
   const pickTag = (key: string) => onSelect({ kind: 'device', key })
   const pickWork = (key: string) => onSelect({ kind: 'work', key })
@@ -110,7 +212,7 @@ export function DetailPanel({
             {t(devices ? `${K}.kindDevice` : `${K}.kindWork`)}
             <span className="ml-2 text-base font-normal text-muted-foreground">
               {t(devices ? `${K}.deviceCount` : `${K}.workCount`, {
-                count: devices ? tags.length : WORKS.length,
+                count: devices ? hot.length : WORKS.length,
               })}
             </span>
           </h2>
@@ -120,18 +222,13 @@ export function DetailPanel({
         </header>
         <div className="space-y-2">
           {devices ? (
-            tags.length ? (
-              tags.map((tag) => (
-                <TagRow
-                  key={tag.id}
-                  name={tag.name}
-                  count={tag.count}
-                  onClick={() => pickTag(tag.id)}
-                />
-              ))
-            ) : (
-              <NoTags />
-            )
+            <DeviceSearch
+              hot={tags}
+              onPick={(tag) => {
+                onKnowTag(tag)
+                pickTag(tag.id)
+              }}
+            />
           ) : (
             WORKS.map((w) => (
               <WorkRow key={w.key} workKey={w.key} onClick={() => pickWork(w.key)} />
@@ -152,9 +249,9 @@ export function DetailPanel({
         </header>
         <section className="space-y-2">
           <GroupLink label={t(`${K}.kindDevice`)} onClick={() => onHome('device')} />
-          {tags.length ? (
+          {hot.length ? (
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
+              {hot.map((tag) => (
                 <button
                   key={tag.id}
                   type="button"
@@ -185,41 +282,7 @@ export function DetailPanel({
   if (selected.kind === 'device') {
     const tag = tags.find((x) => x.id === selected.key)
     if (!tag) return null
-    const works = links
-      .filter((l) => l.tag_id === tag.id && findWork(l.work_key))
-      .sort((a, b) => b.count - a.count)
-    return (
-      <div className="space-y-5">
-        <header className="space-y-2">
-          <BackLink label={t(`${K}.kindDevice`)} onClick={() => onHome('device')} />
-          <h2 className="text-2xl font-bold tracking-tight">#{tag.name}</h2>
-          <p className="text-sm leading-6 text-muted-foreground">
-            {t(`${K}.tagUsedBy`, { count: tag.count })}
-          </p>
-        </header>
-        <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
-          <h3 className="text-xs font-medium text-primary">{t(`${K}.introLabel`)}</h3>
-          <IntroBlock key={tag.name} kind="device" subject={tag.name} compact />
-        </section>
-        <div className="space-y-2">
-          {works.map((l) => {
-            const w = findWork(l.work_key)!
-            return (
-              <Link key={l.work_key} to={workPath(w.key, tag.name)} className={rowClass}>
-                <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
-                <span className="text-sm text-muted-foreground">
-                  {t(`${K}.analysisCount`, { count: l.count })}
-                </span>
-                <span className="ml-auto text-xs text-muted-foreground group-hover:text-primary">
-                  {t(`${K}.readAnalyses`)}
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
-            )
-          })}
-        </div>
-      </div>
-    )
+    return <DeviceDetail tag={tag} onHome={() => onHome('device')} />
   }
 
   // A work: its hottest tags, and the way into its own page.

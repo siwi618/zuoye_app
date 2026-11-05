@@ -44,3 +44,13 @@ export const findWork = (key: string | undefined) => WORKS.find((w) => w.key ===
 // A work's own page; with `tag`, its analyses are filtered to that #tag.
 export const workPath = (key: string, tag?: string) =>
   `/tools/literature/works/${key}${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`
+
+// A #device's own page; `work` (right half) and `compare` (left half) pick the works whose
+// analyses using it are listed side by side.
+export const devicePath = (name: string, work?: string | null, compare?: string | null) => {
+  const q = new URLSearchParams()
+  if (work) q.set('work', work)
+  if (compare) q.set('compare', compare)
+  const qs = q.toString()
+  return `/tools/literature/devices/${encodeURIComponent(name)}${qs ? `?${qs}` : ''}`
+}

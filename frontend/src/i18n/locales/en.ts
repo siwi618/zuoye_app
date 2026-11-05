@@ -396,6 +396,14 @@ export const en = {
       introEmptyVersion: '(cleared)',
       introLabel: 'Introduction',
       comments: 'Comments ({{count}})',
+      chooseWork: 'Choose a work',
+      deviceUsage: 'Used by {{count}} analyses in {{works}} works',
+      deviceNoneInWork: 'No analysis of {{title}} uses {{name}} yet.',
+      compareWithWork: 'Choose another work here to compare how they use {{name}}.',
+      chooseWorkFor: 'Choose a work to see how its analyses use {{name}}.',
+      openDevice: 'Open the device page',
+      searchDevices: 'Search devices',
+      deviceSearchEmpty: 'Nothing matches “{{query}}”',
     },
     thermometer: {
       subtitle:

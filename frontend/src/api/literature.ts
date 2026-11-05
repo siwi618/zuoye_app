@@ -265,3 +265,15 @@ export function toggleCommentLike(id: string): Promise<{ liked: boolean; like_co
     method: 'POST',
   })
 }
+
+// A #device across the works: which works' analyses use it, and how often.
+export interface DeviceRead {
+  name: string
+  tag_id: string | null // null: no analysis uses it (yet)
+  total: number
+  works: { work_key: string; tag_id: string; count: number }[] // most used first
+}
+
+export function getDevice(name: string): Promise<DeviceRead> {
+  return apiFetch<DeviceRead>(`/literature/devices/${encodeURIComponent(name)}`)
+}
