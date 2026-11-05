@@ -18,6 +18,7 @@ import { PostDetail } from '@/pages/PostDetail'
 import { Toolbox } from '@/pages/Toolbox'
 import { Ammeter } from '@/pages/tools/Ammeter'
 import { Literature } from '@/pages/tools/Literature'
+import { LiteratureWork } from '@/pages/tools/LiteratureWork'
 import { Thermometer } from '@/pages/tools/Thermometer'
 import { ToolShell } from '@/components/tools/ToolShell'
 
@@ -49,6 +50,7 @@ export default function App() {
             {/* Outside ToolShell: its settings (auto-zero) only apply to the ammeter. */}
             <Route path="/tools/thermometer" element={<Thermometer />} />
             <Route path="/tools/literature" element={<Literature />} />
+            <Route path="/tools/literature/works/:key" element={<LiteratureWork />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
         </Route>

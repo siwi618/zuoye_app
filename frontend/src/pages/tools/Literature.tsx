@@ -1,30 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Minimize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { DEVICES } from '@/lib/literature/corpus'
-import { useNotes } from '@/lib/literature/notes'
-import { DysonScene, type Focus, type Selection } from '@/components/literature/DysonScene'
+import { getOverview } from '@/api/literature'
+import {
+  DysonScene,
+  type CoreDevice,
+  type Focus,
+  type Link as SceneLink,
+  type Selection,
+} from '@/components/literature/DysonScene'
 import { DetailPanel } from '@/components/literature/DetailPanel'
 import { SceneSearch } from '@/components/literature/SceneSearch'
 
 const K = 'tools.literature'
 
-// Cross-text comparison: literary devices sit on the core sphere, works on the outer shell, and
-// each link is one work's use of one device. Picking a device lines the works up side by side.
+// Cross-text comparison: the #device tags students use most sit on the core sphere, works on the
+// outer shell, and each link is a work whose analyses use that tag. A work's quotes and analyses
+// live on its own page (WorkPage).
 export function Literature() {
   const { t } = useTranslation()
-  const [selected, setSelected] = useState<Selection | null>({
-    kind: 'device',
-    key: DEVICES[0].key,
-  })
+  const [selected, setSelectedState] = useState<Selection | null>(null)
+  // The side panel's list page of all devices or all works; any selection replaces it.
+  const [home, setHome] = useState<Selection['kind'] | null>(null)
+  const setSelected = (s: Selection | null) => {
+    setHome(null)
+    setSelectedState(s)
+  }
   const [focus, setFocus] = useState<Focus | null>(null)
   // The node the scene has zoomed into (its local graph), or null for the whole sphere.
   const [zoom, setZoom] = useState<Selection | null>(null)
-  const { notes, setNote } = useNotes()
+  const overview = useQuery({ queryKey: ['literature-overview'], queryFn: getOverview })
+  const devices = useMemo<CoreDevice[]>(
+    () => (overview.data?.tags ?? []).map((t) => ({ key: t.id, label: `#${t.name}` })),
+    [overview.data],
+  )
+  const links = useMemo<SceneLink[]>(
+    () => (overview.data?.links ?? []).map((l) => ({ work: l.work_key, device: l.tag_id })),
+    [overview.data],
+  )
 
   // Clearing the selection also leaves the zoom, a moment later: the first click of a double
   // click on the selected node clears it, and the second must be able to cancel that.
@@ -82,6 +100,13 @@ export function Literature() {
     if (zoomIn || zoom) zoomTo(s)
   }
   const clear = () => (zoom ? leave() : setSelected(null))
+  // From the search box's group headings or the panel: the list page of that kind.
+  const openHome = (kind: Selection['kind']) => {
+    stay()
+    setZoom(null)
+    setSelectedState(null)
+    setHome(kind)
+  }
 
   return (
     <div className="space-y-6">
@@ -104,14 +129,23 @@ export function Literature() {
         <Card className="gap-0 overflow-hidden py-0">
           <div className="border-b border-border/70 px-4 py-3">
             <SceneSearch
+              devices={devices}
               selected={selected}
               zoomed={zoom !== null}
               onChoose={choose}
               onClear={clear}
+              onHome={openHome}
             />
           </div>
           <div className="relative aspect-square max-h-[620px] w-full sm:aspect-[6/5]">
-            <DysonScene selected={selected} onPick={pick} focus={focus} zoom={zoom} />
+            <DysonScene
+              devices={devices}
+              links={links}
+              selected={selected}
+              onPick={pick}
+              focus={focus}
+              zoom={zoom}
+            />
             <p
               className={cn(
                 'pointer-events-none absolute top-3 left-4 text-xs text-muted-foreground',
@@ -137,13 +171,13 @@ export function Literature() {
         <Card className="py-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
           <div className="p-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             <DetailPanel
-              key={selected ? `${selected.kind}:${selected.key}` : 'overview'}
+              key={selected ? `${selected.kind}:${selected.key}` : (home ?? 'overview')}
               selected={selected}
+              home={home}
+              overview={overview.data}
               onSelect={setSelected}
-              notes={notes}
-              setNote={setNote}
+              onHome={openHome}
             />
-            <p className="mt-6 text-xs text-muted-foreground">{t(`${K}.savedLocally`)}</p>
           </div>
         </Card>
       </div>

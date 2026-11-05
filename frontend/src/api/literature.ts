@@ -1,0 +1,101 @@
+import { apiFetch } from './client'
+import type { ProfileSummary } from './requests'
+
+export interface QuoteRead {
+  id: string
+  work_key: string
+  author: ProfileSummary
+  body: string
+  page_start: number
+  page_end: number
+  // Analyses citing it; a cited quote can no longer be deleted.
+  cited_count: number
+  created_at: string
+}
+
+export interface TagRead {
+  id: string
+  name: string
+  // Analyses using it: in the work asked about, or in all works.
+  count: number
+}
+
+// A highlighted fragment of a covered quote, cited in the body as「(引文N)」.
+// Offsets count characters (code points), not UTF-16 units.
+export interface Highlight {
+  quote_id: string
+  number: number
+  start: number
+  end: number
+}
+
+export interface AnalysisRead {
+  id: string
+  work_key: string
+  author: ProfileSummary
+  body: string
+  quote_ids: string[]
+  highlights: Highlight[]
+  tags: TagRead[]
+  created_at: string
+}
+
+export interface WorkRead {
+  work_key: string
+  quotes: QuoteRead[]
+  analyses: AnalysisRead[]
+  // Tags used by this work's analyses, most used first.
+  tags: TagRead[]
+}
+
+export interface OverviewRead {
+  tags: TagRead[]
+  links: { work_key: string; tag_id: string; count: number }[]
+}
+
+export interface QuoteCreate {
+  body: string
+  page_start: number
+  page_end: number
+}
+
+export interface AnalysisCreate {
+  quote_ids: string[]
+  highlights: Highlight[]
+  tags: string[]
+  body: string
+}
+
+export function getOverview(): Promise<OverviewRead> {
+  return apiFetch<OverviewRead>('/literature/overview')
+}
+
+export function searchTags(q: string): Promise<TagRead[]> {
+  return apiFetch<TagRead[]>(`/literature/tags?q=${encodeURIComponent(q)}`)
+}
+
+export function getWork(workKey: string): Promise<WorkRead> {
+  return apiFetch<WorkRead>(`/literature/works/${workKey}`)
+}
+
+export function createQuote(workKey: string, payload: QuoteCreate): Promise<QuoteRead> {
+  return apiFetch<QuoteRead>(`/literature/works/${workKey}/quotes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteQuote(id: string): Promise<void> {
+  return apiFetch<void>(`/literature/quotes/${id}`, { method: 'DELETE' })
+}
+
+export function createAnalysis(workKey: string, payload: AnalysisCreate): Promise<AnalysisRead> {
+  return apiFetch<AnalysisRead>(`/literature/works/${workKey}/analyses`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteAnalysis(id: string): Promise<void> {
+  return apiFetch<void>(`/literature/analyses/${id}`, { method: 'DELETE' })
+}

@@ -1,16 +1,5 @@
-// Preset content of the literature tool: works on the outer shell, literary devices on the core,
-// and one analysis per (work, device). Draft written for Ken to review; Chinese only for now.
-// To add a work: append to WORKS and add its entries; a work without an entry for a device
-// simply has no link to that device.
-
-export interface Device {
-  key: string
-  name: string
-  // The question every work is compared on.
-  question: string
-  // What the comparison shows across all works.
-  synthesis: string
-}
+// The works of the literature tool (the sphere's outer shell). Everything students add to a work
+// — quotes, #device tags, analyses — lives in the database under the work's key.
 
 export interface Work {
   key: string
@@ -18,39 +7,7 @@ export interface Work {
   author: string
   year: number
   group?: string // works published together, e.g. 阿城「三王」
-  blurb: string
 }
-
-export const DEVICES: Device[] = [
-  {
-    key: 'imagery',
-    name: '意象 / 象征',
-    question: '作品里反复出现、承载含义的具体事物是什么？它和人物的处境、作品的主旨怎样联系？',
-    synthesis:
-      '四部作品的核心意象都落在具体的物上：画、食物与棋、树、字典。《月亮与六便士》的壁画被主人公下令烧掉，象征艺术只为自身完成；阿城三篇的意象都连着知青年代的物质匮乏——吃、砍树、抄字典——写的是人在匮乏中守住的东西。',
-  },
-  {
-    key: 'narration',
-    name: '叙述人称与视角',
-    question: '谁在讲故事？叙述者离主人公有多近，能知道多少？',
-    synthesis:
-      '四部都用第一人称「我」，但「我」与主人公的距离不同：《月亮与六便士》的「我」只间断见过主人公，后半部靠别人转述；《棋王》《树王》的「我」与主人公同处一地，是近距离的见证者；《孩子王》的「我」就是主人公本人。距离越远，主人公的内心越不透明。',
-  },
-  {
-    key: 'protagonist',
-    name: '主人公塑造',
-    question: '主人公的形象主要靠哪些手段立起来？作者有没有直接写他的内心？',
-    synthesis:
-      '四部都很少直接写主人公的心理，人物主要靠行为细节、简短的话语和对照人物立起来：思特里克兰德对照施特略夫，王一生的「吃」对照「棋」，肖疙瘩对照李立，「我」的教法对照抄课文的旧规矩。',
-  },
-  {
-    key: 'structure',
-    name: '结构与叙事顺序',
-    question: '故事按什么顺序展开？开头和结尾怎样安排？',
-    synthesis:
-      '阿城三篇基本顺叙，矛盾逐步聚到一个高潮场面（九局连环棋、砍树王、离开学校）；《月亮与六便士》先写主人公死后的名声再回头讲起，后半部改为多人转述拼接，结构本身就体现了「我」对他的认识是拼凑出来的。',
-  },
-]
 
 export const WORKS: Work[] = [
   {
@@ -58,7 +15,6 @@ export const WORKS: Work[] = [
     title: '月亮与六便士',
     author: '毛姆',
     year: 1919,
-    blurb: '伦敦证券经纪人思特里克兰德人到中年抛下家庭去学画，最终在塔希提完成一生的杰作。',
   },
   {
     key: 'chess',
@@ -66,7 +22,6 @@ export const WORKS: Work[] = [
     author: '阿城',
     year: 1984,
     group: '三王',
-    blurb: '知青王一生痴迷下棋，在物质极度匮乏的年代，以棋为精神寄托。',
   },
   {
     key: 'tree',
@@ -74,7 +29,6 @@ export const WORKS: Work[] = [
     author: '阿城',
     year: 1985,
     group: '三王',
-    blurb: '知青上山开荒，要砍倒一棵被称作「树王」的古树，山里人肖疙瘩拼力守护。',
   },
   {
     key: 'kids',
@@ -82,44 +36,11 @@ export const WORKS: Work[] = [
     author: '阿城',
     year: 1985,
     group: '三王',
-    blurb: '知青「我」被派去教书，面对没有课本、只会抄书的学生，换了一种教法。',
   },
 ]
 
-// Keyed `${work}:${device}`.
-export const ENTRIES: Record<string, string> = {
-  'moon:imagery':
-    '书名的「月亮」与「六便士」在正文里并不出现，一般认为来自评论界对毛姆前作《人生的枷锁》的评语：主人公只顾仰望月亮，却没看见脚下的六便士。正文中最重要的意象是塔希提木屋四壁的壁画：思特里克兰德在失明、病重中画成，又嘱咐妻子爱塔在他死后连房子一起烧掉。杰作在被世人看到之前就被毁掉，说明他追求的不是名声，而是表达本身。',
-  'moon:narration':
-    '第一人称旁观者「我」是一个年轻作家，只在伦敦、巴黎和主人公有过几次断续的接触；塔希提的部分「我」从未亲见，全靠尼科尔斯船长、蒂阿瑞、库特拉斯医生等人转述。主人公的内心因此始终不透明，读者和「我」一样只能从言行和传闻里拼出他；「我」不时发表道德评判，又承认自己看不透他，形成叙述者与人物价值观之间的张力。',
-  'moon:protagonist':
-    '几乎没有心理描写：思特里克兰德靠简短生硬的对话（大意是「我必须画画」）和违背常情的行为立起来——抛妻弃子、对救过自己的施特略夫恩将仇报。善良、成全他人的施特略夫是他的反衬；妻子、施特略夫、塔希提的人对他的评价互相矛盾，使他既是天才又冷酷无情，判断留给读者。',
-  'moon:structure':
-    '开篇先写思特里克兰德死后的声誉和几种互相矛盾的传记，再回到「我」初识他的时候，相当于先给结局、再讲过程。主体按「我」与他接触的先后顺叙（伦敦—巴黎），塔希提部分改为多个讲述者的转述拼接。结尾回到伦敦思特里克兰德太太的客厅，世俗生活与天才的一生并置收束。',
-  'chess:imagery':
-    '「吃」与「棋」是一对核心意象。王一生吃饭极其虔诚，连饭粒、油花都不放过，写的是生存之本；棋是他的精神寄托。母亲临终前用捡来的牙刷柄磨成一副没刻字的「无字棋」留给他，母爱和生活的艰难都压在这副棋里；九局连环大战之后他哭喊「妈」，两条线在高潮处合到一起。',
-  'chess:narration':
-    '第一人称「我」也是知青，是王一生的朋友和见证者。「我」写王一生多是外部观察：吃相、下棋时的神态、比赛后的虚脱；关键的内心（对母亲的感情、对棋的理解）通过他自述的往事和比赛后的哭声间接透出。叙述语言简省，近于白描。',
-  'chess:protagonist':
-    '王一生被叫作「棋呆子」，瘦小、节俭，对吃和棋都格外认真。塑造靠白描细节（吃饭的过程写得极细）、他自述的家世，以及九局盲棋的高潮场面：对九个人同时下盲棋时他一动不动，结束后才虚脱落泪。「吃」写人的根本需求，「棋」写人的精神，两者合起来是这个人物的核心。',
-  'chess:structure':
-    '基本顺叙：从知青下乡的车站开头，「我」在火车上认识王一生；中间插入王一生自述的身世；随后分别、重逢，矛盾聚到九局连环大战这个高潮；结尾以「我」对衣食与精神的感慨收束，由事入理。',
-  'tree:imagery':
-    '「树王」是山上一棵巨大的古树。开荒的知青要砍掉它，山里人肖疙瘩拼力守护。它象征自然以及人对自然的敬畏；砍倒它、随后烧山，写的是一种狂热对这种敬畏的摧毁。',
-  'tree:narration':
-    '第一人称「我」是开荒队里的一名知青，处在狂热的知青李立与沉默的肖疙瘩之间，较冷静地记录冲突的经过，很少替任何一方直接下结论。',
-  'tree:protagonist':
-    '肖疙瘩沉默寡言、身手了得，话很少，人物主要靠动作和沉默立起来。他与把砍树王当作破除迷信、改造自然的李立形成对照；树王被砍倒后不久他就去世，人物的命运和树连在一起。',
-  'tree:structure':
-    '顺叙。以知青上山开荒为线，矛盾逐步聚到砍不砍树王；高潮是砍树和烧山，结局是肖疙瘩之死。',
-  'kids:imagery':
-    '字典是核心意象。学生王福家里买不起字典，就一个字一个字地抄；「我」离开学校时把字典留给他，嘱咐他以后什么都不要抄，字典也不要抄。「抄」象征当时照本宣科的教育，「不要抄」是「我」想交给学生的东西：自己的思考和表达。',
-  'kids:narration':
-    '第一人称「我」，学生叫他「老杆儿」。和另两篇不同，这里的「我」就是主人公本人，读者能直接看到他的想法与犹豫；语气带自嘲，口语化。',
-  'kids:protagonist':
-    '「我」从知青被突然派去教书，发现学生没有课本，只会抄写；于是不再让他们抄课文，而是教他们把身边的真事写清楚。人物靠教学行为的变化立起来，学生王福的倔强与认真是重要的陪衬。',
-  'kids:structure':
-    '顺叙：上任—发现学生只会抄—改变教法—被撤掉教职、离开学校；结尾以留下字典的嘱咐收束，回扣全文的「抄」。',
-}
+export const findWork = (key: string | undefined) => WORKS.find((w) => w.key === key)
 
-export const entryKey = (work: string, device: string) => `${work}:${device}`
+// A work's own page; with `tag`, its analyses are filtered to that #tag.
+export const workPath = (key: string, tag?: string) =>
+  `/tools/literature/works/${key}${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`

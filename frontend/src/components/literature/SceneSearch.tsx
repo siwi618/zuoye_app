@@ -1,10 +1,10 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Maximize2, Search, X } from 'lucide-react'
+import { ChevronRight, Maximize2, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { DEVICES, WORKS } from '@/lib/literature/corpus'
-import type { Selection } from './DysonScene'
+import { WORKS } from '@/lib/literature/corpus'
+import type { CoreDevice, Selection } from './DysonScene'
 
 const K = 'tools.literature'
 
@@ -14,21 +14,34 @@ interface Item extends Selection {
   text: string // what the query is matched against
 }
 
+// A group's heading row, opening the side panel's list of all devices or all works.
+interface Heading {
+  home: Selection['kind']
+  title: string
+  count: number // all of the group, whatever the query
+}
+type Row = Item | Heading
+
 const same = (a: Selection | null, b: Selection) => a?.kind === b.kind && a?.key === b.key
 
 // One line however many devices and works there are: a search box whose list has two groups,
 // devices and works (each work with its author and year). Picking a row selects it and turns the
 // sphere to it; the zoom button on a row (or next to the current selection) opens its local graph.
+// Picking a group's heading opens the list of that group in the side panel.
 export function SceneSearch({
+  devices,
   selected,
   zoomed,
   onChoose,
   onClear,
+  onHome,
 }: {
+  devices: CoreDevice[]
   selected: Selection | null
   zoomed: boolean
   onChoose: (s: Selection, zoomIn: boolean) => void
   onClear: () => void
+  onHome: (kind: Selection['kind']) => void
 }) {
   const { t } = useTranslation()
   const listId = useId()
@@ -37,13 +50,15 @@ export function SceneSearch({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
 
-  const groups = useMemo<{ title: string; items: Item[] }[]>(
+  const groups = useMemo<{ kind: Selection['kind']; title: string; items: Item[] }[]>(
     () => [
       {
+        kind: 'device',
         title: t(`${K}.kindDevice`),
-        items: DEVICES.map((d) => ({ kind: 'device', key: d.key, label: d.name, text: d.name })),
+        items: devices.map((d) => ({ kind: 'device', key: d.key, label: d.label, text: d.label })),
       },
       {
+        kind: 'work',
         title: t(`${K}.kindWork`),
         items: WORKS.map((w) => ({
           kind: 'work',
@@ -54,14 +69,17 @@ export function SceneSearch({
         })),
       },
     ],
-    [t],
+    [t, devices],
   )
 
   const q = query.trim().toLowerCase()
   const shown = groups
     .map((g) => ({ ...g, items: g.items.filter((i) => !q || i.text.toLowerCase().includes(q)) }))
     .filter((g) => g.items.length > 0)
-  const flat = shown.flatMap((g) => g.items)
+  const headings = new Map<string, Heading>(
+    groups.map((g) => [g.kind, { home: g.kind, title: g.title, count: g.items.length }]),
+  )
+  const flat: Row[] = shown.flatMap((g) => [headings.get(g.kind)!, ...g.items])
   const total = groups.reduce((n, g) => n + g.items.length, 0)
   const current = selected && groups.flatMap((g) => g.items).find((i) => same(selected, i))
   const at = Math.min(active, flat.length - 1)
@@ -71,8 +89,9 @@ export function SceneSearch({
     setQuery('')
     setActive(0)
   }
-  const choose = (item: Item, zoomIn: boolean) => {
-    onChoose({ kind: item.kind, key: item.key }, zoomIn)
+  const choose = (row: Row, zoomIn: boolean) => {
+    if ('home' in row) onHome(row.home)
+    else onChoose({ kind: row.kind, key: row.key }, zoomIn)
     close()
     input.current?.blur()
   }
@@ -110,7 +129,8 @@ export function SceneSearch({
           placeholder={t(`${K}.searchPlaceholder`, { count: total })}
           onChange={(e) => {
             setQuery(e.target.value)
-            setActive(0)
+            // While typing, Enter goes to the first match rather than its group's heading.
+            setActive(e.target.value.trim() ? 1 : 0)
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
@@ -129,54 +149,74 @@ export function SceneSearch({
             onMouseDown={(e) => e.preventDefault()}
             className="absolute top-full right-0 left-0 z-20 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-soft-lg"
           >
-            {flat.length === 0 && (
+            {shown.length === 0 && (
               <p className="px-3 py-2 text-sm text-muted-foreground">
                 {t(`${K}.searchEmpty`, { query: query.trim() })}
               </p>
             )}
-            {shown.map((g) => (
-              <div key={g.title} role="group" aria-label={g.title}>
-                <div className="px-3 pt-2 pb-1 text-xs font-medium text-primary">{g.title}</div>
-                {g.items.map((item) => {
-                  const i = flat.indexOf(item)
-                  const on = same(selected, item)
-                  return (
-                    <div
-                      key={item.key}
-                      id={`${listId}-${i}`}
-                      role="option"
-                      aria-selected={i === at}
-                      onMouseEnter={() => setActive(i)}
-                      onClick={() => choose(item, false)}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-3 text-sm',
-                        i === at && 'bg-secondary',
-                      )}
-                    >
-                      <span className={cn('truncate', on && 'font-semibold text-primary')}>
-                        {item.label}
-                      </span>
-                      {item.meta && (
-                        <span className="text-xs text-muted-foreground">{item.meta}</span>
-                      )}
-                      <button
-                        type="button"
-                        tabIndex={-1}
-                        aria-label={t(`${K}.zoomInto`, { name: item.label })}
-                        title={t(`${K}.zoomInto`, { name: item.label })}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          choose(item, true)
-                        }}
-                        className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-primary"
+            {shown.map((g) => {
+              const heading = headings.get(g.kind)!
+              const h = flat.indexOf(heading)
+              return (
+                <div key={g.kind} role="group" aria-label={g.title}>
+                  <div
+                    id={`${listId}-${h}`}
+                    role="option"
+                    aria-selected={h === at}
+                    onMouseEnter={() => setActive(h)}
+                    onClick={() => choose(heading, false)}
+                    className={cn(
+                      'mt-1 flex cursor-pointer items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary',
+                      h === at && 'bg-secondary',
+                    )}
+                  >
+                    {g.title}
+                    <span className="ml-auto font-normal text-muted-foreground">
+                      {t(`${K}.seeAllCount`, { count: heading.count })}
+                    </span>
+                    <ChevronRight className="size-3.5 text-muted-foreground" />
+                  </div>
+                  {g.items.map((item) => {
+                    const i = flat.indexOf(item)
+                    const on = same(selected, item)
+                    return (
+                      <div
+                        key={item.key}
+                        id={`${listId}-${i}`}
+                        role="option"
+                        aria-selected={i === at}
+                        onMouseEnter={() => setActive(i)}
+                        onClick={() => choose(item, false)}
+                        className={cn(
+                          'flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-3 text-sm',
+                          i === at && 'bg-secondary',
+                        )}
                       >
-                        <Maximize2 className="size-3.5" />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
+                        <span className={cn('truncate', on && 'font-semibold text-primary')}>
+                          {item.label}
+                        </span>
+                        {item.meta && (
+                          <span className="text-xs text-muted-foreground">{item.meta}</span>
+                        )}
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          aria-label={t(`${K}.zoomInto`, { name: item.label })}
+                          title={t(`${K}.zoomInto`, { name: item.label })}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            choose(item, true)
+                          }}
+                          className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-primary"
+                        >
+                          <Maximize2 className="size-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
             <p className="border-t border-border/70 px-3 pt-2 pb-1 text-xs text-muted-foreground">
               {t(`${K}.searchKeys`)}
             </p>

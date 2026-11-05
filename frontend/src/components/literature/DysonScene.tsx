@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { DEVICES, ENTRIES, WORKS, entryKey } from '@/lib/literature/corpus'
+import { WORKS } from '@/lib/literature/corpus'
 import {
   type Mat3,
   type Projected,
@@ -92,33 +92,44 @@ const LIGHT: Vec3 = (() => {
   return [v[0] / l, v[1] / l, v[2] / l]
 })()
 
-// Nodes are spread evenly, then moved onto the nearest polyhedron vertex.
-const NODES: Node[] = (() => {
-  const devices = snapToVertices(spherePoints(DEVICES.length, CORE_R, 0.7), CORE_MESH)
-  const works = snapToVertices(spherePoints(WORKS.length, SHELL_R), SHELL_MESH)
-  return [
-    ...devices.map((base, i) => ({
-      kind: 'device' as const,
-      key: DEVICES[i].key,
-      label: DEVICES[i].name,
-      base,
-    })),
-    ...works.map((base, i) => ({
-      kind: 'work' as const,
-      key: WORKS[i].key,
-      label: `《${WORKS[i].title}》`,
-      initial: [...WORKS[i].title][0],
-      base,
-    })),
-  ]
-})()
+// A device on the core (a #tag students use) and a work–device link.
+export interface CoreDevice {
+  key: string
+  label: string
+}
+export interface Link {
+  work: string
+  device: string
+}
 
-const EDGES = WORKS.flatMap((w) =>
-  DEVICES.filter((d) => ENTRIES[entryKey(w.key, d.key)]).map((d) => ({
-    work: w.key,
-    device: d.key,
-  })),
-)
+interface Graph {
+  nodes: Node[]
+  edges: Link[]
+}
+
+// Nodes are spread evenly, then moved onto the nearest polyhedron vertex.
+function buildGraph(devices: CoreDevice[], edges: Link[]): Graph {
+  const core = snapToVertices(spherePoints(devices.length, CORE_R, 0.7), CORE_MESH)
+  const works = snapToVertices(spherePoints(WORKS.length, SHELL_R), SHELL_MESH)
+  return {
+    nodes: [
+      ...core.map((base, i) => ({
+        kind: 'device' as const,
+        key: devices[i].key,
+        label: devices[i].label,
+        base,
+      })),
+      ...works.map((base, i) => ({
+        kind: 'work' as const,
+        key: WORKS[i].key,
+        label: `《${WORKS[i].title}》`,
+        initial: [...WORKS[i].title][0],
+        base,
+      })),
+    ],
+    edges,
+  }
+}
 
 // Works published together (阿城「三王」) are joined by a faint dashed line on the shell.
 const GROUP_LINKS = WORKS.flatMap((w, i) => {
@@ -149,9 +160,9 @@ function facing(b: Vec3, from: Mat3): Mat3 {
 }
 
 // Nodes directly linked to node `k` (works ↔ devices).
-function neighbours(k: string): string[] {
+function neighbours(g: Graph, k: string): string[] {
   const out: string[] = []
-  for (const e of EDGES) {
+  for (const e of g.edges) {
     if (k === id('work', e.work)) out.push(id('device', e.device))
     if (k === id('device', e.device)) out.push(id('work', e.work))
   }
@@ -160,15 +171,15 @@ function neighbours(k: string): string[] {
 
 // Ring slot (angle) for every neighbour of `k`, in the order they appear around `k` once the
 // scene has turned `k` to the front, so nodes glide out to the ring without crossing.
-function ringAngles(k: string, from: Mat3): Map<string, number> {
-  const node = NODES.find((n) => id(n.kind, n.key) === k)!
+function ringAngles(g: Graph, k: string, from: Mat3): Map<string, number> {
+  const node = g.nodes.find((n) => id(n.kind, n.key) === k)!
   const view = facing(node.base, from)
   const at = (key: string) => {
-    const n = NODES.find((x) => id(x.kind, x.key) === key)!
+    const n = g.nodes.find((x) => id(x.kind, x.key) === key)!
     return project(apply(view, n.base))
   }
   const c = at(k)
-  const around = neighbours(k)
+  const around = neighbours(g, k)
     .map((key) => {
       const p = at(key)
       return { key, a: Math.atan2(p.y - c.y, p.x - c.x) }
@@ -189,10 +200,11 @@ function labelFont(kind: Selection['kind'], scale: number, zt: number, ppu: numb
 
 // Ring radius for a local graph: as large as RING_R, but small enough that every label on the
 // ring stays inside the scene horizontally (on a phone the labels are relatively wider).
-function ringRadius(ring: Map<string, number>, ppu: number) {
+function ringRadius(g: Graph, ring: Map<string, number>, ppu: number) {
   let r = RING_R
   for (const [k, a] of ring) {
-    const n = NODES.find((x) => id(x.kind, x.key) === k)!
+    const n = g.nodes.find((x) => id(x.kind, x.key) === k)
+    if (!n) continue
     const scale = ZOOM_SCALE.ring
     const font = labelFont(n.kind, scale, 1, ppu)
     const room = VIEW_W / 2 - 0.04 - (NODE_R[n.kind] * scale + 0.03) - labelWidth(n.label, font)
@@ -206,6 +218,7 @@ function ringRadius(ring: Map<string, number>, ppu: number) {
 // most room: the largest radius, and no node level with the centre, where the centre's label
 // sits. With `anchor` (a centre move), it also prefers putting that node near the given angle.
 function placeRing(
+  g: Graph,
   ring: Map<string, number>,
   ppu: number,
   anchor?: { key: string; angle: number },
@@ -221,7 +234,7 @@ function placeRing(
     const turn = (j / 48) * 2 * Math.PI
     const candidate = new Map(keys.map((k, i) => [k, first + turn + i * step]))
     const level = Math.min(...[...candidate.values()].map((a) => Math.abs(Math.sin(a))))
-    let score = ringRadius(candidate, ppu) * (0.55 + 0.45 * Math.min(level * 2, 1))
+    let score = ringRadius(g, candidate, ppu) * (0.55 + 0.45 * Math.min(level * 2, 1))
     if (anchor && candidate.has(anchor.key)) {
       const d = Math.abs(
         Math.atan2(
@@ -247,11 +260,15 @@ function labelWidth(label: string, fontSize: number) {
 }
 
 export function DysonScene({
+  devices,
+  links,
   selected,
   onPick,
   focus,
   zoom,
 }: {
+  devices: CoreDevice[]
+  links: Link[]
   selected: Selection | null
   // `clicks`: 1 = single click, 2 = second click of a double click, 0 = keyboard.
   onPick: (s: Selection, clicks: number) => void
@@ -292,6 +309,11 @@ export function DysonScene({
   useEffect(() => {
     viewNow.current = view
   }, [view])
+  const graph = useMemo(() => buildGraph(devices, links), [devices, links])
+  const graphNow = useRef(graph)
+  useEffect(() => {
+    graphNow.current = graph
+  }, [graph])
   // After centring a node the idle spin stays off (it would carry the node away) until the
   // visitor drags or clears the selection.
   const held = useRef(false)
@@ -345,7 +367,8 @@ export function DysonScene({
         setZoomed({
           k,
           ring: placeRing(
-            ringAngles(k, viewNow.current),
+            graphNow.current,
+            ringAngles(graphNow.current, k, viewNow.current),
             ppuNow.current,
             theta === undefined ? undefined : { key: prev.k, angle: theta + Math.PI },
           ),
@@ -355,7 +378,14 @@ export function DysonScene({
         run(SHIFT_MS, setSt, () => setShift(null))
         return () => cancelAnimationFrame(frame)
       }
-      setZoomed({ k, ring: placeRing(ringAngles(k, viewNow.current), ppuNow.current) })
+      setZoomed({
+        k,
+        ring: placeRing(
+          graphNow.current,
+          ringAngles(graphNow.current, k, viewNow.current),
+          ppuNow.current,
+        ),
+      })
     }
     setShift(null)
     const from = ztNow.current
@@ -367,7 +397,7 @@ export function DysonScene({
 
   useEffect(() => {
     if (!focus) return
-    const node = NODES.find((n) => n.kind === focus.kind && n.key === focus.key)
+    const node = graphNow.current.nodes.find((n) => n.kind === focus.kind && n.key === focus.key)
     if (!node) return
     const from = viewNow.current
     // One rotation, about a fixed axis, from here to facing the viewer.
@@ -474,12 +504,12 @@ export function DysonScene({
   const active = hover ?? (selected ? id(selected.kind, selected.key) : null)
   const linked = useMemo(() => {
     const set = new Set<string>(active ? [active] : [])
-    for (const e of EDGES) {
+    for (const e of graph.edges) {
       if (active === id('work', e.work)) set.add(id('device', e.device))
       if (active === id('device', e.device)) set.add(id('work', e.work))
     }
     return set
-  }, [active])
+  }, [active, graph])
 
   const turn = (p: Vec3) => apply(view, p)
   const shellLit = hover?.startsWith('work:') ?? false
@@ -492,13 +522,13 @@ export function DysonScene({
   const labelSize = (n: Node, scale: number) => labelFont(n.kind, scale, zt, ppu)
   const labelGap = (n: Node, scale: number) => nodeRadius(n, scale) + 0.03
 
-  const ringR = zoomed ? ringRadius(zoomed.ring, ppu) : RING_R
+  const ringR = zoomed ? ringRadius(graph, zoomed.ring, ppu) : RING_R
 
   // Node positions: projected from the sphere, then blended towards the local-graph layout.
   // `gone` is how far a node has faded out (nodes unrelated to the zoomed one).
   const pos = new Map<string, Projected>()
   const gone = new Map<string, number>()
-  for (const n of NODES) {
+  for (const n of graph.nodes) {
     const k = id(n.kind, n.key)
     const p = project(turn(n.base))
     if (!zooming) {
@@ -600,15 +630,17 @@ export function DysonScene({
   // labels out of its way. A few passes are plenty.
   const labelY = new Map<string, number>()
   {
-    const boxes = NODES.filter((n) => (gone.get(id(n.kind, n.key)) ?? 0) < 0.5).map((n) => {
-      const k = id(n.kind, n.key)
-      const p = pos.get(k)!
-      const fs = labelSize(n, p.scale)
-      const gap = labelGap(n, p.scale)
-      const w = labelWidth(n.label, fs)
-      const x0 = p.x >= 0 ? p.x + gap : p.x - gap - w
-      return { k, work: n.kind === 'work', x0, x1: x0 + w, y: p.y, h: fs * 1.5 }
-    })
+    const boxes = graph.nodes
+      .filter((n) => (gone.get(id(n.kind, n.key)) ?? 0) < 0.5)
+      .map((n) => {
+        const k = id(n.kind, n.key)
+        const p = pos.get(k)!
+        const fs = labelSize(n, p.scale)
+        const gap = labelGap(n, p.scale)
+        const w = labelWidth(n.label, fs)
+        const x0 = p.x >= 0 ? p.x + gap : p.x - gap - w
+        return { k, work: n.kind === 'work', x0, x1: x0 + w, y: p.y, h: fs * 1.5 }
+      })
     for (let pass = 0; pass < 4; pass++) {
       for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) {
@@ -726,7 +758,7 @@ export function DysonScene({
     )
   }
 
-  const edges = EDGES.map((e) => {
+  const edges = graph.edges.map((e) => {
     const a = pos.get(id('work', e.work))!
     const b = pos.get(id('device', e.device))!
     const on = active === id('work', e.work) || active === id('device', e.device)
@@ -773,9 +805,9 @@ export function DysonScene({
     />
   )
 
-  const nodes = NODES.map((n) => ({ n, z: pos.get(id(n.kind, n.key))!.z })).sort(
-    (a, b) => a.z - b.z,
-  )
+  const nodes = graph.nodes
+    .map((n) => ({ n, z: pos.get(id(n.kind, n.key))!.z }))
+    .sort((a, b) => a.z - b.z)
   const behind = nodes.filter((x) => x.z < 0)
   const front = nodes.filter((x) => x.z >= 0)
 
