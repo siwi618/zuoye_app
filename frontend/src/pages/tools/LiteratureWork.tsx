@@ -9,7 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
-import { createQuote, deleteAnalysis, deleteQuote, getWork, type QuoteRead } from '@/api/literature'
+import {
+  createQuote,
+  deleteAnalysis,
+  deleteQuote,
+  getWork,
+  type QuoteRead,
+  type WorkRead,
+} from '@/api/literature'
 import { findWork } from '@/lib/literature/corpus'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisCard } from '@/components/literature/AnalysisCard'
@@ -19,6 +26,41 @@ const K = 'tools.literature'
 // Quotes shown before「显示全部」.
 const SHOWN_QUOTES = 5
 const MAX_PICKED = 10
+
+// Deleting hides the item at once instead of when the work has reloaded (a few seconds later),
+// so it can't be pressed a second time meanwhile; a 404 means it is already gone, which is done.
+function useRemove(
+  workKey: string,
+  remove: (id: string) => Promise<void>,
+  drop: (work: WorkRead, id: string) => WorkRead,
+) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const queryKey = ['literature-work', workKey]
+  return useMutation({
+    mutationFn: async (id: string) => {
+      try {
+        await remove(id)
+      } catch (e) {
+        if (!(e instanceof Error && e.message.startsWith('API 404'))) throw e
+      }
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey })
+      const prev = queryClient.getQueryData<WorkRead>(queryKey)
+      if (prev) queryClient.setQueryData(queryKey, drop(prev, id))
+      return { prev }
+    },
+    onError: (e, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev)
+      toast.error(e instanceof Error ? e.message : t('common.error'))
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey })
+      void queryClient.invalidateQueries({ queryKey: ['literature-overview'] })
+    },
+  })
+}
 
 function QuoteForm({ workKey, onClose }: { workKey: string; onClose: () => void }) {
   const { t } = useTranslation()
@@ -107,21 +149,16 @@ function QuoteRow({
   canPick,
   mine,
   onToggle,
+  onDelete,
 }: {
   quote: QuoteRead
   picked: boolean
   canPick: boolean
   mine: boolean
   onToggle: () => void
+  onDelete: () => void
 }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const remove = useMutation({
-    mutationFn: () => deleteQuote(q.id),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ['literature-work', q.work_key] }),
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
-  })
   return (
     <li
       className={cn(
@@ -152,8 +189,7 @@ function QuoteRow({
           {mine && q.cited_count === 0 && (
             <button
               type="button"
-              disabled={remove.isPending}
-              onClick={() => window.confirm(t(`${K}.deleteQuoteConfirm`)) && remove.mutate()}
+              onClick={() => window.confirm(t(`${K}.deleteQuoteConfirm`)) && onDelete()}
               className="ml-auto inline-flex items-center gap-1 hover:text-destructive"
             >
               <Trash2 className="size-3.5" />
@@ -172,7 +208,6 @@ export function LiteratureWork() {
   const { key } = useParams<{ key: string }>()
   const work = findWork(key)
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const userId = useAuthStore((s) => s.user?.id)
   const [params, setParams] = useSearchParams()
   const tagFilter = params.get('tag')
@@ -190,14 +225,14 @@ export function LiteratureWork() {
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
 
-  const removeAnalysis = useMutation({
-    mutationFn: deleteAnalysis,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['literature-work', key] })
-      void queryClient.invalidateQueries({ queryKey: ['literature-overview'] })
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
-  })
+  const removeAnalysis = useRemove(key ?? '', deleteAnalysis, (w, id) => ({
+    ...w,
+    analyses: w.analyses.filter((a) => a.id !== id),
+  }))
+  const removeQuote = useRemove(key ?? '', deleteQuote, (w, id) => ({
+    ...w,
+    quotes: w.quotes.filter((q) => q.id !== id),
+  }))
 
   if (!work) {
     return (
@@ -287,6 +322,10 @@ export function LiteratureWork() {
                   canPick={picked.length < MAX_PICKED}
                   mine={q.author.id === userId}
                   onToggle={() => toggle(q.id)}
+                  onDelete={() => {
+                    setPicked((p) => p.filter((x) => x !== q.id))
+                    removeQuote.mutate(q.id)
+                  }}
                 />
               ))}
             </ul>
