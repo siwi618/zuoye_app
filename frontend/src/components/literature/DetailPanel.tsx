@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { OverviewRead } from '@/api/literature'
 import { WORKS, findWork, workPath } from '@/lib/literature/corpus'
 import type { Selection } from './DysonScene'
+import { IntroBlock } from './IntroBlock'
 
 const K = 'tools.literature'
 
@@ -196,6 +197,10 @@ export function DetailPanel({
             {t(`${K}.tagUsedBy`, { count: tag.count })}
           </p>
         </header>
+        <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
+          <h3 className="text-xs font-medium text-primary">{t(`${K}.introLabel`)}</h3>
+          <IntroBlock key={tag.name} kind="device" subject={tag.name} compact />
+        </section>
         <div className="space-y-2">
           {works.map((l) => {
             const w = findWork(l.work_key)!

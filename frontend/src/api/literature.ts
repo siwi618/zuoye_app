@@ -184,3 +184,40 @@ export function toggleAnalysisLike(id: string): Promise<{ liked: boolean; like_c
     method: 'POST',
   })
 }
+
+// Introductions anyone can edit: a work's (by its key) or a #device's (by its name).
+export type IntroKind = 'work' | 'device'
+
+export interface IntroVersion {
+  id: string
+  number: number
+  body: string
+  editor: ProfileSummary
+  created_at: string
+}
+
+export interface IntroRead {
+  kind: IntroKind
+  key: string
+  current: IntroVersion | null // null: nobody has written one yet
+  version_count: number
+}
+
+const introPath = (kind: IntroKind, key: string) =>
+  `/literature/intros/${kind}/${encodeURIComponent(key)}`
+
+export function getIntro(kind: IntroKind, key: string): Promise<IntroRead> {
+  return apiFetch<IntroRead>(introPath(kind, key))
+}
+
+export function introHistory(kind: IntroKind, key: string): Promise<IntroVersion[]> {
+  return apiFetch<IntroVersion[]>(`${introPath(kind, key)}/history`)
+}
+
+// Saves the text as the next version; bringing back an older text is saving it again.
+export function saveIntro(kind: IntroKind, key: string, body: string): Promise<IntroRead> {
+  return apiFetch<IntroRead>(introPath(kind, key), {
+    method: 'PUT',
+    body: JSON.stringify({ body }),
+  })
+}

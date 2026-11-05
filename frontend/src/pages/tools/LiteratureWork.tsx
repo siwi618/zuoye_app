@@ -44,6 +44,7 @@ import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisCard } from '@/components/literature/AnalysisCard'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
 import { AnalysisFilter } from '@/components/literature/AnalysisFilter'
+import { IntroBlock } from '@/components/literature/IntroBlock'
 
 const K = 'tools.literature'
 // Quotes shown before「显示全部」.
@@ -537,6 +538,7 @@ export function LiteratureWork() {
             {work.group && ` · ${t(`${K}.group`, { name: work.group })}`}
           </p>
         </header>
+        <IntroBlock kind="work" subject={work.key} />
       </div>
 
       {data.isError && (
