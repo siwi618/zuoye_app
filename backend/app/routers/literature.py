@@ -8,10 +8,13 @@ from app.schemas.literature import (
     AnalysisCreate,
     AnalysisPage,
     AnalysisSort,
+    CommentSort,
     IntroKind,
     IntroRead,
     IntroUpdate,
     IntroVersion,
+    LitCommentCreate,
+    LitCommentRead,
     AnalysisRead,
     OverviewRead,
     QuoteCreate,
@@ -127,3 +130,27 @@ def update_intro(
     user: CurrentUserDep, kind: IntroKind, key: str, payload: IntroUpdate
 ) -> IntroRead:
     return svc.update_intro(user.id, kind, _intro_key_ok(kind, key), payload)
+
+
+@router.get("/analyses/{analysis_id}/comments", response_model=list[LitCommentRead])
+def list_comments(
+    user: CurrentUserDep, analysis_id: str, sort: CommentSort = Query(default=CommentSort.top)
+) -> list[LitCommentRead]:
+    return svc.list_comments(user.id, analysis_id, sort)
+
+
+@router.post("/analyses/{analysis_id}/comments", response_model=LitCommentRead, status_code=201)
+def create_comment(
+    user: CurrentUserDep, analysis_id: str, payload: LitCommentCreate
+) -> LitCommentRead:
+    return svc.create_comment(user.id, analysis_id, payload)
+
+
+@router.delete("/comments/{comment_id}", status_code=204)
+def delete_comment(user: CurrentUserDep, comment_id: str) -> None:
+    svc.delete_comment(user.id, comment_id)
+
+
+@router.post("/comments/{comment_id}/like", response_model=LikeResult)
+def toggle_comment_like(user: CurrentUserDep, comment_id: str) -> LikeResult:
+    return svc.toggle_comment_like(user.id, comment_id)

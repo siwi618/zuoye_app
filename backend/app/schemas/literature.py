@@ -120,6 +120,7 @@ class AnalysisRead(BaseModel):
     tags: list[TagRead]
     like_count: int
     liked_by_me: bool
+    comment_count: int = 0
     created_at: datetime
 
 
@@ -180,3 +181,33 @@ class IntroRead(BaseModel):
     key: str
     current: IntroVersion | None  # None: nobody has written one yet
     version_count: int
+
+
+# Comments on analyses, like the forum's: two levels, likes, no attachments.
+CommentBodyStr = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+]
+
+
+class CommentSort(str, Enum):
+    top = "top"  # most liked first
+    new = "new"
+
+
+class LitCommentCreate(BaseModel):
+    body: CommentBodyStr
+    # Set to reply to a comment (top-level or a reply) on the same analysis.
+    reply_to_id: str | None = None
+
+
+class LitCommentRead(BaseModel):
+    id: str
+    analysis_id: str
+    author: ProfileSummary
+    body: str
+    like_count: int
+    liked_by_me: bool
+    created_at: datetime
+    # Replies only: the thread's top-level comment, and whose comment was answered.
+    parent_id: str | None = None
+    reply_to: ProfileSummary | None = None

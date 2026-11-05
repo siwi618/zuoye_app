@@ -9,12 +9,15 @@ from app.schemas.literature import (
     AnalysisCreate,
     AnalysisPage,
     AnalysisSort,
+    CommentSort,
     AnalysisRead,
     CitedQuote,
     HighlightRead,
     IntroRead,
     IntroUpdate,
     IntroVersion,
+    LitCommentCreate,
+    LitCommentRead,
     OverviewRead,
     QuoteCreate,
     QuoteRead,
@@ -59,7 +62,7 @@ _QUOTE_EDITS = (
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
 _ANALYSIS_FULL = (
-    f"id, work_key, body, like_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
+    f"id, work_key, body, like_count, comment_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
     "lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, version_id, "
     "lit_quote_versions(id, number, body, page_start, page_end, edition), "
@@ -309,7 +312,7 @@ def _analysis_read(a: dict, visible_quotes: set[str], counts: Counter) -> Analys
         highlights=highlights,
         tags=sorted(tags, key=lambda t: -t.count),
         like_count=a["like_count"], liked_by_me=bool(a.get("lit_analysis_likes")),
-        created_at=a["created_at"],
+        comment_count=a.get("comment_count", 0), created_at=a["created_at"],
     )
 
 
@@ -736,3 +739,116 @@ def update_intro(user_id: str, kind: str, key: str, payload: IntroUpdate) -> Int
             if exc.code != _UNIQUE_VIOLATION or attempt == 2:
                 raise
     return get_intro(kind, key)
+
+
+# ---------------------------------------------------------------- comments on analyses
+
+_COMMENT = (
+    "id, analysis_id, body, like_count, created_at, parent_id, moderation_flagged, "
+    f"author:profiles!lit_analysis_comments_author_id_fkey({_PROFILE}), "
+    f"reply_to:profiles!lit_analysis_comments_reply_to_user_id_fkey({_PROFILE}), "
+    "lit_comment_likes(user_id)"
+)
+
+
+def _visible_analysis(analysis_id: str) -> dict:
+    row = _analysis_row(analysis_id)
+    if row["moderation_flagged"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+    return row
+
+
+def _comment_read(r: dict) -> LitCommentRead:
+    reply_to = r.get("reply_to")
+    return LitCommentRead(
+        id=r["id"], analysis_id=r["analysis_id"], author=_author(r), body=r["body"],
+        like_count=r["like_count"], liked_by_me=bool(r.get("lit_comment_likes")),
+        created_at=r["created_at"], parent_id=r.get("parent_id"),
+        reply_to=ProfileSummary(**reply_to) if reply_to and r.get("parent_id") else None,
+    )
+
+
+def list_comments(user_id: str, analysis_id: str, sort: CommentSort) -> list[LitCommentRead]:
+    """An analysis's comments and replies; one query. Top-level comments in the asked order,
+    replies as they come (the page puts them oldest first under their thread)."""
+    _visible_analysis(analysis_id)
+    query = (
+        get_supabase().table("lit_analysis_comments").select(_COMMENT)
+        .eq("analysis_id", analysis_id).eq("moderation_flagged", False)
+        .eq("lit_comment_likes.user_id", user_id)
+    )
+    if sort == CommentSort.top:
+        query = query.order("like_count", desc=True).order("created_at")
+    else:
+        query = query.order("created_at", desc=True)
+    rows = [r for r in (query.execute().data or []) if _shown(r)]
+    # A reply is hidden along with its thread's top-level comment.
+    tops = {r["id"] for r in rows if not r.get("parent_id")}
+    return [_comment_read(r) for r in rows if not r.get("parent_id") or r["parent_id"] in tops]
+
+
+def _comment_row(comment_id: str) -> dict:
+    rows = (
+        get_supabase().table("lit_analysis_comments")
+        .select("id, analysis_id, author_id, parent_id, moderation_flagged")
+        .eq("id", comment_id).limit(1).execute().data
+        or []
+    )
+    if not rows or rows[0]["moderation_flagged"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    return rows[0]
+
+
+def create_comment(user_id: str, analysis_id: str, payload: LitCommentCreate) -> LitCommentRead:
+    _visible_analysis(analysis_id)
+    parent_id = reply_to_user_id = None
+    if payload.reply_to_id:
+        target = _comment_row(payload.reply_to_id)
+        if target["analysis_id"] != analysis_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        # Replies to a reply join the same thread, under its top-level comment.
+        parent_id = target.get("parent_id") or target["id"]
+        reply_to_user_id = target["author_id"]
+    moderated = ensure_allowed(payload.body)
+    inserted = (
+        get_supabase()
+        .table("lit_analysis_comments")
+        .insert({
+            "analysis_id": analysis_id, "author_id": user_id, "body": payload.body,
+            "parent_id": parent_id, "reply_to_user_id": reply_to_user_id,
+            "moderated": moderated,
+        })
+        .execute()
+        .data
+    )
+    row = (inserted or [None])[0]
+    if not row:
+        raise _reject("Failed to create comment", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    profiles = _fetch_profiles({user_id} | ({reply_to_user_id} if reply_to_user_id else set()))
+    return LitCommentRead(
+        id=row["id"], analysis_id=analysis_id, author=ProfileSummary(**profiles[user_id]),
+        body=row["body"], like_count=0, liked_by_me=False, created_at=row["created_at"],
+        parent_id=parent_id,
+        reply_to=(
+            ProfileSummary(**profiles[reply_to_user_id])
+            if reply_to_user_id in profiles else None
+        ),
+    )
+
+
+def delete_comment(user_id: str, comment_id: str) -> None:
+    """The author deletes their comment; a top-level comment takes its replies with it."""
+    if _comment_row(comment_id)["author_id"] != user_id:
+        raise _reject("Only the author can delete this comment", status.HTTP_403_FORBIDDEN)
+    get_supabase().table("lit_analysis_comments").delete().eq("id", comment_id).execute()
+
+
+def toggle_comment_like(user_id: str, comment_id: str) -> LikeResult:
+    _comment_row(comment_id)
+    liked = _toggle_like("lit_comment_likes", "comment_id", comment_id, user_id)
+    count = (
+        get_supabase().table("lit_analysis_comments").select("like_count")
+        .eq("id", comment_id).limit(1).execute().data
+        or [{"like_count": 0}]
+    )[0]["like_count"]
+    return LikeResult(liked=liked, like_count=count)
