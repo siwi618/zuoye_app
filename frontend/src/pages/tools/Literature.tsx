@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -44,38 +44,28 @@ export function Literature() {
     [overview.data],
   )
 
-  // Clearing the selection also leaves the zoom, a moment later: the first click of a double
-  // click on the selected node clears it, and the second must be able to cancel that.
-  const leaveTimer = useRef(0)
-  const stay = () => window.clearTimeout(leaveTimer.current)
-  useEffect(() => stay, [])
-
-  // Spheres in the scene: one click selects, a click on the selected one clears it, a double
-  // click selects it, turns the scene so it faces the viewer and zooms into its local graph.
-  // In the local graph a single click on a surrounding node already makes it the centre.
-  // `clicks` is the event's detail: the second click of a double click arrives with 2, so it never
-  // undoes the first (keyboard activation arrives with 0 and simply toggles).
+  // Spheres in the scene: one click opens that node's local graph (selects it, turns it to face the
+  // viewer and zooms in). In the local graph a click on a surrounding node makes it the centre, and
+  // a click on the centre goes back to the whole sphere. `clicks` is the event's detail: the second
+  // click of a double click arrives with 2 and is ignored, or it would land on the node that has
+  // just become the centre and leave again (keyboard activation arrives with 0).
   // Setting the same centre again would restart the scene's zoom effect and cut short a centre
-  // move still running (the second click of a double click on a surrounding node).
+  // move still running.
   const zoomTo = (s: Selection) => setZoom((z) => (z?.kind === s.kind && z?.key === s.key ? z : s))
 
   const pick = (s: Selection, clicks: number) => {
-    stay()
-    const isCentre = zoom?.kind === s.kind && zoom?.key === s.key
-    if (clicks >= 2 || (zoom && !isCentre)) {
-      setSelected(s)
-      setFocus((f) => ({ ...s, nonce: (f?.nonce ?? 0) + 1 }))
-      zoomTo(s)
+    if (clicks >= 2) return
+    if (zoom?.kind === s.kind && zoom?.key === s.key) {
+      leave()
       return
     }
-    const on = selected?.kind === s.kind && selected?.key === s.key
-    setSelected(on ? null : s)
-    if (on && zoom) leaveTimer.current = window.setTimeout(() => setZoom(null), 280)
+    setSelected(s)
+    setFocus((f) => ({ ...s, nonce: (f?.nonce ?? 0) + 1 }))
+    zoomTo(s)
   }
 
   // Back to the whole sphere, with nothing selected (Esc or the Back button).
   const leave = () => {
-    stay()
     setZoom(null)
     setSelected(null)
   }
@@ -83,7 +73,6 @@ export function Literature() {
     if (!zoom) return
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      stay()
       setZoom(null)
       setSelected(null)
     }
@@ -94,7 +83,6 @@ export function Literature() {
   // From the search box: select and turn the sphere to it; `zoomIn` also opens its local graph.
   // Already in a local graph, the choice becomes the new centre.
   const choose = (s: Selection, zoomIn: boolean) => {
-    stay()
     setSelected(s)
     setFocus((f) => ({ ...s, nonce: (f?.nonce ?? 0) + 1 }))
     if (zoomIn || zoom) zoomTo(s)
@@ -102,7 +90,6 @@ export function Literature() {
   const clear = () => (zoom ? leave() : setSelected(null))
   // From the search box's group headings or the panel: the list page of that kind.
   const openHome = (kind: Selection['kind']) => {
-    stay()
     setZoom(null)
     setSelectedState(null)
     setHome(kind)

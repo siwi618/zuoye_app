@@ -54,6 +54,13 @@ const SPIN = 0.12 // rad/s when idle
 // Starting orientation: turned a little sideways and tipped slightly towards the viewer.
 const INITIAL_VIEW: Mat3 = mul(aroundX(-0.28), aroundY(0.4))
 const DRAG_PX = 4 // movement that turns a press into a drag
+// Opening: like a globe set spinning, the sphere grows from small to full size while it turns an
+// extra half turn that slows into the idle spin. The text is left out until it has grown (a size
+// that changes every frame makes the browser re-shape the CJK labels; see TEXT_STEP_PX), then fades in.
+const INTRO_MS = 1300
+const INTRO_FROM = 0.12
+const INTRO_TURN = Math.PI
+const easeOut = (k: number) => 1 - (1 - k) ** 3
 const VIEW_W = 2.4 // viewBox width in scene units
 // Mesh line opacity: faint by default, brighter on the layer whose node is under the pointer.
 const MESH = {
@@ -278,6 +285,30 @@ export function DysonScene({
   const { t } = useTranslation()
   const svg = useRef<SVGSVGElement>(null)
   const [view, setView] = useState<Mat3>(INITIAL_VIEW)
+  // Opening progress 0 → 1; with reduced motion the sphere is simply there.
+  const [intro, setIntro] = useState(() =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0,
+  )
+  const introSkip = useRef(false)
+  useEffect(() => {
+    if (intro >= 1) return
+    // Time is added frame by frame with each step capped, so the busy first frames while the page
+    // is still mounting slow the opening down instead of skipping most of it.
+    let frame = 0
+    let last = 0
+    let elapsed = 0
+    const step = (now: number) => {
+      elapsed += last ? Math.min(now - last, 40) : 0
+      last = now
+      const k = introSkip.current ? 1 : Math.min(1, elapsed / INTRO_MS)
+      setIntro(k)
+      if (k < 1) frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+    // Runs once, on opening.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [hover, setHover] = useState<string | null>(null)
   // x/y: where the press started; lastX/lastY: the previous move, for incremental turns.
   const drag = useRef<{
@@ -467,6 +498,8 @@ export function DysonScene({
 
   // Drag anywhere on the scene to turn it. Listeners on window so a node still gets its click.
   const startDrag = (e: React.PointerEvent) => {
+    // Taking hold of the sphere ends the opening at once.
+    introSkip.current = true
     // The local graph is flat: no turning while zoomed in.
     if (zoom) return
     drag.current = { x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, moved: false }
@@ -511,7 +544,10 @@ export function DysonScene({
     return set
   }, [active, graph])
 
-  const turn = (p: Vec3) => apply(view, p)
+  const introE = easeOut(intro)
+  const shownView = intro < 1 ? mul(aroundY(-(1 - introE) * INTRO_TURN), view) : view
+  const textOn = intro >= 1
+  const turn = (p: Vec3) => apply(shownView, p)
   const shellLit = hover?.startsWith('work:') ?? false
   const coreLit = hover?.startsWith('device:') ?? false
   const mesh = (k: keyof typeof MESH, lit: boolean) => ({
@@ -620,6 +656,7 @@ export function DysonScene({
   }
 
   const choose = (n: Node, clicks: number) => {
+    introSkip.current = true
     if (suppressClick.current) return
     onPick({ kind: n.kind, key: n.key }, clicks)
   }
@@ -723,7 +760,7 @@ export function DysonScene({
           stroke="var(--card)"
           strokeWidth={isWork ? 0.008 : 0.01}
         />
-        {n.initial && (
+        {n.initial && textOn && (
           <text
             x={p.x}
             y={p.y}
@@ -732,28 +769,30 @@ export function DysonScene({
             fontSize={snapText(r * 1.05, ppu)}
             fontWeight={700}
             fill="#fff"
-            className="pointer-events-none select-none"
+            className="pointer-events-none select-none animate-in fade-in duration-500"
             aria-hidden
           >
             {n.initial}
           </text>
         )}
-        <text
-          x={p.x + (right ? r + 0.03 : -r - 0.03)}
-          y={labelY.get(k) ?? p.y}
-          dy="0.35em"
-          textAnchor={right ? 'start' : 'end'}
-          fontSize={snapText(labelSize(n, p.scale), ppu)}
-          fontWeight={isWork || isActive ? 600 : 500}
-          fill="var(--foreground)"
-          stroke="var(--card)"
-          strokeWidth={0.018}
-          paintOrder="stroke"
-          strokeLinejoin="round"
-          className="select-none"
-        >
-          {n.label}
-        </text>
+        {textOn && (
+          <text
+            x={p.x + (right ? r + 0.03 : -r - 0.03)}
+            y={labelY.get(k) ?? p.y}
+            dy="0.35em"
+            textAnchor={right ? 'start' : 'end'}
+            fontSize={snapText(labelSize(n, p.scale), ppu)}
+            fontWeight={isWork || isActive ? 600 : 500}
+            fill="var(--foreground)"
+            stroke="var(--card)"
+            strokeWidth={0.018}
+            paintOrder="stroke"
+            strokeLinejoin="round"
+            className="select-none animate-in fade-in duration-500"
+          >
+            {n.label}
+          </text>
+        )}
       </g>
     )
   }
@@ -845,69 +884,74 @@ export function DysonScene({
         </radialGradient>
       </defs>
 
-      <circle r={CORE_R * 2.1 * coreGrow} fill="url(#lit-glow)" opacity={1 - 0.6 * zt} />
-      <g opacity={1 - 0.85 * zt}>
-        <path
-          d={shell.back}
-          fill="none"
-          stroke="var(--primary)"
-          style={mesh('shellBack', shellLit)}
-          strokeWidth={0.004}
-        />
-      </g>
-      {GROUP_LINKS.map(([a, b]) => {
-        const p = pos.get(id('work', a))!
-        const q = pos.get(id('work', b))!
-        const keep = 1 - Math.max(gone.get(id('work', a)) ?? 0, gone.get(id('work', b)) ?? 0)
-        return (
-          <line
-            key={`${a}-${b}`}
-            x1={p.x}
-            y1={p.y}
-            x2={q.x}
-            y2={q.y}
-            stroke="var(--primary)"
-            strokeOpacity={0.3 * keep}
-            strokeWidth={0.006}
-            strokeDasharray="0.03 0.02"
-          />
-        )
-      })}
-      {edges.filter((e) => e.z < 0).map(drawEdge)}
-      {behind.map(({ n }) => renderNode(n))}
-
-      <g opacity={1 - zt}>
-        <path
-          d={coreBack}
-          fill="none"
-          stroke="var(--primary)"
-          style={mesh('coreBack', coreLit)}
-          strokeWidth={0.004}
-        />
-        {facets.map((f, i) => (
+      <g
+        transform={intro < 1 ? `scale(${INTRO_FROM + (1 - INTRO_FROM) * introE})` : undefined}
+        opacity={intro < 1 ? Math.min(1, intro * 3) : undefined}
+      >
+        <circle r={CORE_R * 2.1 * coreGrow} fill="url(#lit-glow)" opacity={1 - 0.6 * zt} />
+        <g opacity={1 - 0.85 * zt}>
           <path
-            key={i}
-            d={f.d}
-            fill="var(--primary)"
-            fillOpacity={f.opacity}
-            stroke="var(--card)"
-            style={mesh('coreEdge', coreLit)}
+            d={shell.back}
+            fill="none"
+            stroke="var(--primary)"
+            style={mesh('shellBack', shellLit)}
             strokeWidth={0.004}
-            strokeLinejoin="round"
           />
-        ))}
+        </g>
+        {GROUP_LINKS.map(([a, b]) => {
+          const p = pos.get(id('work', a))!
+          const q = pos.get(id('work', b))!
+          const keep = 1 - Math.max(gone.get(id('work', a)) ?? 0, gone.get(id('work', b)) ?? 0)
+          return (
+            <line
+              key={`${a}-${b}`}
+              x1={p.x}
+              y1={p.y}
+              x2={q.x}
+              y2={q.y}
+              stroke="var(--primary)"
+              strokeOpacity={0.3 * keep}
+              strokeWidth={0.006}
+              strokeDasharray="0.03 0.02"
+            />
+          )
+        })}
+        {edges.filter((e) => e.z < 0).map(drawEdge)}
+        {behind.map(({ n }) => renderNode(n))}
+
+        <g opacity={1 - zt}>
+          <path
+            d={coreBack}
+            fill="none"
+            stroke="var(--primary)"
+            style={mesh('coreBack', coreLit)}
+            strokeWidth={0.004}
+          />
+          {facets.map((f, i) => (
+            <path
+              key={i}
+              d={f.d}
+              fill="var(--primary)"
+              fillOpacity={f.opacity}
+              stroke="var(--card)"
+              style={mesh('coreEdge', coreLit)}
+              strokeWidth={0.004}
+              strokeLinejoin="round"
+            />
+          ))}
+        </g>
+        <g opacity={1 - 0.85 * zt}>
+          <path
+            d={shell.front}
+            fill="none"
+            stroke="var(--primary)"
+            style={mesh('shellFront', shellLit)}
+            strokeWidth={0.005}
+          />
+        </g>
+        {edges.filter((e) => e.z >= 0).map(drawEdge)}
+        {front.map(({ n }) => renderNode(n))}
       </g>
-      <g opacity={1 - 0.85 * zt}>
-        <path
-          d={shell.front}
-          fill="none"
-          stroke="var(--primary)"
-          style={mesh('shellFront', shellLit)}
-          strokeWidth={0.005}
-        />
-      </g>
-      {edges.filter((e) => e.z >= 0).map(drawEdge)}
-      {front.map(({ n }) => renderNode(n))}
     </svg>
   )
 }
