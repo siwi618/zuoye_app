@@ -30,12 +30,23 @@ export interface Highlight {
   end: number
 }
 
+// A quote as it was when the analysis was published; its highlights point into this text, so a
+// later change to the quote leaves the analysis as written.
+export interface CoveredQuote {
+  quote_id: string
+  body: string
+  page_start: number
+  page_end: number
+  edition: string | null
+}
+
 export interface AnalysisRead {
   id: string
   work_key: string
   author: ProfileSummary
   body: string
   quote_ids: string[]
+  quotes: CoveredQuote[]
   highlights: Highlight[]
   tags: TagRead[]
   like_count: number

@@ -353,6 +353,8 @@ export const zh: Translations = {
       searchTags: '搜手法',
       noCitedQuotes: '还没有被分析引用的引文。',
       removeFilter: '去掉这个筛选',
+      showQuote: '展开原文',
+      hideQuote: '收起原文',
     },
     thermometer: {
       subtitle:

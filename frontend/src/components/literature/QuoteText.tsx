@@ -24,9 +24,9 @@ export function PageLabel({
   )
 }
 
-// A quote with its highlighted fragments marked like a highlighter pen. The fragment's number is
-// drawn by a pseudo-element, so it is not part of the text a reader selects (the composer maps a
-// selection back to character offsets in the quote).
+// A quote with its highlighted fragments marked like a highlighter pen. Each fragment's number, a
+// footnote mark after it as in the analysis text, is drawn by a pseudo-element, so it is not part
+// of the text a reader selects (the composer maps a selection back to character offsets).
 export function QuoteText({
   body,
   spans = [],
@@ -49,7 +49,7 @@ export function QuoteText({
             data-n={s.number}
             className={cn(
               'rounded-sm bg-amber-200/70 px-0.5 text-foreground transition-shadow dark:bg-amber-400/25',
-              'before:mr-0.5 before:align-super before:text-[10px] before:font-semibold before:text-amber-700 before:content-[attr(data-n)] dark:before:text-amber-300',
+              'after:ml-0.5 after:align-super after:text-[10px] after:font-semibold after:text-amber-700 after:content-[attr(data-n)] dark:after:text-amber-300',
               lit === s.number && 'ring-2 ring-amber-500',
             )}
           >
@@ -61,15 +61,18 @@ export function QuoteText({
   )
 }
 
-// An analysis body with its「（#tag）」and「（引文N）」references drawn as chips.
+// An analysis body: 「（#tag）」 references drawn as chips, and 「（引文N）」 replaced by the words of
+// that fragment, highlighted, with its number as a footnote mark.
 export function AnalysisBody({
   body,
-  numbers,
+  fragments,
+  lit,
   onTag,
   onQuote,
 }: {
   body: string
-  numbers: Set<number> // fragments that exist; other references stay plain text
+  fragments: Map<number, string> // fragment number → its words; other references stay as typed
+  lit?: number | null
   onTag?: (name: string) => void
   onQuote?: (n: number | null) => void
 }) {
@@ -90,20 +93,27 @@ export function AnalysisBody({
               #{part.name}
             </button>
           )
-        if (!numbers.has(part.number))
+        const words = fragments.get(part.number)
+        if (words === undefined)
           return <Fragment key={i}>{t(`${K}.quoteRef`, { n: part.number })}</Fragment>
         return (
-          <span
+          <mark
             key={i}
             tabIndex={onQuote ? 0 : undefined}
             onMouseEnter={() => onQuote?.(part.number)}
             onMouseLeave={() => onQuote?.(null)}
             onFocus={() => onQuote?.(part.number)}
             onBlur={() => onQuote?.(null)}
-            className="mx-0.5 cursor-default rounded-md bg-amber-200/70 px-1.5 py-0.5 text-sm font-medium text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:bg-amber-400/25 dark:text-amber-200"
+            className={cn(
+              'rounded-sm bg-amber-200/70 px-0.5 text-foreground outline-none transition-shadow dark:bg-amber-400/25',
+              lit === part.number && 'ring-2 ring-amber-500',
+            )}
           >
-            {t(`${K}.quoteRef`, { n: part.number })}
-          </span>
+            {words}
+            <sup className="ml-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+              {part.number}
+            </sup>
+          </mark>
         )
       })}
     </p>

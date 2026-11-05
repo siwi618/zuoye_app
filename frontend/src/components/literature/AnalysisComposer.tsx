@@ -166,7 +166,13 @@ export function AnalysisComposer({
     publish.mutate({ tags: all })
   }
 
-  const numbers = new Set(highlights.map((h) => h.number))
+  // What each「引文N」will read as once published.
+  const fragments = new Map(
+    highlights.flatMap((h) => {
+      const q = quotes.find((x) => x.id === h.quote_id)
+      return q ? [[h.number, sliceChars(q.body, h.start, h.end)] as const] : []
+    }),
+  )
   const byNumber = [...highlights].sort((a, b) => a.number - b.number)
 
   return (
@@ -285,7 +291,7 @@ export function AnalysisComposer({
             <div className="mb-1 text-xs font-medium text-muted-foreground">
               {t(`${K}.preview`)}
             </div>
-            <AnalysisBody body={body} numbers={numbers} />
+            <AnalysisBody body={body} fragments={fragments} />
           </div>
         )}
       </section>

@@ -636,7 +636,6 @@ export function LiteratureWork() {
                 <AnalysisCard
                   key={a.id}
                   analysis={a}
-                  quotes={byId}
                   mine={a.author.id === userId}
                   deleting={removeAnalysis.isPending && removeAnalysis.variables === a.id}
                   onTag={(name) => filterBy(name)}

@@ -352,6 +352,8 @@ export const en = {
       searchTags: 'Search devices',
       noCitedQuotes: 'No quote is cited by an analysis yet.',
       removeFilter: 'Remove this filter',
+      showQuote: 'Show the whole quote',
+      hideQuote: 'Hide the quote',
     },
     thermometer: {
       subtitle:
