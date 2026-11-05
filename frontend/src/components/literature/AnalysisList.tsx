@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useMutation,
@@ -27,10 +27,12 @@ export function AnalysisList({
   state: { workKey, list, analyses, versions },
   empty,
   onTag,
+  scroller,
 }: {
   state: AnalysisListState
   empty: ReactNode // shown when nothing matches
   onTag: (name: string, kind: TagKind) => void
+  scroller?: RefObject<HTMLElement | null> // the box the list scrolls in, if not the page
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -45,11 +47,11 @@ export function AnalysisList({
       (entries) => {
         if (entries[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
       },
-      { rootMargin: '400px' },
+      { root: scroller?.current ?? null, rootMargin: '400px' },
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, scroller])
 
   const allKey = ['literature-analyses', workKey]
   const patch = (fn: (a: AnalysisRead) => AnalysisRead | null) =>
