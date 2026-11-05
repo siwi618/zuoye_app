@@ -50,6 +50,9 @@ class QuoteRead(BaseModel):
     # Analyses citing it; a cited quote can no longer be deleted.
     cited_count: int
     created_at: datetime
+    # Who changed it last and when, once it has been edited (version 2 on).
+    last_editor: ProfileSummary | None = None
+    edited_at: datetime | None = None
 
 
 class TagRead(BaseModel):

@@ -46,7 +46,10 @@ _PROFILE = "id, display_name, avatar_url, is_deleted"
 # the query.
 _ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
 _QUOTE_AUTHOR = "author:profiles!lit_quotes_author_id_fkey"
-_VERSION = "id, number, body, page_start, page_end, edition"
+_VERSION = (
+    "id, number, body, page_start, page_end, edition, created_at, "
+    f"editor:profiles!lit_quote_versions_edited_by_fkey({_PROFILE})"
+)
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
 _ANALYSIS_FULL = (
@@ -183,16 +186,20 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
             created_at=a["created_at"],
         )
 
+    def quote_read(q: dict) -> QuoteRead:
+        latest = max(q.get("lit_quote_versions") or [{}], key=lambda v: v.get("number", 0))
+        edited = latest.get("number", 1) > 1 and latest.get("editor")
+        return QuoteRead(
+            id=q["id"], work_key=q["work_key"], author=_author(q), body=q["body"],
+            page_start=q["page_start"], page_end=q["page_end"], edition=q.get("edition"),
+            cited_count=cited[q["id"]], created_at=q["created_at"],
+            last_editor=ProfileSummary(**latest["editor"]) if edited else None,
+            edited_at=latest["created_at"] if edited else None,
+        )
+
     return WorkRead(
         work_key=work_key,
-        quotes=[
-            QuoteRead(
-                id=q["id"], work_key=q["work_key"], author=_author(q), body=q["body"],
-                page_start=q["page_start"], page_end=q["page_end"], edition=q.get("edition"),
-                cited_count=cited[q["id"]], created_at=q["created_at"],
-            )
-            for q in quotes
-        ],
+        quotes=[quote_read(q) for q in quotes],
         analyses=[analysis_read(a) for a in analyses],
         versions=[
             QuoteVersion(quote_id=q["id"], **v)
@@ -283,6 +290,42 @@ def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead
         body=row["body"], page_start=row["page_start"], page_end=row["page_end"],
         edition=row.get("edition"), cited_count=0, created_at=row["created_at"],
     )
+
+
+def update_quote(user_id: str, quote_id: str, payload: QuoteCreate) -> None:
+    """Anyone may edit a quote: the edit becomes its next version. Analyses already written
+    keep the version they cite; new ones are written on this one."""
+    _quote_row(quote_id)
+    db = get_supabase()
+
+    def latest() -> dict:
+        return (
+            db.table("lit_quote_versions").select("number, body, page_start, page_end, edition")
+            .eq("quote_id", quote_id).order("number", desc=True).limit(1).execute().data
+            or [{"number": 0}]
+        )[0]
+
+    fields = {
+        "body": payload.body, "page_start": payload.page_start, "page_end": payload.page_end,
+        "edition": payload.edition,
+    }
+    current = latest()
+    if all(current.get(k) == v for k, v in fields.items()):
+        return
+    moderated = ensure_allowed(payload.body, payload.edition)
+    # Two edits at once would take the same number; the loser retries with the next one.
+    for attempt in range(3):
+        try:
+            db.table("lit_quote_versions").insert({
+                "quote_id": quote_id, "number": current["number"] + 1, "edited_by": user_id,
+                **fields,
+            }).execute()
+            break
+        except APIError as exc:
+            if exc.code != _UNIQUE_VIOLATION or attempt == 2:
+                raise
+            current = latest()
+    db.table("lit_quotes").update({**fields, "moderated": moderated}).eq("id", quote_id).execute()
 
 
 def delete_quote(user_id: str, quote_id: str) -> None:

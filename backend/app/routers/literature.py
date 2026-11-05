@@ -43,6 +43,11 @@ def create_quote(user: CurrentUserDep, work_key: WorkKeyStr, payload: QuoteCreat
     return svc.create_quote(user.id, work_key, payload)
 
 
+@router.put("/quotes/{quote_id}", status_code=204)
+def update_quote(user: CurrentUserDep, quote_id: str, payload: QuoteCreate) -> None:
+    svc.update_quote(user.id, quote_id, payload)
+
+
 @router.delete("/quotes/{quote_id}", status_code=204)
 def delete_quote(user: CurrentUserDep, quote_id: str) -> None:
     svc.delete_quote(user.id, quote_id)
