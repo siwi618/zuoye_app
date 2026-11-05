@@ -38,16 +38,21 @@ def _reject(detail: str, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HT
 
 # Profile columns embedded with each row: enough for ProfileSummary, plus is_deleted, since
 # content of soft-deleted users is hidden.
-_AUTHOR = "author:profiles(id, display_name, avatar_url, is_deleted)"
+_PROFILE = "id, display_name, avatar_url, is_deleted"
+_AUTHOR = f"author:profiles({_PROFILE})"
+# Analyses reach profiles two ways (their author, and the users who liked them through
+# lit_analysis_likes), so PostgREST needs the foreign key named or it refuses the query.
+_ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
 _ANALYSIS_FULL = (
-    f"id, work_key, body, like_count, created_at, {_AUTHOR}, lit_analysis_likes(user_id), "
+    f"id, work_key, body, like_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
+    "lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, lit_highlights(number, start_offset, end_offset)), "
     "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
 )
 _ANALYSIS_TAGS = (
-    "work_key, author:profiles(is_deleted), "
+    f"work_key, {_ANALYSIS_AUTHOR}(is_deleted), "
     "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
 )
 
