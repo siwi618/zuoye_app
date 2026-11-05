@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query
 
 from app.deps import CurrentUserDep
+from app.schemas.forum import LikeResult
 from app.schemas.literature import (
     AnalysisCreate,
     AnalysisRead,
@@ -34,8 +35,7 @@ def list_tags(
 
 @router.get("/works/{work_key}", response_model=WorkRead)
 def get_work(user: CurrentUserDep, work_key: WorkKeyStr) -> WorkRead:
-    _ = user
-    return svc.get_work(work_key)
+    return svc.get_work(user.id, work_key)
 
 
 @router.post("/works/{work_key}/quotes", response_model=QuoteRead, status_code=201)
@@ -58,3 +58,8 @@ def create_analysis(
 @router.delete("/analyses/{analysis_id}", status_code=204)
 def delete_analysis(user: CurrentUserDep, analysis_id: str) -> None:
     svc.delete_analysis(user.id, analysis_id)
+
+
+@router.post("/analyses/{analysis_id}/like", response_model=LikeResult)
+def toggle_analysis_like(user: CurrentUserDep, analysis_id: str) -> LikeResult:
+    return svc.toggle_analysis_like(user.id, analysis_id)

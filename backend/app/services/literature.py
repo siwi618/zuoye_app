@@ -16,7 +16,8 @@ from app.schemas.literature import (
     WorkRead,
 )
 from app.schemas.request import ProfileSummary
-from app.services.forum import _fetch_profiles
+from app.schemas.forum import LikeResult
+from app.services.forum import _fetch_profiles, _toggle_like
 from app.services.moderation import CONTENT_REJECTED, ensure_allowed
 from app.supabase_client import get_supabase
 
@@ -41,7 +42,7 @@ _AUTHOR = "author:profiles(id, display_name, avatar_url, is_deleted)"
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
 _ANALYSIS_FULL = (
-    f"id, work_key, body, created_at, {_AUTHOR}, "
+    f"id, work_key, body, like_count, created_at, {_AUTHOR}, lit_analysis_likes(user_id), "
     "lit_analysis_quotes(quote_id, position, lit_highlights(number, start_offset, end_offset)), "
     "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
 )
@@ -56,11 +57,22 @@ def _shown(row: dict) -> bool:
     return bool(author) and not author["is_deleted"]
 
 
-def _analyses(select: str, work_key: str | None = None, limit: int = _MAX_ANALYSES) -> list[dict]:
-    """Visible analyses (newest first): not taken down, author not soft-deleted."""
+def _analyses(
+    select: str,
+    work_key: str | None = None,
+    limit: int = _MAX_ANALYSES,
+    liked_by: str | None = None,
+) -> list[dict]:
+    """Visible analyses (newest first): not taken down, author not soft-deleted.
+
+    With `liked_by`, the embedded lit_analysis_likes keeps only that user's like, so a
+    non-empty list means they liked it.
+    """
     query = get_supabase().table("lit_analyses").select(select).eq("moderation_flagged", False)
     if work_key:
         query = query.eq("work_key", work_key)
+    if liked_by:
+        query = query.eq("lit_analysis_likes.user_id", liked_by)
     rows = query.order("created_at", desc=True).limit(limit).execute().data or []
     return [r for r in rows if _shown(r)]
 
@@ -89,7 +101,7 @@ def _author(row: dict) -> ProfileSummary:
 # ---------------------------------------------------------------- reading
 
 
-def get_work(work_key: str) -> WorkRead:
+def get_work(user_id: str, work_key: str) -> WorkRead:
     def load_quotes() -> list[dict]:
         rows = (
             get_supabase()
@@ -108,7 +120,7 @@ def get_work(work_key: str) -> WorkRead:
     # The two queries don't depend on each other: run them side by side.
     with ThreadPoolExecutor(max_workers=2) as pool:
         quotes_job = pool.submit(load_quotes)
-        analyses_job = pool.submit(_analyses, _ANALYSIS_FULL, work_key)
+        analyses_job = pool.submit(_analyses, _ANALYSIS_FULL, work_key, liked_by=user_id)
         quotes, analyses = quotes_job.result(), analyses_job.result()
 
     quote_ids = {q["id"] for q in quotes}
@@ -142,6 +154,7 @@ def get_work(work_key: str) -> WorkRead:
             id=a["id"], work_key=a["work_key"], author=_author(a), body=a["body"],
             quote_ids=[c["quote_id"] for c in covered], highlights=highlights,
             tags=sorted((tag_read(t["id"]) for t in _tags_of(a)), key=lambda t: -t.count),
+            like_count=a["like_count"], liked_by_me=bool(a.get("lit_analysis_likes")),
             created_at=a["created_at"],
         )
 
@@ -150,7 +163,7 @@ def get_work(work_key: str) -> WorkRead:
         quotes=[
             QuoteRead(
                 id=q["id"], work_key=q["work_key"], author=_author(q), body=q["body"],
-                page_start=q["page_start"], page_end=q["page_end"],
+                page_start=q["page_start"], page_end=q["page_end"], edition=q.get("edition"),
                 cited_count=cited[q["id"]], created_at=q["created_at"],
             )
             for q in quotes
@@ -214,7 +227,7 @@ def _quote_row(quote_id: str) -> dict:
 
 
 def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead:
-    moderated = ensure_allowed(payload.body)
+    moderated = ensure_allowed(payload.body, payload.edition)
     inserted = (
         get_supabase()
         .table("lit_quotes")
@@ -224,6 +237,7 @@ def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead
             "body": payload.body,
             "page_start": payload.page_start,
             "page_end": payload.page_end,
+            "edition": payload.edition,
             "moderated": moderated,
         })
         .execute()
@@ -236,7 +250,7 @@ def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead
     return QuoteRead(
         id=row["id"], work_key=work_key, author=ProfileSummary(**profiles[user_id]),
         body=row["body"], page_start=row["page_start"], page_end=row["page_end"],
-        cited_count=0, created_at=row["created_at"],
+        edition=row.get("edition"), cited_count=0, created_at=row["created_at"],
     )
 
 
@@ -370,18 +384,29 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         body=row["body"], quote_ids=quote_ids,
         highlights=[HighlightRead(**h.model_dump()) for h in payload.highlights],
         tags=[TagRead(id=t["id"], name=t["name"], count=0) for t in tags],
-        created_at=row["created_at"],
+        like_count=0, liked_by_me=False, created_at=row["created_at"],
     )
 
 
-def delete_analysis(user_id: str, analysis_id: str) -> None:
+def _analysis_row(analysis_id: str) -> dict:
     rows = (
-        get_supabase().table("lit_analyses").select("author_id").eq("id", analysis_id)
-        .limit(1).execute().data
+        get_supabase().table("lit_analyses").select("author_id, like_count, moderation_flagged")
+        .eq("id", analysis_id).limit(1).execute().data
         or []
     )
     if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
-    if rows[0]["author_id"] != user_id:
+    return rows[0]
+
+
+def toggle_analysis_like(user_id: str, analysis_id: str) -> LikeResult:
+    if _analysis_row(analysis_id)["moderation_flagged"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+    liked = _toggle_like("lit_analysis_likes", "analysis_id", analysis_id, user_id)
+    return LikeResult(liked=liked, like_count=_analysis_row(analysis_id)["like_count"])
+
+
+def delete_analysis(user_id: str, analysis_id: str) -> None:
+    if _analysis_row(analysis_id)["author_id"] != user_id:
         raise _reject("Only the author can delete this analysis", status.HTTP_403_FORBIDDEN)
     get_supabase().table("lit_analyses").delete().eq("id", analysis_id).execute()
