@@ -1,10 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Highlighter, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   createAnalysis,
   updateAnalysis,
@@ -13,22 +12,66 @@ import {
   type Highlight,
 } from '@/api/literature'
 import {
+  HIGHLIGHT_COLORS,
+  HIGHLIGHT_TONE,
   cleanTag,
   isValidTag,
   parseBody,
-  quoteToken,
   sliceChars,
-  tagToken,
   TAG_SYMBOL,
   TAG_TONE,
   toCharOffset,
+  type HighlightColor,
   type TagKind,
 } from '@/lib/literature/text'
 import { cn } from '@/lib/utils'
-import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
+import { PageLabel, QuoteText } from './QuoteText'
+import { BodyEditor, type BodyEditorHandle } from './BodyEditor'
 import { TagPicker } from './TagPicker'
 
 const K = 'tools.literature'
+
+// The highlighter colour is remembered for the next fragment, here and next time.
+const PEN_KEY = 'coral.literature.pen'
+const lastPen = (): HighlightColor => {
+  try {
+    const c = localStorage.getItem(PEN_KEY)
+    return HIGHLIGHT_COLORS.find((x) => x === c) ?? 'amber'
+  } catch {
+    return 'amber'
+  }
+}
+
+function ColorDots({
+  value,
+  onChange,
+  label,
+}: {
+  value: HighlightColor
+  onChange: (c: HighlightColor) => void
+  label: (c: HighlightColor) => string
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-1" role="radiogroup">
+      {HIGHLIGHT_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="radio"
+          aria-checked={value === c}
+          aria-label={label(c)}
+          title={label(c)}
+          onClick={() => onChange(c)}
+          className={cn(
+            'size-4 rounded-full border border-black/10 transition-transform hover:scale-110',
+            HIGHLIGHT_TONE[c].swatch,
+            value === c && 'ring-2 ring-foreground/60 ring-offset-1 ring-offset-card',
+          )}
+        />
+      ))}
+    </span>
+  )
+}
 
 // A selection inside one of the quotes, in character offsets, and where to show its button
 // (relative to the composer).
@@ -58,10 +101,10 @@ export function AnalysisComposer({
   onCancel: () => void
   onDone: () => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const box = useRef<HTMLDivElement>(null)
-  const editor = useRef<HTMLTextAreaElement>(null)
+  const editor = useRef<BodyEditorHandle>(null)
   const [marks, setMarks] = useState<Highlight[]>(initial?.highlights ?? [])
   const initialOf = (kind: TagKind) =>
     initial?.tags.filter((x) => x.kind === kind).map((x) => x.name) ?? []
@@ -69,6 +112,7 @@ export function AnalysisComposer({
   const [characters, setCharacters] = useState<string[]>(initialOf('character'))
   const [body, setBody] = useState(initial?.body ?? '')
   const [pending, setPending] = useState<Pending | null>(null)
+  const [pen, setPen] = useState<HighlightColor>(lastPen)
   const [error, setError] = useState<string | null>(null)
 
   // Fragments of quotes that were unpicked meanwhile no longer count.
@@ -122,28 +166,28 @@ export function AnalysisComposer({
     if (!pending || overlap) return
     setMarks((m) => [
       ...m,
-      { quote_id: pending.quoteId, number: nextNumber, start: pending.start, end: pending.end },
+      {
+        quote_id: pending.quoteId,
+        number: nextNumber,
+        start: pending.start,
+        end: pending.end,
+        color: pen,
+      },
     ])
     document.getSelection()?.removeAllRanges()
     setPending(null)
   }
 
-  // Insert a reference at the caret (or over the selected text) of the editor. The caret is put
-  // back right after the new text is rendered, before any further keystroke lands.
-  const caret = useRef<number | null>(null)
-  const insert = (token: string) => {
-    const el = editor.current
-    const from = el?.selectionStart ?? body.length
-    const to = el?.selectionEnd ?? body.length
-    caret.current = from + token.length
-    setBody(body.slice(0, from) + token + body.slice(to))
+  const choosePen = (c: HighlightColor) => {
+    setPen(c)
+    try {
+      localStorage.setItem(PEN_KEY, c)
+    } catch {
+      // storage unavailable: the colour just isn't remembered
+    }
   }
-  useLayoutEffect(() => {
-    if (caret.current === null) return
-    editor.current?.focus()
-    editor.current?.setSelectionRange(caret.current, caret.current)
-    caret.current = null
-  }, [body])
+  const recolor = (n: number, color: HighlightColor) =>
+    setMarks((m) => m.map((h) => (h.number === n ? { ...h, color } : h)))
 
   const publish = useMutation({
     mutationFn: async (payload: { tags: string[]; characters: string[] }) => {
@@ -183,6 +227,7 @@ export function AnalysisComposer({
     const numbers = new Set(highlights.map((h) => h.number))
     const missing = parts.find((p) => p.type === 'quote' && !numbers.has(p.number))
     if (!body.trim()) return setError(t(`${K}.needBody`))
+    if (body.trim().length > 5000) return setError(t(`${K}.bodyTooLong`, { count: 5000 }))
     if (!all.device.length) return setError(t(`${K}.needTag`))
     if (all.device.length > 8 || all.character.length > 8)
       return setError(t(`${K}.maxTags`, { count: 8 }))
@@ -194,7 +239,9 @@ export function AnalysisComposer({
   const fragments = new Map(
     highlights.flatMap((h) => {
       const q = quotes.find((x) => x.id === h.quote_id)
-      return q ? [[h.number, sliceChars(q.body, h.start, h.end)] as const] : []
+      return q
+        ? [[h.number, { text: sliceChars(q.body, h.start, h.end), color: h.color }] as const]
+        : []
     }),
   )
   const byNumber = [...highlights].sort((a, b) => a.number - b.number)
@@ -244,15 +291,25 @@ export function AnalysisComposer({
                 <li key={h.number} className="flex items-start gap-2 text-sm">
                   <button
                     type="button"
-                    onClick={() => insert(quoteToken(h.number, i18n.language))}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => editor.current?.insertQuote(h.number)}
                     title={t(`${K}.insertRef`)}
-                    className="shrink-0 rounded-md bg-amber-200/70 px-1.5 py-0.5 font-medium text-amber-800 hover:bg-amber-300/70 dark:bg-amber-400/25 dark:text-amber-200"
+                    className={cn(
+                      'shrink-0 rounded-md px-1.5 py-0.5 font-medium hover:brightness-95',
+                      HIGHLIGHT_TONE[h.color ?? 'amber'].mark,
+                      HIGHLIGHT_TONE[h.color ?? 'amber'].number,
+                    )}
                   >
                     {t(`${K}.quoteRef`, { n: h.number })}
                   </button>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
                     「{sliceChars(q.body, h.start, h.end)}」
                   </span>
+                  <ColorDots
+                    value={h.color ?? 'amber'}
+                    onChange={(c) => recolor(h.number, c)}
+                    label={(c) => t(`${K}.colorOf`, { n: h.number, color: t(`${K}.color_${c}`) })}
+                  />
                   <button
                     type="button"
                     aria-label={t(`${K}.removeHighlight`, { n: h.number })}
@@ -303,7 +360,7 @@ export function AnalysisComposer({
                 key={`${tag.kind}:${tag.name}`}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insert(tagToken(tag.name, i18n.language, tag.kind))}
+                onClick={() => editor.current?.insertTag(tag.kind, tag.name)}
                 className={cn(
                   'rounded-md px-1.5 py-0.5 font-medium hover:brightness-95',
                   TAG_TONE[tag.kind],
@@ -318,30 +375,26 @@ export function AnalysisComposer({
                 key={h.number}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insert(quoteToken(h.number, i18n.language))}
-                className="rounded-md bg-amber-200/70 px-1.5 py-0.5 font-medium text-amber-800 hover:bg-amber-300/70 dark:bg-amber-400/25 dark:text-amber-200"
+                onClick={() => editor.current?.insertQuote(h.number)}
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 font-medium hover:brightness-95',
+                  HIGHLIGHT_TONE[h.color ?? 'amber'].mark,
+                  HIGHLIGHT_TONE[h.color ?? 'amber'].number,
+                )}
               >
                 {t(`${K}.quoteRef`, { n: h.number })}
               </button>
             ))}
           </div>
         )}
-        <Textarea
+        <BodyEditor
           ref={editor}
-          value={body}
-          maxLength={5000}
-          onChange={(e) => setBody(e.target.value)}
+          initial={body}
+          fragments={fragments}
           placeholder={t(`${K}.bodyPlaceholder`)}
-          className="min-h-36"
+          onChange={setBody}
         />
-        {body.trim() && (
-          <div className="rounded-xl border border-dashed border-border p-3">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">
-              {t(`${K}.preview`)}
-            </div>
-            <AnalysisBody body={body} fragments={fragments} />
-          </div>
-        )}
+        <p className="text-xs text-muted-foreground">{t(`${K}.editorHint`)}</p>
       </section>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -366,16 +419,21 @@ export function AnalysisComposer({
               {t(`${K}.overlap`, { n: overlap.number })}
             </span>
           ) : (
-            <Button
-              size="sm"
-              className="rounded-full shadow-soft-lg"
-              // Keep the selection: a press would otherwise clear it before the click.
+            // Keep the selection: a press would otherwise clear it before the click.
+            <div
               onMouseDown={(e) => e.preventDefault()}
-              onClick={mark}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card py-1 pr-1 pl-2.5 shadow-soft-lg"
             >
-              <Highlighter className="size-4" />
-              {t(`${K}.markAs`, { n: nextNumber })}
-            </Button>
+              <ColorDots
+                value={pen}
+                onChange={choosePen}
+                label={(c) => t(`${K}.penColor`, { color: t(`${K}.color_${c}`) })}
+              />
+              <Button size="sm" className="h-7 rounded-full" onClick={mark}>
+                <Highlighter className="size-4" />
+                {t(`${K}.markAs`, { n: nextNumber })}
+              </Button>
+            </div>
           )}
         </div>
       )}

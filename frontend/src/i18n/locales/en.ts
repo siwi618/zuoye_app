@@ -371,6 +371,14 @@ export const en = {
       loadMore: 'Load more',
       allShown: 'All {{count}} shown',
       retry: 'Try again',
+      penColor: 'Highlighter: {{color}}',
+      colorOf: 'Make Quote {{n}} {{color}}',
+      color_amber: 'yellow',
+      color_sky: 'light blue',
+      color_pink: 'pink',
+      color_lime: 'light green',
+      editorHint: 'Type #device or @character followed by a space or punctuation to make a tag; Backspace removes it whole; or use the buttons above.',
+      bodyTooLong: 'An analysis can be at most {{count}} characters.',
     },
     thermometer: {
       subtitle:

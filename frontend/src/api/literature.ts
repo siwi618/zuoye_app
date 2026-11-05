@@ -1,6 +1,6 @@
 import { apiFetch } from './client'
 import type { ProfileSummary } from './requests'
-import type { TagKind } from '@/lib/literature/text'
+import type { HighlightColor, TagKind } from '@/lib/literature/text'
 
 export interface QuoteRead {
   id: string
@@ -33,6 +33,7 @@ export interface Highlight {
   number: number
   start: number
   end: number
+  color?: HighlightColor // yellow when absent
 }
 
 // One version of a quote. An analysis cites the version it was written on, so a later change to

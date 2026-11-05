@@ -9,20 +9,63 @@ export const toCharOffset = (s: string, utf16: number) => charLength(s.slice(0, 
 export const sliceChars = (s: string, start: number, end?: number) =>
   Array.from(s).slice(start, end).join('')
 
+// Highlighter colours for fragments: yellow (the default), light blue, pink, light green. Class
+// names are spelled out in full so Tailwind finds them.
+export type HighlightColor = 'amber' | 'sky' | 'pink' | 'lime'
+export const HIGHLIGHT_COLORS: HighlightColor[] = ['amber', 'sky', 'pink', 'lime']
+export const HIGHLIGHT_TONE: Record<
+  HighlightColor,
+  { mark: string; number: string; before: string; swatch: string; ring: string; border: string }
+> = {
+  amber: {
+    mark: 'bg-amber-200/70 dark:bg-amber-400/25',
+    number: 'text-amber-700 dark:text-amber-300',
+    before: 'before:text-amber-700 dark:before:text-amber-300',
+    swatch: 'bg-amber-300',
+    ring: 'ring-amber-500',
+    border: 'border-amber-400',
+  },
+  sky: {
+    mark: 'bg-sky-200/70 dark:bg-sky-400/25',
+    number: 'text-sky-700 dark:text-sky-300',
+    before: 'before:text-sky-700 dark:before:text-sky-300',
+    swatch: 'bg-sky-300',
+    ring: 'ring-sky-500',
+    border: 'border-sky-400',
+  },
+  pink: {
+    mark: 'bg-pink-200/70 dark:bg-pink-400/25',
+    number: 'text-pink-700 dark:text-pink-300',
+    before: 'before:text-pink-700 dark:before:text-pink-300',
+    swatch: 'bg-pink-300',
+    ring: 'ring-pink-500',
+    border: 'border-pink-400',
+  },
+  lime: {
+    mark: 'bg-lime-200/80 dark:bg-lime-400/25',
+    number: 'text-lime-800 dark:text-lime-300',
+    before: 'before:text-lime-800 dark:before:text-lime-300',
+    swatch: 'bg-lime-300',
+    ring: 'ring-lime-600',
+    border: 'border-lime-500',
+  },
+}
+
 export interface Span {
   start: number
   end: number
   number: number
+  color?: HighlightColor
 }
 
 // A quote cut into plain runs and highlighted fragments, in reading order.
 export function segments(body: string, spans: Span[]) {
   const chars = Array.from(body)
-  const out: { text: string; number?: number }[] = []
+  const out: { text: string; number?: number; color?: HighlightColor }[] = []
   let at = 0
   for (const s of [...spans].sort((a, b) => a.start - b.start)) {
     if (s.start > at) out.push({ text: chars.slice(at, s.start).join('') })
-    out.push({ text: chars.slice(s.start, s.end).join(''), number: s.number })
+    out.push({ text: chars.slice(s.start, s.end).join(''), number: s.number, color: s.color })
     at = s.end
   }
   if (at < chars.length) out.push({ text: chars.slice(at).join('') })

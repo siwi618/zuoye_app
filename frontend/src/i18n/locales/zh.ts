@@ -372,6 +372,14 @@ export const zh: Translations = {
       loadMore: '加载更多',
       allShown: '已显示全部 {{count}} 篇',
       retry: '重试',
+      penColor: '荧光笔：{{color}}',
+      colorOf: '引文{{n}}改成{{color}}',
+      color_amber: '黄色',
+      color_sky: '浅蓝',
+      color_pink: '淡粉',
+      color_lime: '浅绿',
+      editorHint: '输入 #手法 或 @人物 后接空格或标点，会自动变成标签；退格可整个删掉；也可以点上面的按钮插入。',
+      bodyTooLong: '分析最多 {{count}} 字。',
     },
     thermometer: {
       subtitle:

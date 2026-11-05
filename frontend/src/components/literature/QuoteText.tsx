@@ -2,9 +2,11 @@ import { Fragment, type HTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
+  HIGHLIGHT_TONE,
   TAG_SYMBOL,
   TAG_TONE,
   parseBody,
+  type HighlightColor,
   segments,
   type Span,
   type TagKind,
@@ -55,9 +57,11 @@ export function QuoteText({
             key={i}
             data-n={s.number}
             className={cn(
-              'rounded-sm bg-amber-200/70 px-0.5 text-foreground transition-shadow dark:bg-amber-400/25',
-              'before:mr-0.5 before:align-super before:text-[10px] before:font-semibold before:text-amber-700 before:content-[attr(data-n)] dark:before:text-amber-300',
-              lit === s.number && 'ring-2 ring-amber-500',
+              'rounded-sm px-0.5 text-foreground transition-shadow',
+              'before:mr-0.5 before:align-super before:text-[10px] before:font-semibold before:content-[attr(data-n)]',
+              HIGHLIGHT_TONE[s.color ?? 'amber'].mark,
+              HIGHLIGHT_TONE[s.color ?? 'amber'].before,
+              lit === s.number && ['ring-2', HIGHLIGHT_TONE[s.color ?? 'amber'].ring],
             )}
           >
             {s.text}
@@ -78,7 +82,8 @@ export function AnalysisBody({
   onQuote,
 }: {
   body: string
-  fragments: Map<number, string> // fragment number → its words; other references stay as typed
+  // fragment number → its words and colour; other references stay as typed
+  fragments: Map<number, { text: string; color?: HighlightColor }>
   lit?: number | null
   onTag?: (name: string, kind: TagKind) => void
   onQuote?: (n: number | null) => void
@@ -104,8 +109,8 @@ export function AnalysisBody({
               {part.name}
             </button>
           )
-        const words = fragments.get(part.number)
-        if (words === undefined)
+        const fragment = fragments.get(part.number)
+        if (fragment === undefined)
           return <Fragment key={i}>{t(`${K}.quoteRef`, { n: part.number })}</Fragment>
         return (
           <mark
@@ -116,14 +121,20 @@ export function AnalysisBody({
             onFocus={() => onQuote?.(part.number)}
             onBlur={() => onQuote?.(null)}
             className={cn(
-              'rounded-sm bg-amber-200/70 px-0.5 text-foreground outline-none transition-shadow dark:bg-amber-400/25',
-              lit === part.number && 'ring-2 ring-amber-500',
+              'rounded-sm px-0.5 text-foreground outline-none transition-shadow',
+              HIGHLIGHT_TONE[fragment.color ?? 'amber'].mark,
+              lit === part.number && ['ring-2', HIGHLIGHT_TONE[fragment.color ?? 'amber'].ring],
             )}
           >
-            <sup className="mr-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+            <sup
+              className={cn(
+                'mr-0.5 text-[10px] font-semibold',
+                HIGHLIGHT_TONE[fragment.color ?? 'amber'].number,
+              )}
+            >
               {part.number}
             </sup>
-            {words}
+            {fragment.text}
           </mark>
         )
       })}

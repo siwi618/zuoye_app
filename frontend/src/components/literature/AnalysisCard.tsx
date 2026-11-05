@@ -5,7 +5,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AnalysisRead, QuoteVersion } from '@/api/literature'
-import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
+import {
+  HIGHLIGHT_TONE,
+  TAG_SYMBOL,
+  TAG_TONE,
+  sliceChars,
+  type HighlightColor,
+  type TagKind,
+} from '@/lib/literature/text'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 import { AnalysisComposer } from './AnalysisComposer'
 
@@ -46,7 +53,9 @@ export function AnalysisCard({
   const fragments = new Map(
     a.highlights.flatMap((h) => {
       const q = quoteOf.get(h.quote_id)
-      return q ? [[h.number, sliceChars(q.body, h.start, h.end)] as const] : []
+      return q
+        ? [[h.number, { text: sliceChars(q.body, h.start, h.end), color: h.color }] as const]
+        : []
     }),
   )
   const pages = (q: { page_start: number; page_end: number }) =>
@@ -59,11 +68,20 @@ export function AnalysisCard({
       .sort((x, y) => x.number - y.number)
       .flatMap((h) => {
         const q = quoteOf.get(h.quote_id)
-        return q ? [{ key: `n${h.number}`, quote: q, number: h.number as number | null }] : []
+        return q
+          ? [
+              {
+                key: `n${h.number}`,
+                quote: q,
+                number: h.number as number | null,
+                color: h.color ?? ('amber' as HighlightColor),
+              },
+            ]
+          : []
       }),
     ...covered
       .filter((q) => !a.highlights.some((h) => h.quote_id === q.quote_id))
-      .map((q) => ({ key: q.quote_id, quote: q, number: null })),
+      .map((q) => ({ key: q.quote_id, quote: q, number: null, color: null })),
   ]
   const unfolded = open ? quoteOf.get(open) : undefined
 
@@ -158,9 +176,24 @@ export function AnalysisCard({
                   on
                     ? 'border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100'
                     : 'border-border/70 text-muted-foreground hover:border-amber-400 hover:text-foreground',
-                  l.number !== null && lit === l.number && 'border-amber-500 ring-1 ring-amber-500',
+                  l.number !== null &&
+                    lit === l.number &&
+                    l.color && [
+                      'ring-1',
+                      HIGHLIGHT_TONE[l.color].ring,
+                      HIGHLIGHT_TONE[l.color].border,
+                    ],
                 )}
               >
+                {l.color && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'mr-1 inline-block size-2 rounded-full align-middle',
+                      HIGHLIGHT_TONE[l.color].swatch,
+                    )}
+                  />
+                )}
                 {pages(l.quote)}
                 {l.number !== null && ` · ${t(`${K}.quoteRef`, { n: l.number })}`}
               </button>
