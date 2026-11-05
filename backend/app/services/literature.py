@@ -39,7 +39,9 @@ def _reject(detail: str, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HT
 # Profile columns embedded with each row: enough for ProfileSummary, plus is_deleted, since
 # content of soft-deleted users is hidden.
 _PROFILE = "id, display_name, avatar_url, is_deleted"
-_AUTHOR = f"author:profiles({_PROFILE})"
+# Quotes will also reach profiles a second way (through lit_quote_versions.edited_by, migration
+# 0015), so their author embed names its foreign key too; this works before and after it.
+_AUTHOR = f"author:profiles!lit_quotes_author_id_fkey({_PROFILE})"
 # Analyses reach profiles two ways (their author, and the users who liked them through
 # lit_analysis_likes), so PostgREST needs the foreign key named or it refuses the query.
 _ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
