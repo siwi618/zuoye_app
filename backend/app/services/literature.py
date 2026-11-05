@@ -231,7 +231,9 @@ def list_analyses(
     all of them, then fetched in full for just that page."""
     with ThreadPoolExecutor(max_workers=2) as pool:
         index_job = pool.submit(_analysis_index, work_key)
-        quotes_job = pool.submit(_quote_rows, work_key, f"id, {_QUOTE_AUTHOR}(is_deleted)")
+        quotes_job = pool.submit(
+            _quote_rows, work_key, f"id, page_start, {_QUOTE_AUTHOR}(is_deleted)"
+        )
         index, visible = index_job.result(), {q["id"] for q in quotes_job.result()}
 
     def tagged(a: dict, kind: str, name: str | None) -> bool:
