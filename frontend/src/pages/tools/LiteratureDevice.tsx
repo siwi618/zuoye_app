@@ -6,6 +6,7 @@ import { ArrowLeft, BookOpen, Search, X } from 'lucide-react'
 import { getDevice, type DeviceRead } from '@/api/literature'
 import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
 import { useAnalysisList } from '@/lib/literature/analysisList'
+import { useRubberBand } from '@/lib/rubberBand'
 import type { TagKind } from '@/lib/literature/text'
 import { AnalysisList } from '@/components/literature/AnalysisList'
 import { IntroBlock } from '@/components/literature/IntroBlock'
@@ -168,6 +169,7 @@ function WorkCard({
   const { t } = useTranslation()
   const state = useAnalysisList(workKey, { sort: 'hot', tag: name })
   const scroller = useRef<HTMLDivElement>(null)
+  useRubberBand(scroller)
   const work = findWork(workKey)!
   return (
     <section
@@ -198,16 +200,19 @@ function WorkCard({
           <X className="size-4" />
         </button>
       </header>
-      <div
-        ref={scroller}
-        className="max-h-[70vh] overflow-y-auto overscroll-contain p-4 lg:max-h-[calc(100dvh-8rem)]"
-      >
-        <AnalysisList
-          state={state}
-          scroller={scroller}
-          empty={t(`${K}.deviceNoneInWork`, { name: `#${name}`, title: work.title })}
-          onTag={onTag}
-        />
+      {/* Clips the list while it gives at either end. */}
+      <div className="overflow-hidden rounded-b-2xl">
+        <div
+          ref={scroller}
+          className="max-h-[70vh] overflow-y-auto overscroll-contain p-4 lg:max-h-[calc(100dvh-8rem)]"
+        >
+          <AnalysisList
+            state={state}
+            scroller={scroller}
+            empty={t(`${K}.deviceNoneInWork`, { name: `#${name}`, title: work.title })}
+            onTag={onTag}
+          />
+        </div>
       </div>
     </section>
   )
