@@ -290,11 +290,16 @@ export function DysonScene({
     window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0,
   )
   const introSkip = useRef(false)
+  // The text fades in once, as the opening ends; after that the fade is dropped. A node is
+  // remounted whenever it passes between the far and near side, and a fade on every remount
+  // makes its label flash as the sphere turns.
+  const [textFade, setTextFade] = useState(intro < 1)
   useEffect(() => {
     if (intro >= 1) return
     // Time is added frame by frame with each step capped, so the busy first frames while the page
     // is still mounting slow the opening down instead of skipping most of it.
     let frame = 0
+    let fadeTimer = 0
     let last = 0
     let elapsed = 0
     const step = (now: number) => {
@@ -303,9 +308,13 @@ export function DysonScene({
       const k = introSkip.current ? 1 : Math.min(1, elapsed / INTRO_MS)
       setIntro(k)
       if (k < 1) frame = requestAnimationFrame(step)
+      else fadeTimer = window.setTimeout(() => setTextFade(false), 600)
     }
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(fadeTimer)
+    }
     // Runs once, on opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -547,6 +556,7 @@ export function DysonScene({
   const introE = easeOut(intro)
   const shownView = intro < 1 ? mul(aroundY(-(1 - introE) * INTRO_TURN), view) : view
   const textOn = intro >= 1
+  const fadeIn = textFade ? 'animate-in fade-in duration-500' : ''
   const turn = (p: Vec3) => apply(shownView, p)
   const shellLit = hover?.startsWith('work:') ?? false
   const coreLit = hover?.startsWith('device:') ?? false
@@ -769,7 +779,7 @@ export function DysonScene({
             fontSize={snapText(r * 1.05, ppu)}
             fontWeight={700}
             fill="#fff"
-            className="pointer-events-none select-none animate-in fade-in duration-500"
+            className={`pointer-events-none select-none ${fadeIn}`}
             aria-hidden
           >
             {n.initial}
@@ -788,7 +798,7 @@ export function DysonScene({
             strokeWidth={0.018}
             paintOrder="stroke"
             strokeLinejoin="round"
-            className="select-none animate-in fade-in duration-500"
+            className={`select-none ${fadeIn}`}
           >
             {n.label}
           </text>
