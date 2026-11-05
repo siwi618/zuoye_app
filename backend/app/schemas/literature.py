@@ -125,10 +125,6 @@ class WorkRead(BaseModel):
     tags: list[TagRead]
     # The analyses come a page at a time (AnalysisPage); this is how many there are.
     analysis_count: int
-    # Transition only: the frontend before paging still reads every analysis from here.
-    # Remove once the paged frontend is live.
-    analyses: list[AnalysisRead] = []
-    versions: list[QuoteVersion] = []
 
 
 class AnalysisSort(str, Enum):

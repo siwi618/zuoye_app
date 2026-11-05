@@ -166,6 +166,7 @@ def _tag_counts(index: list[dict]) -> tuple[Counter, dict[str, dict]]:
 def get_work(user_id: str, work_key: str) -> WorkRead:
     """A work's quotes, the tags its analyses use (with counts) and how many analyses there
     are; the analyses themselves come a page at a time from list_analyses()."""
+    _ = user_id
     with ThreadPoolExecutor(max_workers=2) as pool:
         quotes_job = pool.submit(
             _quote_rows, work_key,
@@ -199,17 +200,7 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
             key=lambda t: (-t.count, t.name),
         ),
         analysis_count=len(index),
-        # Transition only (see WorkRead): every analysis, for the frontend before paging.
-        **_all_analyses(user_id, work_key),
     )
-
-
-def _all_analyses(user_id: str, work_key: str) -> dict:
-    page = list_analyses(
-        user_id, work_key, sort=AnalysisSort.hot, tag=None, who=None, quote=None,
-        offset=0, limit=1000,
-    )
-    return {"analyses": page.items, "versions": page.versions}
 
 
 def _order(index: list[dict], sort: AnalysisSort, user_id: str) -> list[dict]:
