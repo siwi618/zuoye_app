@@ -1,8 +1,12 @@
 import { useEffect, type RefObject } from 'react'
 
 const MAX = 72 // the furthest the box gives, in px
-const SETTLE = 'transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)' // springs back, a touch past
-const WHEEL_IDLE = 140 // ms without a wheel event before the box lets go
+const SETTLE = 'transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1)' // springs back, a touch past
+// A wheel pull lets go when the wheel pauses or after HOLD at most (about 0.5 s with the spring),
+// then ignores the rest of that push — a trackpad keeps coasting — until the wheel is quiet.
+const WHEEL_IDLE = 50
+const HOLD = 200
+const COAST = 150
 
 // A scroll box pushed past its top or bottom (wheel, trackpad or finger) gives a little, harder
 // the further it goes, then springs back when let go. The whole box moves, not its content
@@ -13,6 +17,9 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let pull = 0 // how far past an end it has been pushed: + past the top, - past the bottom
     let timer = 0
+    let since = 0 // when the current wheel pull began
+    let coasting = false
+    let quiet = 0
     let touchY: number | null = null
 
     const atTop = () => el.scrollTop <= 0
@@ -25,6 +32,7 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     const release = () => {
       window.clearTimeout(timer)
       touchY = null
+      since = 0
       if (!pull) return
       pull = 0
       el.style.transition = SETTLE
@@ -42,10 +50,23 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return // zoom, sideways
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1) * 0.4
+      window.clearTimeout(quiet)
+      quiet = window.setTimeout(() => (coasting = false), COAST)
+      if (coasting) {
+        // The same push still coming in: no second pull, and no browser bounce on top.
+        if ((dy < 0 && atTop()) || (dy > 0 && atBottom())) e.preventDefault()
+        return
+      }
       if (!push(dy)) return
       e.preventDefault()
+      since ||= e.timeStamp
       window.clearTimeout(timer)
-      timer = window.setTimeout(release, WHEEL_IDLE)
+      if (e.timeStamp - since >= HOLD) letGo()
+      else timer = window.setTimeout(letGo, WHEEL_IDLE)
+    }
+    const letGo = () => {
+      release()
+      coasting = true
     }
     const onTouchStart = (e: TouchEvent) => {
       touchY = e.touches[0]?.clientY ?? null
@@ -65,6 +86,7 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
     el.addEventListener('touchcancel', release)
     return () => {
       window.clearTimeout(timer)
+      window.clearTimeout(quiet)
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('touchstart', onTouchStart)
       el.removeEventListener('touchmove', onTouchMove)
