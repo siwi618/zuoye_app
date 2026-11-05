@@ -4,17 +4,18 @@ import { Heart, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { AnalysisRead } from '@/api/literature'
+import type { AnalysisRead, QuoteVersion } from '@/api/literature'
 import { sliceChars } from '@/lib/literature/text'
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 
 const K = 'tools.literature'
 
-// A published analysis, as it was written: its quotes are the copies taken when it was published.
+// A published analysis, as it was written: it shows the version of each quote it was written on.
 // Above the text, one label per fragment (「第 12 页 · 引文1」) that opens the whole quote; in the
 // text, each「引文N」reads as the fragment's words. Hovering one lights up the other.
 export function AnalysisCard({
   analysis: a,
+  versions,
   mine,
   deleting,
   onTag,
@@ -22,6 +23,7 @@ export function AnalysisCard({
   onDelete,
 }: {
   analysis: AnalysisRead
+  versions: Map<string, QuoteVersion>
   mine: boolean
   deleting: boolean
   onTag: (name: string) => void
@@ -32,7 +34,14 @@ export function AnalysisCard({
   const [lit, setLit] = useState<number | null>(null)
   // The covered quote whose whole text is unfolded under the labels, if any.
   const [open, setOpen] = useState<string | null>(null)
-  const quoteOf = new Map(a.quotes.map((q) => [q.quote_id, q]))
+  // quote id → the version of it this analysis cites
+  const quoteOf = new Map(
+    a.quotes.flatMap((c) => {
+      const v = versions.get(c.version_id)
+      return v ? [[c.quote_id, v] as const] : []
+    }),
+  )
+  const covered = [...quoteOf.values()]
   const fragments = new Map(
     a.highlights.flatMap((h) => {
       const q = quoteOf.get(h.quote_id)
@@ -51,7 +60,7 @@ export function AnalysisCard({
         const q = quoteOf.get(h.quote_id)
         return q ? [{ key: `n${h.number}`, quote: q, number: h.number as number | null }] : []
       }),
-    ...a.quotes
+    ...covered
       .filter((q) => !a.highlights.some((h) => h.quote_id === q.quote_id))
       .map((q) => ({ key: q.quote_id, quote: q, number: null })),
   ]

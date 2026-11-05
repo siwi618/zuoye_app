@@ -30,10 +30,12 @@ export interface Highlight {
   end: number
 }
 
-// A quote as it was when the analysis was published; its highlights point into this text, so a
-// later change to the quote leaves the analysis as written.
-export interface CoveredQuote {
+// One version of a quote. An analysis cites the version it was written on, so a later change to
+// the quote leaves it as written; its highlights point into this text.
+export interface QuoteVersion {
+  id: string
   quote_id: string
+  number: number
   body: string
   page_start: number
   page_end: number
@@ -46,7 +48,7 @@ export interface AnalysisRead {
   author: ProfileSummary
   body: string
   quote_ids: string[]
-  quotes: CoveredQuote[]
+  quotes: { quote_id: string; version_id: string }[]
   highlights: Highlight[]
   tags: TagRead[]
   like_count: number
@@ -61,6 +63,8 @@ export interface WorkRead {
   work_key: string
   quotes: QuoteRead[]
   analyses: AnalysisRead[]
+  // The quote versions the analyses cite, each sent once.
+  versions: QuoteVersion[]
   // Tags used by this work's analyses, most used first.
   tags: TagRead[]
 }

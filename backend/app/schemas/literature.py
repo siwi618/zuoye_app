@@ -70,13 +70,21 @@ class HighlightRead(HighlightIn):
     pass
 
 
-class CoveredQuote(BaseModel):
-    """A quote as it was when the analysis was published; highlights point into this text."""
+class QuoteVersion(BaseModel):
+    """One version of a quote. An analysis cites the version it was written on, so a later
+    change to the quote leaves it as written; highlights point into this text."""
+    id: str
     quote_id: str
+    number: int
     body: str
     page_start: int
     page_end: int
     edition: str | None = None
+
+
+class CitedQuote(BaseModel):
+    quote_id: str
+    version_id: str
 
 
 class AnalysisCreate(BaseModel):
@@ -92,7 +100,7 @@ class AnalysisRead(BaseModel):
     author: ProfileSummary
     body: str
     quote_ids: list[str]
-    quotes: list[CoveredQuote]
+    quotes: list[CitedQuote]
     highlights: list[HighlightRead]
     tags: list[TagRead]
     like_count: int
@@ -104,6 +112,8 @@ class WorkRead(BaseModel):
     work_key: str
     quotes: list[QuoteRead]
     analyses: list[AnalysisRead]
+    # The quote versions the analyses cite, each sent once.
+    versions: list[QuoteVersion]
     # Tags used by this work's analyses, most used first.
     tags: list[TagRead]
 

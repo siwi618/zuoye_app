@@ -295,6 +295,10 @@ export function LiteratureWork() {
   })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
+  const versions = useMemo(
+    () => new Map((data.data?.versions ?? []).map((v) => [v.id, v])),
+    [data.data],
+  )
   // Editions already given for this work, most used first.
   const editions = useMemo(() => {
     const n = new Map<string, number>()
@@ -636,6 +640,7 @@ export function LiteratureWork() {
                 <AnalysisCard
                   key={a.id}
                   analysis={a}
+                  versions={versions}
                   mine={a.author.id === userId}
                   deleting={removeAnalysis.isPending && removeAnalysis.variables === a.id}
                   onTag={(name) => filterBy(name)}

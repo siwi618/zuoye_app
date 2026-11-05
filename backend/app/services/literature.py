@@ -7,11 +7,12 @@ from postgrest.exceptions import APIError
 from app.schemas.literature import (
     AnalysisCreate,
     AnalysisRead,
-    CoveredQuote,
+    CitedQuote,
     HighlightRead,
     OverviewRead,
     QuoteCreate,
     QuoteRead,
+    QuoteVersion,
     TagRead,
     WorkLink,
     WorkRead,
@@ -40,18 +41,18 @@ def _reject(detail: str, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HT
 # Profile columns embedded with each row: enough for ProfileSummary, plus is_deleted, since
 # content of soft-deleted users is hidden.
 _PROFILE = "id, display_name, avatar_url, is_deleted"
-# Quotes will also reach profiles a second way (through lit_quote_versions.edited_by, migration
-# 0015), so their author embed names its foreign key too; this works before and after it.
-_AUTHOR = f"author:profiles!lit_quotes_author_id_fkey({_PROFILE})"
-# Analyses reach profiles two ways (their author, and the users who liked them through
-# lit_analysis_likes), so PostgREST needs the foreign key named or it refuses the query.
+# Analyses and quotes each reach profiles two ways (their author, and the users who liked an
+# analysis / edited a quote version), so PostgREST needs the foreign key named or it refuses
+# the query.
 _ANALYSIS_AUTHOR = "author:profiles!lit_analyses_author_id_fkey"
+_QUOTE_AUTHOR = "author:profiles!lit_quotes_author_id_fkey"
+_VERSION = "id, number, body, page_start, page_end, edition"
 # Every analysis comes with what it covers, its fragments and its tags in one round trip
 # (PostgREST follows the foreign keys), instead of one query per table.
 _ANALYSIS_FULL = (
     f"id, work_key, body, like_count, created_at, {_ANALYSIS_AUTHOR}({_PROFILE}), "
     "lit_analysis_likes(user_id), "
-    "lit_analysis_quotes(quote_id, position, body, page_start, page_end, edition, "
+    "lit_analysis_quotes(quote_id, position, version_id, "
     "lit_highlights(number, start_offset, end_offset)), "
     "lit_analysis_tags(lit_tags(id, name, moderation_flagged))"
 )
@@ -119,7 +120,7 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
         rows = (
             get_supabase()
             .table("lit_quotes")
-            .select(f"*, {_AUTHOR}")
+            .select(f"*, {_QUOTE_AUTHOR}({_PROFILE}), lit_quote_versions({_VERSION})")
             .eq("work_key", work_key)
             .eq("moderation_flagged", False)
             .order("page_start").order("created_at")
@@ -145,13 +146,16 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
     cited = Counter(
         c["quote_id"] for a in analyses for c in a.get("lit_analysis_quotes") or []
     )
+    cited_versions = {
+        c["version_id"] for a in analyses for c in a.get("lit_analysis_quotes") or []
+    }
 
     def tag_read(tag_id: str) -> TagRead:
         return TagRead(id=tag_id, name=names[tag_id], count=counts[tag_id])
 
     def analysis_read(a: dict) -> AnalysisRead:
-        # The analysis shows its own copy of each quote (taken when it was published), but a
-        # quote taken down by moderation drops out of the analyses citing it.
+        # The analysis shows the version of each quote it was written on, but a quote taken
+        # down by moderation drops out of the analyses citing it.
         covered = sorted(
             (c for c in a.get("lit_analysis_quotes") or [] if c["quote_id"] in quote_ids),
             key=lambda c: c["position"],
@@ -171,11 +175,7 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
             id=a["id"], work_key=a["work_key"], author=_author(a), body=a["body"],
             quote_ids=[c["quote_id"] for c in covered],
             quotes=[
-                CoveredQuote(
-                    quote_id=c["quote_id"], body=c["body"], page_start=c["page_start"],
-                    page_end=c["page_end"], edition=c.get("edition"),
-                )
-                for c in covered
+                CitedQuote(quote_id=c["quote_id"], version_id=c["version_id"]) for c in covered
             ],
             highlights=highlights,
             tags=sorted((tag_read(t["id"]) for t in _tags_of(a)), key=lambda t: -t.count),
@@ -194,6 +194,12 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
             for q in quotes
         ],
         analyses=[analysis_read(a) for a in analyses],
+        versions=[
+            QuoteVersion(quote_id=q["id"], **v)
+            for q in quotes
+            for v in q.get("lit_quote_versions") or []
+            if v["id"] in cited_versions
+        ],
         tags=sorted((tag_read(t) for t in counts), key=lambda t: (-t.count, t.name)),
     )
 
@@ -353,12 +359,16 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
     rows = (
         get_supabase()
         .table("lit_quotes")
-        .select("id, work_key, body, page_start, page_end, edition, moderation_flagged")
+        .select("id, work_key, moderation_flagged, lit_quote_versions(id, number, body)")
         .in_("id", quote_ids).execute().data
         or []
     )
+    # The analysis is written on each quote's latest version; highlights are checked against
+    # that version's text.
     quotes = {
-        r["id"]: r for r in rows if r["work_key"] == work_key and not r["moderation_flagged"]
+        r["id"]: max(r["lit_quote_versions"], key=lambda v: v["number"])
+        for r in rows
+        if r["work_key"] == work_key and not r["moderation_flagged"] and r["lit_quote_versions"]
     }
     if len(quotes) != len(quote_ids):
         raise _reject(INVALID_ANALYSIS)
@@ -386,12 +396,10 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         raise _reject("Failed to create analysis", status.HTTP_500_INTERNAL_SERVER_ERROR)
     analysis_id = row["id"]
     try:
-        # A copy of each quote as it is now: the analysis stays as written if the quote changes.
         db.table("lit_analysis_quotes").insert([
             {
                 "analysis_id": analysis_id, "quote_id": q, "position": i,
-                "body": quotes[q]["body"], "page_start": quotes[q]["page_start"],
-                "page_end": quotes[q]["page_end"], "edition": quotes[q].get("edition"),
+                "version_id": quotes[q]["id"],
             }
             for i, q in enumerate(quote_ids)
         ]).execute()
@@ -414,13 +422,7 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
     return AnalysisRead(
         id=analysis_id, work_key=work_key, author=ProfileSummary(**profiles[user_id]),
         body=row["body"], quote_ids=quote_ids,
-        quotes=[
-            CoveredQuote(
-                quote_id=q, body=quotes[q]["body"], page_start=quotes[q]["page_start"],
-                page_end=quotes[q]["page_end"], edition=quotes[q].get("edition"),
-            )
-            for q in quote_ids
-        ],
+        quotes=[CitedQuote(quote_id=q, version_id=quotes[q]["id"]) for q in quote_ids],
         highlights=[HighlightRead(**h.model_dump()) for h in payload.highlights],
         tags=[TagRead(id=t["id"], name=t["name"], count=0) for t in tags],
         like_count=0, liked_by_me=False, created_at=row["created_at"],
