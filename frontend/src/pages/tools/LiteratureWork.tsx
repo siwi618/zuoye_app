@@ -119,9 +119,9 @@ function QuoteForm({
           className="min-h-28"
         />
       </label>
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium">{t(`${K}.pageStart`)}</span>
+          <span className="block text-sm leading-5 font-medium">{t(`${K}.pageStart`)}</span>
           <Input
             type="number"
             min={1}
@@ -133,7 +133,7 @@ function QuoteForm({
           />
         </label>
         <label className="space-y-1.5">
-          <span className="block text-sm font-medium">{t(`${K}.pageEnd`)}</span>
+          <span className="block text-sm leading-5 font-medium">{t(`${K}.pageEnd`)}</span>
           <Input
             type="number"
             min={from || 1}
@@ -146,7 +146,7 @@ function QuoteForm({
           />
         </label>
         <label className="min-w-48 flex-1 space-y-1.5">
-          <span className="block text-sm font-medium">
+          <span className="block text-sm leading-5 font-medium">
             {t(`${K}.edition`)}
             <span className="ml-1 font-normal text-muted-foreground">{t(`${K}.optional`)}</span>
           </span>
@@ -157,12 +157,12 @@ function QuoteForm({
             placeholder={t(`${K}.editionPlaceholder`)}
             onChange={(e) => setEdition(e.target.value)}
           />
-          <datalist id={editionList}>
-            {editions.map((e) => (
-              <option key={e} value={e} />
-            ))}
-          </datalist>
         </label>
+        <datalist id={editionList}>
+          {editions.map((e) => (
+            <option key={e} value={e} />
+          ))}
+        </datalist>
         <p className="basis-full text-xs text-muted-foreground">{t(`${K}.pageHint`)}</p>
       </div>
       <div className="flex justify-end gap-2">
