@@ -51,6 +51,7 @@ function Column({
   onChoose,
   onTag,
   prompt,
+  loading = false,
 }: {
   device: DeviceRead | undefined
   name: string
@@ -58,6 +59,7 @@ function Column({
   onChoose: (key: string | null) => void
   onTag: (name: string, kind: TagKind) => void
   prompt: string
+  loading?: boolean // still finding out which work to show
 }) {
   const { t } = useTranslation()
   const counts = new Map((device?.works ?? []).map((w) => [w.work_key, w.count]))
@@ -91,7 +93,9 @@ function Column({
           </Link>
         )}
       </div>
-      {work ? (
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{t(`${K}.loadingWorks`)}</p>
+      ) : work ? (
         <AnalysisList
           state={state}
           empty={t(`${K}.deviceNoneInWork`, { name: `#${name}`, title: work.title })}
@@ -193,6 +197,8 @@ export function LiteratureDevice() {
             workKey={right}
             onChoose={(k) => choose('work', k)}
             onTag={(n, k) => onTag(n, k, right)}
+            // With nothing chosen or remembered, the right half waits for the most-used work.
+            loading={!right && device.isLoading}
             prompt={t(`${K}.chooseWorkFor`, { name: `#${title}` })}
           />
         </div>

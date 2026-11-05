@@ -404,6 +404,7 @@ export const en = {
       openDevice: 'Open the device page',
       searchDevices: 'Search devices',
       deviceSearchEmpty: 'Nothing matches “{{query}}”',
+      loadingWorks: 'Loading the works…',
     },
     thermometer: {
       subtitle:

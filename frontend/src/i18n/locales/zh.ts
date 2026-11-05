@@ -405,6 +405,7 @@ export const zh: Translations = {
       openDevice: '打开手法页',
       searchDevices: '搜索手法',
       deviceSearchEmpty: '没有找到「{{query}}」',
+      loadingWorks: '加载相关作品中…',
     },
     thermometer: {
       subtitle:

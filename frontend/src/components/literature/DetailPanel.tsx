@@ -154,6 +154,14 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
         </Link>
       </Button>
       <div className="space-y-2">
+        {device.isLoading && (
+          <p className="text-sm text-muted-foreground">{t(`${K}.loadingWorks`)}</p>
+        )}
+        {device.isError && (
+          <p className="text-sm text-destructive">
+            {device.error instanceof Error ? device.error.message : t('common.error')}
+          </p>
+        )}
         {(device.data?.works ?? [])
           .filter((l) => findWork(l.work_key))
           .map((l) => {
