@@ -39,6 +39,9 @@ _SWEEP_TABLES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("forum_posts", ("title", "body")),
     ("forum_comments", ("body",)),
     ("request_messages", ("body",)),
+    ("lit_quotes", ("body",)),
+    ("lit_tags", ("name",)),
+    ("lit_analyses", ("body",)),
 )
 
 
