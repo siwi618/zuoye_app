@@ -31,13 +31,12 @@ import { sliceChars } from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisCard } from '@/components/literature/AnalysisCard'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
+import { AnalysisFilter } from '@/components/literature/AnalysisFilter'
 
 const K = 'tools.literature'
 // Quotes shown before「显示全部」.
 const SHOWN_QUOTES = 5
 const MAX_PICKED = 10
-// Radix Select can't hold an empty value; this one stands for "no filter".
-const ALL = 'all'
 type Sort = 'hot' | 'new' | 'mine'
 const SORTS: Sort[] = ['hot', 'new', 'mine']
 
@@ -381,6 +380,7 @@ export function LiteratureWork() {
       ? t(`${K}.pageOne`, { start: q.page_start })
       : t(`${K}.pageRange`, { start: q.page_start, end: q.page_end })
   const citedQuotes = quotes.filter((q) => q.cited_count > 0)
+  const activeQuote = quoteFilter ? byId.get(quoteFilter) : undefined
   const compose = () => {
     setComposing(true)
     requestAnimationFrame(() =>
@@ -567,65 +567,66 @@ export function LiteratureWork() {
                 ))}
               </SelectContent>
             </Select>
-            <Select
-              value={quoteFilter && byId.has(quoteFilter) ? quoteFilter : ALL}
-              onValueChange={(v) => setParam('quote', v === ALL ? null : v)}
-            >
-              <SelectTrigger aria-label={t(`${K}.filterQuote`)} className="w-56 max-w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{t(`${K}.allQuotes`)}</SelectItem>
-                {citedQuotes.map((q) => (
-                  <SelectItem key={q.id} value={q.id}>
-                    {pageText(q)} · {sliceChars(q.body, 0, 12)}
-                    {[...q.body].length > 12 && '…'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={
-                data.data?.tags.find((x) => x.name.toLowerCase() === tagFilter?.toLowerCase())
-                  ?.name ?? ALL
-              }
-              onValueChange={(v) => filterBy(v === ALL ? null : v)}
-            >
-              <SelectTrigger aria-label={t(`${K}.filterTag`)} className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{t(`${K}.allTags`)}</SelectItem>
-                {data.data?.tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.name}>
-                    #{tag.name} ({tag.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filtering && (
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                {t(`${K}.matchCount`, { count: analyses.length })}
+            <AnalysisFilter
+              quotes={citedQuotes}
+              tags={data.data?.tags ?? []}
+              onQuote={(id) => setParam('quote', id)}
+              onTag={(name) => filterBy(name)}
+            />
+          </div>
+        )}
+        {all.length > 0 && filtering && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {activeQuote && (
+              <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 py-1 pr-1 pl-3 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100">
+                <span className="truncate">
+                  {pageText(activeQuote)} · {sliceChars(activeQuote.body, 0, 12)}
+                  {[...activeQuote.body].length > 12 && '…'}
+                </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setParams(
-                      (p) => {
-                        const next = new URLSearchParams(p)
-                        next.delete('tag')
-                        next.delete('quote')
-                        return next
-                      },
-                      { replace: true },
-                    )
-                  }
-                  className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                  aria-label={t(`${K}.removeFilter`)}
+                  onClick={() => setParam('quote', null)}
+                  className="grid size-5 shrink-0 place-items-center rounded-full hover:bg-amber-200/70 dark:hover:bg-amber-400/30"
                 >
-                  <X className="size-3.5" />
-                  {t(`${K}.clearFilters`)}
+                  <X className="size-3" />
                 </button>
               </span>
             )}
+            {tagFilter && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 py-1 pr-1 pl-3 font-medium text-primary">
+                #{tagFilter}
+                <button
+                  type="button"
+                  aria-label={t(`${K}.removeFilter`)}
+                  onClick={() => filterBy(null)}
+                  className="grid size-5 place-items-center rounded-full hover:bg-primary/15"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            )}
+            <span className="flex items-center gap-2 text-muted-foreground">
+              {t(`${K}.matchCount`, { count: analyses.length })}
+              <button
+                type="button"
+                onClick={() =>
+                  setParams(
+                    (p) => {
+                      const next = new URLSearchParams(p)
+                      next.delete('tag')
+                      next.delete('quote')
+                      return next
+                    },
+                    { replace: true },
+                  )
+                }
+                className="inline-flex items-center gap-0.5 text-primary hover:underline"
+              >
+                <X className="size-3.5" />
+                {t(`${K}.clearFilters`)}
+              </button>
+            </span>
           </div>
         )}
         {data.data &&
