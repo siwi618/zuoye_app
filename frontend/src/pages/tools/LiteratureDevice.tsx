@@ -3,40 +3,17 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, BookOpen, Search, X } from 'lucide-react'
-import { getDevice, type DeviceRead } from '@/api/literature'
+import type { DeviceRead } from '@/api/literature'
 import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
 import { useAnalysisList } from '@/lib/literature/analysisList'
+import { recall, remember, type Side } from '@/lib/literature/deviceMemory'
+import { deviceQuery, usePrefetch } from '@/lib/literature/queries'
 import { useRubberBand } from '@/lib/rubberBand'
 import type { TagKind } from '@/lib/literature/text'
 import { AnalysisList } from '@/components/literature/AnalysisList'
 import { IntroBlock } from '@/components/literature/IntroBlock'
 
 const K = 'tools.literature'
-
-// The works last shown on a device page, remembered in this browser for the next one.
-// `work` is the left card, `compare` the right one; an empty value means the card was closed.
-type Side = 'work' | 'compare'
-const MEMORY: Record<Side, string> = {
-  work: 'coral.literature.deviceWork',
-  compare: 'coral.literature.deviceCompare',
-}
-// undefined: nothing remembered yet; null: remembered as closed.
-const recall = (side: Side): string | null | undefined => {
-  try {
-    const key = localStorage.getItem(MEMORY[side])
-    if (key === null) return undefined
-    return findWork(key) ? key : null
-  } catch {
-    return undefined
-  }
-}
-const remember = (side: Side, key: string | null) => {
-  try {
-    localStorage.setItem(MEMORY[side], key ?? '')
-  } catch {
-    // storage unavailable: nothing is remembered
-  }
-}
 
 // Sliding: where each card was just before the cards changed, so it can glide over from there.
 // Kept outside React (only one device page is open at a time), taken just before the change.
@@ -68,15 +45,18 @@ const valid = (key: string | null) => (findWork(key ?? undefined) ? key : null)
 
 // Finds a work to put in a card: matches title, author or group, those using the device first.
 function WorkSearch({
+  name,
   counts,
   shown,
   onPick,
 }: {
+  name: string // the device
   counts: Map<string, number>
   shown: string[]
   onPick: (key: string) => void
 }) {
   const { t } = useTranslation()
+  const prefetch = usePrefetch()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const q = query.trim().toLowerCase()
@@ -129,6 +109,7 @@ function WorkSearch({
                   // Keep the focus (and the list) until the click lands.
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => pick(w.key)}
+                  {...prefetch.device(name, w.key)}
                   className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary disabled:pointer-events-none disabled:opacity-50"
                 >
                   <span className="font-semibold">《{w.title}》</span>
@@ -167,6 +148,7 @@ function WorkCard({
   onTag: (name: string, kind: TagKind) => void
 }) {
   const { t } = useTranslation()
+  const prefetch = usePrefetch()
   const state = useAnalysisList(workKey, { sort: 'hot', tag: name })
   const scroller = useRef<HTMLDivElement>(null)
   useRubberBand(scroller)
@@ -185,6 +167,7 @@ function WorkCard({
         </div>
         <Link
           to={workPath(work.key)}
+          {...prefetch.work(work.key)}
           aria-label={t(`${K}.openWork`)}
           title={t(`${K}.openWork`)}
           className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-primary"
@@ -237,10 +220,7 @@ export function LiteratureDevice() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const device = useQuery({
-    queryKey: ['literature-device', name.toLowerCase()],
-    queryFn: () => getDevice(name),
-  })
+  const device = useQuery(deviceQuery(name))
   // Each card shows the work in the link, else the one last shown there; the first time ever,
   // the left card starts on the work using the device most.
   const fromUrl = (side: Side) => (params.has(side) ? valid(params.get(side)) : recall(side))
@@ -308,7 +288,12 @@ export function LiteratureDevice() {
         <div className="max-w-3xl">
           <IntroBlock key={title.toLowerCase()} kind="device" subject={title} />
         </div>
-        <WorkSearch counts={counts} shown={cards} onPick={(key) => show([...cards, key])} />
+        <WorkSearch
+          name={title}
+          counts={counts}
+          shown={cards}
+          onPick={(key) => show([...cards, key])}
+        />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">

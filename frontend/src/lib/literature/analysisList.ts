@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
+import { infiniteQueryOptions, keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import {
   listAnalyses,
+  type AnalysisPage,
   type AnalysisRead,
   type AnalysisSort,
   type QuoteVersion,
@@ -20,8 +21,8 @@ export interface AnalysisFilters {
 // One work's analyses, sorted and filtered by the server and loaded PAGE_SIZE at a time. Every
 // list of a work shares the key prefix ['literature-analyses', workKey], so a like or a delete
 // can update them all.
-export function useAnalysisList(workKey: string | null, f: AnalysisFilters) {
-  const list = useInfiniteQuery({
+export const analysesQuery = (workKey: string | null, f: AnalysisFilters) =>
+  infiniteQueryOptions({
     queryKey: [
       'literature-analyses',
       workKey,
@@ -33,7 +34,12 @@ export function useAnalysisList(workKey: string | null, f: AnalysisFilters) {
     queryFn: ({ pageParam }) =>
       listAnalyses(workKey!, { ...f, offset: pageParam, limit: PAGE_SIZE }),
     initialPageParam: 0,
-    getNextPageParam: (last) => last.next_offset ?? undefined,
+    getNextPageParam: (last: AnalysisPage) => last.next_offset ?? undefined,
+  })
+
+export function useAnalysisList(workKey: string | null, f: AnalysisFilters) {
+  const list = useInfiniteQuery({
+    ...analysesQuery(workKey, f),
     // Changing the sort or a filter keeps the old list on screen until the new one arrives.
     placeholderData: keepPreviousData,
     enabled: !!workKey,

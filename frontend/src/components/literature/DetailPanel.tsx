@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { BookOpen, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getDevice, searchTags, type OverviewRead, type TagRead } from '@/api/literature'
+import { searchTags, type OverviewRead, type TagRead } from '@/api/literature'
 import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
+import { deviceQuery, usePrefetch } from '@/lib/literature/queries'
 import { cleanTag } from '@/lib/literature/text'
 import type { Selection } from './DysonScene'
 import { IntroBlock } from './IntroBlock'
@@ -51,8 +52,9 @@ const rowClass =
 
 function TagRow({ name, count, onClick }: { name: string; count: number; onClick: () => void }) {
   const { t } = useTranslation()
+  const prefetch = usePrefetch()
   return (
-    <button type="button" onClick={onClick} className={rowClass}>
+    <button type="button" onClick={onClick} className={rowClass} {...prefetch.device(name)}>
       <span className="font-semibold group-hover:text-primary">#{name}</span>
       <span className="text-sm text-muted-foreground">{t(`${K}.analysisCount`, { count })}</span>
       <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -62,8 +64,9 @@ function TagRow({ name, count, onClick }: { name: string; count: number; onClick
 
 function WorkRow({ workKey, onClick }: { workKey: string; onClick: () => void }) {
   const w = findWork(workKey)!
+  const prefetch = usePrefetch()
   return (
-    <button type="button" onClick={onClick} className={rowClass}>
+    <button type="button" onClick={onClick} className={rowClass} {...prefetch.work(workKey)}>
       <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
       <span className="text-sm text-muted-foreground">
         {w.author} · {w.year}
@@ -127,13 +130,11 @@ function DeviceSearch({ hot, onPick }: { hot: TagRead[]; onPick: (tag: TagRead) 
 }
 
 // A device: its introduction, the way into its own page, and the works using it; a work opens
-// the device page with that work on the right.
+// the device page with that work in the left card.
 function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
   const { t } = useTranslation()
-  const device = useQuery({
-    queryKey: ['literature-device', tag.name.toLowerCase()],
-    queryFn: () => getDevice(tag.name),
-  })
+  const prefetch = usePrefetch()
+  const device = useQuery(deviceQuery(tag.name))
   return (
     <div className="space-y-5">
       <header className="space-y-2">
@@ -148,7 +149,7 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
         <IntroBlock key={tag.name} kind="device" subject={tag.name} compact />
       </section>
       <Button asChild className="w-full">
-        <Link to={devicePath(tag.name)}>
+        <Link to={devicePath(tag.name)} {...prefetch.device(tag.name)}>
           <BookOpen className="size-4" />
           {t(`${K}.openDevice`)}
         </Link>
@@ -167,7 +168,12 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
           .map((l) => {
             const w = findWork(l.work_key)!
             return (
-              <Link key={l.work_key} to={devicePath(tag.name, w.key)} className={rowClass}>
+              <Link
+                key={l.work_key}
+                to={devicePath(tag.name, w.key)}
+                className={rowClass}
+                {...prefetch.device(tag.name, w.key)}
+              >
                 <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
                 <span className="text-sm text-muted-foreground">
                   {t(`${K}.analysisCount`, { count: l.count })}
@@ -203,6 +209,7 @@ export function DetailPanel({
   onHome: (kind: Kind) => void
 }) {
   const { t } = useTranslation()
+  const prefetch = usePrefetch()
   const hot = overview?.tags ?? []
   const tags = [...hot, ...knownTags.filter((k) => !hot.some((h) => h.id === k.id))]
   const links = overview?.links ?? []
@@ -265,6 +272,7 @@ export function DetailPanel({
                   type="button"
                   onClick={() => pickTag(tag.id)}
                   className="rounded-full border border-border/70 px-3 py-1 text-sm hover:border-primary/60 hover:text-primary"
+                  {...prefetch.device(tag.name)}
                 >
                   #{tag.name}
                   <span className="ml-1.5 text-xs text-muted-foreground">{tag.count}</span>
@@ -321,7 +329,7 @@ export function DetailPanel({
         <IntroBlock key={w.key} kind="work" subject={w.key} compact />
       </section>
       <Button asChild className="w-full">
-        <Link to={workPath(w.key)}>
+        <Link to={workPath(w.key)} {...prefetch.work(w.key)}>
           <BookOpen className="size-4" />
           {t(`${K}.openWork`)}
         </Link>

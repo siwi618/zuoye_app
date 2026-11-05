@@ -6,7 +6,8 @@ import { History, Pencil, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { getIntro, introHistory, saveIntro, type IntroKind } from '@/api/literature'
+import { introHistory, saveIntro, type IntroKind } from '@/api/literature'
+import { introQuery } from '@/lib/literature/queries'
 
 const K = 'tools.literature'
 const MAX = 500
@@ -24,8 +25,8 @@ export function IntroBlock({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const queryKey = ['literature-intro', kind, subject.toLowerCase()]
-  const intro = useQuery({ queryKey, queryFn: () => getIntro(kind, subject) })
+  const { queryKey, queryFn } = introQuery(kind, subject)
+  const intro = useQuery({ queryKey, queryFn })
   const [draft, setDraft] = useState<string | null>(null) // null: not editing
   const [showHistory, setShowHistory] = useState(false)
   const history = useQuery({

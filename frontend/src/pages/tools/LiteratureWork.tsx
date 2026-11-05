@@ -29,12 +29,12 @@ import { useAuthStore } from '@/store/auth'
 import {
   createQuote,
   deleteQuote,
-  getWork,
   updateQuote,
   type QuoteRead,
   type WorkRead,
 } from '@/api/literature'
 import { findWork } from '@/lib/literature/corpus'
+import { workQuery } from '@/lib/literature/queries'
 import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisList } from '@/components/literature/AnalysisList'
@@ -396,11 +396,7 @@ export function LiteratureWork() {
   const [composing, setComposing] = useState(false)
   const composerAt = useRef<HTMLDivElement>(null)
 
-  const data = useQuery({
-    queryKey: ['literature-work', key],
-    queryFn: () => getWork(key!),
-    enabled: !!work,
-  })
+  const data = useQuery({ ...workQuery(key ?? ''), enabled: !!work })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
 
