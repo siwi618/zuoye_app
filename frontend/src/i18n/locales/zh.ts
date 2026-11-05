@@ -218,12 +218,12 @@ export const zh: Translations = {
     items: {
       ammeter: '电流仪',
       thermometer: '温度计',
-      literature: '文学分析（测试中）',
+      literature: '文学分析',
     },
     blurbs: {
       ammeter: '接上 USB 电流传感器，实时画出电流曲线。',
       thermometer: '接上 UNI-T UT325F 四通道温度计，看实时温度曲线，读取温度计里存的记录。',
-      literature: '把不同作品放在同一个文学手法下对比。',
+      literature: '对比不同的文学作品，和同学分享你读出来的见解和分析。',
     },
     planned: '筹备中',
     openTool: '打开{{name}}',

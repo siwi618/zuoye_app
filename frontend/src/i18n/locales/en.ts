@@ -217,12 +217,12 @@ export const en = {
     items: {
       ammeter: 'Ammeter',
       thermometer: 'Thermometer',
-      literature: 'Literary Analysis (Beta)',
+      literature: 'Literary Analysis',
     },
     blurbs: {
       ammeter: 'Plug in a USB current sensor and watch the current live.',
       thermometer: 'Plug in a UNI-T UT325F 4-channel thermometer: live curves and its stored records.',
-      literature: 'Compare works side by side on the same literary device.',
+      literature: 'Compare literary works and share your insights and analysis with classmates.',
     },
     planned: 'Growing',
     openTool: 'Open {{name}}',
