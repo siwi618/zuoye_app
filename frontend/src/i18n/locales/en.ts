@@ -354,6 +354,10 @@ export const en = {
       removeFilter: 'Remove this filter',
       showQuote: 'Show the whole quote',
       hideQuote: 'Hide the quote',
+      editQuote: 'Edit',
+      saveQuote: 'Save changes',
+      quoteUpdated: 'Quote updated',
+      lastEditedBy: 'last edited by {{name}}',
     },
     thermometer: {
       subtitle:

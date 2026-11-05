@@ -12,6 +12,9 @@ export interface QuoteRead {
   // Analyses citing it; a cited quote can no longer be deleted.
   cited_count: number
   created_at: string
+  // Who changed it last and when, once it has been edited.
+  last_editor: ProfileSummary | null
+  edited_at: string | null
 }
 
 export interface TagRead {
@@ -103,6 +106,14 @@ export function getWork(workKey: string): Promise<WorkRead> {
 export function createQuote(workKey: string, payload: QuoteCreate): Promise<QuoteRead> {
   return apiFetch<QuoteRead>(`/literature/works/${workKey}/quotes`, {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+// Anyone may edit a quote; the edit becomes its next version.
+export function updateQuote(id: string, payload: QuoteCreate): Promise<void> {
+  return apiFetch<void>(`/literature/quotes/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   })
 }

@@ -355,6 +355,10 @@ export const zh: Translations = {
       removeFilter: '去掉这个筛选',
       showQuote: '展开原文',
       hideQuote: '收起原文',
+      editQuote: '编辑',
+      saveQuote: '保存修改',
+      quoteUpdated: '引文已更新',
+      lastEditedBy: '{{name}} 上次编辑',
     },
     thermometer: {
       subtitle:

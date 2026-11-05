@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft, Check, PenLine, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, PenLine, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,6 +22,7 @@ import {
   deleteQuote,
   getWork,
   toggleAnalysisLike,
+  updateQuote,
   type AnalysisRead,
   type QuoteRead,
   type WorkRead,
@@ -75,38 +76,47 @@ function useRemove(
   })
 }
 
+// Adding a quote, or with `initial` editing one (anyone may: the edit becomes its next version,
+// and analyses already written keep the version they cite).
 function QuoteForm({
   workKey,
   editions,
+  initial,
   onClose,
 }: {
   workKey: string
   editions: string[] // editions other quotes of this work give, offered as suggestions
+  initial?: QuoteRead
   onClose: () => void
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const editionList = useId()
-  const [body, setBody] = useState('')
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
-  const [edition, setEdition] = useState('')
+  const [body, setBody] = useState(initial?.body ?? '')
+  const [start, setStart] = useState(initial ? String(initial.page_start) : '')
+  const [end, setEnd] = useState(
+    initial && initial.page_end !== initial.page_start ? String(initial.page_end) : '',
+  )
+  const [edition, setEdition] = useState(initial?.edition ?? '')
   const from = Number(start)
   const to = end ? Number(end) : from
   const valid =
     body.trim() !== '' && Number.isInteger(from) && from >= 1 && Number.isInteger(to) && to >= from
 
-  const add = useMutation({
-    mutationFn: () =>
-      createQuote(workKey, {
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = {
         body: body.trim(),
         page_start: from,
         page_end: to,
         edition: edition.trim() || null,
-      }),
+      }
+      if (initial) await updateQuote(initial.id, payload)
+      else await createQuote(workKey, payload)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['literature-work', workKey] })
-      toast.success(t(`${K}.quoteAdded`))
+      toast.success(t(initial ? `${K}.quoteUpdated` : `${K}.quoteAdded`))
       onClose()
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
@@ -114,7 +124,7 @@ function QuoteForm({
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (valid) add.mutate()
+    if (valid) save.mutate()
   }
 
   return (
@@ -180,8 +190,8 @@ function QuoteForm({
         <Button type="button" variant="outline" onClick={onClose}>
           {t(`${K}.cancel`)}
         </Button>
-        <Button type="submit" disabled={!valid || add.isPending}>
-          {t(`${K}.submitQuote`)}
+        <Button type="submit" disabled={!valid || save.isPending}>
+          {t(initial ? `${K}.saveQuote` : `${K}.submitQuote`)}
         </Button>
       </div>
     </form>
@@ -190,6 +200,7 @@ function QuoteForm({
 
 function QuoteRow({
   quote: q,
+  editions,
   picked,
   canPick,
   mine,
@@ -198,6 +209,7 @@ function QuoteRow({
   onShowAnalyses,
 }: {
   quote: QuoteRead
+  editions: string[]
   picked: boolean
   canPick: boolean
   mine: boolean
@@ -206,11 +218,32 @@ function QuoteRow({
   onShowAnalyses: () => void
 }) {
   const { t } = useTranslation()
+  const [editing, setEditing] = useState(false)
+  if (editing) {
+    return (
+      <li>
+        <QuoteForm
+          workKey={q.work_key}
+          editions={editions}
+          initial={q}
+          onClose={() => setEditing(false)}
+        />
+      </li>
+    )
+  }
+  // A click anywhere on the card picks it, except on its own buttons or while selecting text.
+  const pickFromCard = (e: React.MouseEvent) => {
+    if ((e.target as Element).closest('button, a')) return
+    if (document.getSelection()?.toString()) return
+    if (picked || canPick) onToggle()
+  }
   return (
     <li
+      onClick={pickFromCard}
       className={cn(
-        'flex gap-3 rounded-2xl border bg-card p-4 transition-colors',
-        picked ? 'border-primary bg-primary/5' : 'border-border/60',
+        'flex cursor-pointer gap-3 rounded-2xl border bg-card p-4 transition-colors',
+        picked ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40',
+        !picked && !canPick && 'cursor-default',
       )}
     >
       <button
@@ -231,22 +264,35 @@ function QuoteRow({
         <PageLabel start={q.page_start} end={q.page_end} edition={q.edition} />
         <QuoteText body={q.body} />
         <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-          <span>{t(`${K}.addedBy`, { name: q.author.display_name })}</span>
+          <span>
+            {t(`${K}.addedBy`, { name: q.author.display_name })}
+            {q.last_editor && ` · ${t(`${K}.lastEditedBy`, { name: q.last_editor.display_name })}`}
+          </span>
           {q.cited_count > 0 && (
             <button type="button" onClick={onShowAnalyses} className="hover:text-primary">
               {t(`${K}.citedBy`, { count: q.cited_count })}
             </button>
           )}
-          {mine && q.cited_count === 0 && (
+          <span className="ml-auto flex items-center gap-3">
             <button
               type="button"
-              onClick={() => window.confirm(t(`${K}.deleteQuoteConfirm`)) && onDelete()}
-              className="ml-auto inline-flex items-center gap-1 hover:text-destructive"
+              onClick={() => setEditing(true)}
+              className="inline-flex items-center gap-1 hover:text-primary"
             >
-              <Trash2 className="size-3.5" />
-              {t(`${K}.delete`)}
+              <Pencil className="size-3.5" />
+              {t(`${K}.editQuote`)}
             </button>
-          )}
+            {mine && q.cited_count === 0 && (
+              <button
+                type="button"
+                onClick={() => window.confirm(t(`${K}.deleteQuoteConfirm`)) && onDelete()}
+                className="inline-flex items-center gap-1 hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                {t(`${K}.delete`)}
+              </button>
+            )}
+          </span>
         </div>
       </div>
     </li>
@@ -452,6 +498,7 @@ export function LiteratureWork() {
                 <QuoteRow
                   key={q.id}
                   quote={q}
+                  editions={editions}
                   picked={picked.includes(q.id)}
                   canPick={picked.length < MAX_PICKED}
                   mine={q.author.id === userId}
