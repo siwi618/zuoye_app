@@ -68,7 +68,7 @@ def _analyses(
     limit: int = _MAX_ANALYSES,
     liked_by: str | None = None,
 ) -> list[dict]:
-    """Visible analyses (newest first): not taken down, author not soft-deleted.
+    """Visible analyses, most liked first (then newest): not taken down, author not soft-deleted.
 
     With `liked_by`, the embedded lit_analysis_likes keeps only that user's like, so a
     non-empty list means they liked it.
@@ -78,7 +78,11 @@ def _analyses(
         query = query.eq("work_key", work_key)
     if liked_by:
         query = query.eq("lit_analysis_likes.user_id", liked_by)
-    rows = query.order("created_at", desc=True).limit(limit).execute().data or []
+    rows = (
+        query.order("like_count", desc=True).order("created_at", desc=True)
+        .limit(limit).execute().data
+        or []
+    )
     return [r for r in rows if _shown(r)]
 
 
@@ -114,12 +118,15 @@ def get_work(user_id: str, work_key: str) -> WorkRead:
             .select(f"*, {_AUTHOR}")
             .eq("work_key", work_key)
             .eq("moderation_flagged", False)
-            .order("page_start").order("page_end").order("created_at")
+            .order("page_start").order("created_at")
             .limit(_MAX_QUOTES)
             .execute()
             .data
             or []
         )
+        # By page; on the same page the longest passage first (PostgREST can't order by
+        # length, so it's done here; the sort is stable, keeping the earliest first on ties).
+        rows.sort(key=lambda r: (r["page_start"], -len(r["body"])))
         return [r for r in rows if _shown(r)]
 
     # The two queries don't depend on each other: run them side by side.
