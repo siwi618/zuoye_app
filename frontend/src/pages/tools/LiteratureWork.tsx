@@ -1,9 +1,19 @@
-import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowLeft, Check, PenLine, Pencil, Plus, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  ListChecks,
+  PenLine,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -203,6 +213,7 @@ function QuoteRow({
   picked,
   canPick,
   mine,
+  flash,
   onToggle,
   onDelete,
   onShowAnalyses,
@@ -212,6 +223,7 @@ function QuoteRow({
   picked: boolean
   canPick: boolean
   mine: boolean
+  flash: boolean // just jumped to
   onToggle: () => void
   onDelete: () => void
   onShowAnalyses: () => void
@@ -238,11 +250,13 @@ function QuoteRow({
   }
   return (
     <li
+      data-quote={q.id}
       onClick={pickFromCard}
       className={cn(
-        'flex cursor-pointer gap-3 rounded-2xl border bg-card p-4 transition-colors',
+        'flex cursor-pointer scroll-mt-24 gap-3 rounded-2xl border bg-card p-4 transition-[color,background-color,border-color,box-shadow] duration-500',
         picked ? 'border-primary bg-primary/5' : 'border-border/60 hover:border-primary/40',
         !picked && !canPick && 'cursor-default',
+        flash && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
       )}
     >
       <button
@@ -298,6 +312,58 @@ function QuoteRow({
   )
 }
 
+// 「按页码跳转」: opens a small page box; Enter (or 跳转) goes to the quotes on that page.
+function PageJump({ onJump }: { onJump: (page: number) => void }) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [page, setPage] = useState('')
+  const go = (e: FormEvent) => {
+    e.preventDefault()
+    const n = Number(page)
+    if (!Number.isInteger(n) || n < 1) return
+    onJump(n)
+  }
+  if (!open) {
+    return (
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Search className="size-4" />
+        {t(`${K}.pageJump`)}
+      </Button>
+    )
+  }
+  return (
+    <form onSubmit={go} className="flex items-center gap-1.5">
+      <Input
+        autoFocus
+        type="number"
+        inputMode="numeric"
+        min={1}
+        value={page}
+        onChange={(e) => setPage(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
+        placeholder={t(`${K}.pagePlaceholder`)}
+        aria-label={t(`${K}.pageJump`)}
+        className="h-9 w-24"
+      />
+      <Button type="submit" disabled={!page}>
+        {t(`${K}.pageJumpGo`)}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t(`${K}.cancel`)}
+        onClick={() => {
+          setOpen(false)
+          setPage('')
+        }}
+      >
+        <X className="size-4" />
+      </Button>
+    </form>
+  )
+}
+
 // One work: students' quotes (by page), the #devices their analyses use (most used first), and
 // the analyses themselves. Picking quotes and pressing「分享我自己的分析」opens the composer.
 export function LiteratureWork() {
@@ -325,6 +391,8 @@ export function LiteratureWork() {
   const [adding, setAdding] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
+  const [pickedOnly, setPickedOnly] = useState(false) //「我的选段」: just the ticked quotes
+  const [flash, setFlash] = useState<string[]>([]) // quotes just jumped to, outlined for a moment
   const [composing, setComposing] = useState(false)
   const composerAt = useRef<HTMLDivElement>(null)
 
@@ -351,6 +419,16 @@ export function LiteratureWork() {
     return [...n.keys()].sort((a, b) => n.get(b)! - n.get(a)!)
   }, [quotes])
 
+  // A jump scrolls to its quote once it is on screen, and the outline fades after a moment.
+  useEffect(() => {
+    if (!flash.length) return
+    document
+      .querySelector(`[data-quote="${flash[0]}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const id = window.setTimeout(() => setFlash([]), 1800)
+    return () => window.clearTimeout(id)
+  }, [flash])
+
   const removeQuote = useRemove(key ?? '', deleteQuote, (w, id) => ({
     ...w,
     quotes: w.quotes.filter((q) => q.id !== id),
@@ -370,7 +448,21 @@ export function LiteratureWork() {
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   const pickedQuotes = quotes.filter((q) => picked.includes(q.id))
-  const shown = showAll ? quotes : quotes.slice(0, SHOWN_QUOTES)
+  const onlyPicked = pickedOnly && pickedQuotes.length > 0
+  const listed = onlyPicked ? pickedQuotes : quotes
+  const shown = showAll || onlyPicked ? listed : listed.slice(0, SHOWN_QUOTES)
+  // The quotes on that page, or else the nearest ones; brought into the list and outlined.
+  const jumpTo = (page: number) => {
+    const away = (q: QuoteRead) =>
+      page < q.page_start ? q.page_start - page : page > q.page_end ? page - q.page_end : 0
+    const nearest = Math.min(...quotes.map(away))
+    const hits = quotes.filter((q) => away(q) === nearest)
+    if (!hits.length) return
+    if (nearest > 0) toast(t(`${K}.pageJumpNearest`, { page, near: pageText(hits[0]) }))
+    if (onlyPicked && !hits.every((q) => picked.includes(q.id))) setPickedOnly(false)
+    if (quotes.indexOf(hits[0]) >= SHOWN_QUOTES) setShowAll(true)
+    setFlash(hits.map((q) => q.id))
+  }
   const filterBy = (name: string | null, kind: TagKind = 'device') =>
     setParam(kind === 'device' ? 'tag' : 'who', name)
   const showAnalysesOf = (quoteId: string) => {
@@ -432,13 +524,43 @@ export function LiteratureWork() {
             </h2>
             <p className="text-sm text-muted-foreground">{t(`${K}.quotesHint`)}</p>
           </div>
-          {!adding && (
-            <Button variant="outline" className="ml-auto" onClick={() => setAdding(true)}>
-              <Plus className="size-4" />
-              {t(`${K}.addQuote`)}
-            </Button>
-          )}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {quotes.length > 0 && <PageJump onJump={jumpTo} />}
+            {quotes.length > 0 && (
+              <Button
+                variant={onlyPicked ? 'default' : 'outline'}
+                aria-pressed={onlyPicked}
+                disabled={!pickedQuotes.length}
+                title={pickedQuotes.length ? undefined : t(`${K}.myPicksNone`)}
+                onClick={() => setPickedOnly(!onlyPicked)}
+              >
+                <ListChecks className="size-4" />
+                {t(`${K}.myPicks`)}
+                {pickedQuotes.length > 0 && (
+                  <span className="text-xs opacity-80">{pickedQuotes.length}</span>
+                )}
+              </Button>
+            )}
+            {!adding && (
+              <Button variant="outline" onClick={() => setAdding(true)}>
+                <Plus className="size-4" />
+                {t(`${K}.addQuote`)}
+              </Button>
+            )}
+          </div>
         </div>
+        {onlyPicked && (
+          <p className="text-sm text-muted-foreground">
+            {t(`${K}.myPicksShowing`, { count: pickedQuotes.length })}
+            <button
+              type="button"
+              onClick={() => setPickedOnly(false)}
+              className="ml-2 text-primary hover:underline"
+            >
+              {t(`${K}.myPicksAll`)}
+            </button>
+          </p>
+        )}
         {adding && (
           <QuoteForm workKey={work.key} editions={editions} onClose={() => setAdding(false)} />
         )}
@@ -459,6 +581,7 @@ export function LiteratureWork() {
                   picked={picked.includes(q.id)}
                   canPick={picked.length < MAX_PICKED}
                   mine={q.author.id === userId}
+                  flash={flash.includes(q.id)}
                   onToggle={() => toggle(q.id)}
                   onDelete={() => {
                     setPicked((p) => p.filter((x) => x !== q.id))
@@ -468,7 +591,7 @@ export function LiteratureWork() {
                 />
               ))}
             </ul>
-            {quotes.length > SHOWN_QUOTES && (
+            {!onlyPicked && quotes.length > SHOWN_QUOTES && (
               <Button variant="ghost" className="w-full" onClick={() => setShowAll(!showAll)}>
                 {showAll ? t(`${K}.collapse`) : t(`${K}.showAll`, { count: quotes.length })}
               </Button>
