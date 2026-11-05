@@ -156,3 +156,27 @@ class OverviewRead(BaseModel):
     """The hottest tags (the sphere's core) and how much each work uses them."""
     tags: list[TagRead]
     links: list[WorkLink]
+
+
+# Introductions anyone can edit: a work's (by its key) or a #device's (by its name).
+IntroKind = Literal["work", "device"]
+IntroBodyStr = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+
+
+class IntroUpdate(BaseModel):
+    body: IntroBodyStr  # empty clears it (as a version of its own)
+
+
+class IntroVersion(BaseModel):
+    id: str
+    number: int
+    body: str
+    editor: ProfileSummary
+    created_at: datetime
+
+
+class IntroRead(BaseModel):
+    kind: IntroKind
+    key: str
+    current: IntroVersion | None  # None: nobody has written one yet
+    version_count: int

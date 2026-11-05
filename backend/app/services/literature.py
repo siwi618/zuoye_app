@@ -12,6 +12,9 @@ from app.schemas.literature import (
     AnalysisRead,
     CitedQuote,
     HighlightRead,
+    IntroRead,
+    IntroUpdate,
+    IntroVersion,
     OverviewRead,
     QuoteCreate,
     QuoteRead,
@@ -649,3 +652,87 @@ def delete_analysis(user_id: str, analysis_id: str) -> None:
     if _analysis_row(analysis_id)["author_id"] != user_id:
         raise _reject("Only the author can delete this analysis", status.HTTP_403_FORBIDDEN)
     get_supabase().table("lit_analyses").delete().eq("id", analysis_id).execute()
+
+
+# ---------------------------------------------------------------- introductions
+
+
+def _intro_key(kind: str, key: str) -> str:
+    # Devices by name ignoring case, as their tags are matched.
+    return key.lower() if kind == "device" else key
+
+
+def _intro_versions(kind: str, key: str, limit: int = 50) -> list[dict]:
+    """Visible versions, newest first: not taken down, editor not soft-deleted."""
+    rows = (
+        get_supabase()
+        .table("lit_intro_versions")
+        .select(
+            "id, number, body, created_at, moderation_flagged, "
+            f"editor:profiles!lit_intro_versions_edited_by_fkey({_PROFILE})"
+        )
+        .eq("subject_kind", kind)
+        .eq("subject_key", _intro_key(kind, key))
+        .order("number", desc=True)
+        .limit(limit)
+        .execute()
+        .data
+        or []
+    )
+    return [
+        r for r in rows
+        if not r["moderation_flagged"] and r.get("editor") and not r["editor"]["is_deleted"]
+    ]
+
+
+def _intro_version(r: dict) -> IntroVersion:
+    return IntroVersion(
+        id=r["id"], number=r["number"], body=r["body"],
+        editor=ProfileSummary(**r["editor"]), created_at=r["created_at"],
+    )
+
+
+def get_intro(kind: str, key: str) -> IntroRead:
+    rows = _intro_versions(kind, key)
+    return IntroRead(
+        kind=kind, key=key,
+        current=_intro_version(rows[0]) if rows else None,
+        version_count=len(rows),
+    )
+
+
+def intro_history(kind: str, key: str) -> list[IntroVersion]:
+    return [_intro_version(r) for r in _intro_versions(kind, key)]
+
+
+def update_intro(user_id: str, kind: str, key: str, payload: IntroUpdate) -> IntroRead:
+    """Anyone may edit an introduction: the text becomes its next version. Bringing back an
+    older text is saving it again."""
+    current = _intro_versions(kind, key)  # the newest visible one is what readers see
+    if current and current[0]["body"] == payload.body:
+        return get_intro(kind, key)
+    moderated = ensure_allowed(payload.body)
+    db = get_supabase()
+
+    def last_number() -> int:
+        rows = (
+            db.table("lit_intro_versions").select("number")
+            .eq("subject_kind", kind).eq("subject_key", _intro_key(kind, key))
+            .order("number", desc=True).limit(1).execute().data
+            or []
+        )
+        return rows[0]["number"] if rows else 0
+
+    # Two saves at once would take the same number; the loser retries with the next one.
+    for attempt in range(3):
+        try:
+            db.table("lit_intro_versions").insert({
+                "subject_kind": kind, "subject_key": _intro_key(kind, key),
+                "number": last_number() + 1, "body": payload.body,
+                "edited_by": user_id, "moderated": moderated,
+            }).execute()
+            break
+        except APIError as exc:
+            if exc.code != _UNIQUE_VIOLATION or attempt == 2:
+                raise
+    return get_intro(kind, key)

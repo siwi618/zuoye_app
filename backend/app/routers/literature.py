@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Query
+import re
+
+from fastapi import APIRouter, HTTPException, Query
 
 from app.deps import CurrentUserDep
 from app.schemas.forum import LikeResult
@@ -6,6 +8,10 @@ from app.schemas.literature import (
     AnalysisCreate,
     AnalysisPage,
     AnalysisSort,
+    IntroKind,
+    IntroRead,
+    IntroUpdate,
+    IntroVersion,
     AnalysisRead,
     OverviewRead,
     QuoteCreate,
@@ -94,3 +100,30 @@ def delete_analysis(user: CurrentUserDep, analysis_id: str) -> None:
 @router.post("/analyses/{analysis_id}/like", response_model=LikeResult)
 def toggle_analysis_like(user: CurrentUserDep, analysis_id: str) -> LikeResult:
     return svc.toggle_analysis_like(user.id, analysis_id)
+
+
+def _intro_key_ok(kind: IntroKind, key: str) -> str:
+    # A work by its key; a device by its tag name.
+    pattern = r"^[a-z0-9-]{1,40}$" if kind == "work" else r"^[^#@()（）\s]{1,20}$"
+    if not re.match(pattern, key):
+        raise HTTPException(status_code=422, detail="Invalid introduction key")
+    return key
+
+
+@router.get("/intros/{kind}/{key}", response_model=IntroRead)
+def get_intro(user: CurrentUserDep, kind: IntroKind, key: str) -> IntroRead:
+    _ = user
+    return svc.get_intro(kind, _intro_key_ok(kind, key))
+
+
+@router.get("/intros/{kind}/{key}/history", response_model=list[IntroVersion])
+def intro_history(user: CurrentUserDep, kind: IntroKind, key: str) -> list[IntroVersion]:
+    _ = user
+    return svc.intro_history(kind, _intro_key_ok(kind, key))
+
+
+@router.put("/intros/{kind}/{key}", response_model=IntroRead)
+def update_intro(
+    user: CurrentUserDep, kind: IntroKind, key: str, payload: IntroUpdate
+) -> IntroRead:
+    return svc.update_intro(user.id, kind, _intro_key_ok(kind, key), payload)
