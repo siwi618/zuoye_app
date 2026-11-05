@@ -823,6 +823,18 @@ export function LiteratureWork() {
             </div>
           ) : list.isLoading ? (
             <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          ) : list.isError ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/40 p-4 text-sm text-destructive">
+              {list.error instanceof Error ? list.error.message : t('common.error')}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={() => list.refetch()}
+              >
+                {t(`${K}.retry`)}
+              </Button>
+            </div>
           ) : (
             <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               {filtering ? t(`${K}.noMatch`) : t(`${K}.noAnalyses`)}

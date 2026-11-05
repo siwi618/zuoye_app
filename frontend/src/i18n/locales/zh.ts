@@ -371,6 +371,7 @@ export const zh: Translations = {
       noCharacters: '还没有分析写到人物。',
       loadMore: '加载更多',
       allShown: '已显示全部 {{count}} 篇',
+      retry: '重试',
     },
     thermometer: {
       subtitle:

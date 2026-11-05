@@ -370,6 +370,7 @@ export const en = {
       noCharacters: 'No analysis tags a character yet.',
       loadMore: 'Load more',
       allShown: 'All {{count}} shown',
+      retry: 'Try again',
     },
     thermometer: {
       subtitle:
