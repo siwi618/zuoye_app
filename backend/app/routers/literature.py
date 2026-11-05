@@ -60,6 +60,11 @@ def create_analysis(
     return svc.create_analysis(user.id, work_key, payload)
 
 
+@router.put("/analyses/{analysis_id}", status_code=204)
+def update_analysis(user: CurrentUserDep, analysis_id: str, payload: AnalysisCreate) -> None:
+    svc.update_analysis(user.id, analysis_id, payload)
+
+
 @router.delete("/analyses/{analysis_id}", status_code=204)
 def delete_analysis(user: CurrentUserDep, analysis_id: str) -> None:
     svc.delete_analysis(user.id, analysis_id)

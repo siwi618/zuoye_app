@@ -380,6 +380,15 @@ def _resolve_tags(user_id: str, names: list[str], moderated: bool) -> list[dict]
     return tags
 
 
+def _unique_names(names: list[str]) -> list[str]:
+    """Tag names without repeats (ignoring case), first spelling kept."""
+    out: list[str] = []
+    for name in names:
+        if name.lower() not in {n.lower() for n in out}:
+            out.append(name)
+    return out
+
+
 def _check_highlights(payload: AnalysisCreate, quotes: dict[str, dict]) -> None:
     """Offsets count characters (code points), as Python's len() does; no two overlap."""
     numbers = [h.number for h in payload.highlights]
@@ -417,10 +426,7 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         raise _reject(INVALID_ANALYSIS)
     _check_highlights(payload, quotes)
 
-    names: list[str] = []
-    for name in payload.tags:
-        if name.lower() not in {n.lower() for n in names}:
-            names.append(name)
+    names = _unique_names(payload.tags)
     moderated = ensure_allowed(payload.body, " ".join(names))
     tags = _resolve_tags(user_id, names, moderated)
 
@@ -470,6 +476,61 @@ def create_analysis(user_id: str, work_key: str, payload: AnalysisCreate) -> Ana
         tags=[TagRead(id=t["id"], name=t["name"], count=0) for t in tags],
         like_count=0, liked_by_me=False, created_at=row["created_at"],
     )
+
+
+def update_analysis(user_id: str, analysis_id: str, payload: AnalysisCreate) -> None:
+    """The author rewrites their analysis: its text, tags and fragments, and may drop quotes.
+
+    It stays on the quote versions it was written on (no quotes can be added), so the
+    fragments are checked against those versions' text.
+    """
+    row = _analysis_row(analysis_id)
+    if row["author_id"] != user_id or row["moderation_flagged"]:
+        raise _reject("Only the author can edit this analysis", status.HTTP_403_FORBIDDEN)
+    db = get_supabase()
+    covered = {
+        c["quote_id"]: c
+        for c in (
+            db.table("lit_analysis_quotes")
+            .select("quote_id, version_id, lit_quote_versions(body)")
+            .eq("analysis_id", analysis_id).execute().data
+            or []
+        )
+    }
+    quote_ids = list(dict.fromkeys(payload.quote_ids))
+    if any(q not in covered for q in quote_ids):
+        raise _reject(INVALID_ANALYSIS)
+    _check_highlights(payload, {q: covered[q]["lit_quote_versions"] for q in quote_ids})
+
+    names = _unique_names(payload.tags)
+    moderated = ensure_allowed(payload.body, " ".join(names))
+    tags = _resolve_tags(user_id, names, moderated)
+
+    # Fragments are replaced wholesale; dropped quotes go (their fragments with them).
+    db.table("lit_highlights").delete().eq("analysis_id", analysis_id).execute()
+    dropped = [q for q in covered if q not in quote_ids]
+    if dropped:
+        db.table("lit_analysis_quotes").delete().eq("analysis_id", analysis_id).in_(
+            "quote_id", dropped
+        ).execute()
+    if payload.highlights:
+        db.table("lit_highlights").insert([
+            {
+                "analysis_id": analysis_id, "quote_id": h.quote_id, "number": h.number,
+                "start_offset": h.start, "end_offset": h.end,
+            }
+            for h in payload.highlights
+        ]).execute()
+    keep = {t["id"] for t in tags}
+    db.table("lit_analysis_tags").delete().eq("analysis_id", analysis_id).not_.in_(
+        "tag_id", list(keep)
+    ).execute()
+    db.table("lit_analysis_tags").upsert(
+        [{"analysis_id": analysis_id, "tag_id": t} for t in keep], ignore_duplicates=True
+    ).execute()
+    db.table("lit_analyses").update({"body": payload.body, "moderated": moderated}).eq(
+        "id", analysis_id
+    ).execute()
 
 
 def _analysis_row(analysis_id: str) -> dict:
