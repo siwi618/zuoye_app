@@ -1,5 +1,10 @@
 -- 「雷蜂」: a badge anyone can earn by helping, which evolves as they help more. A helper's
--- completed requests (not taken down by moderation) count:
+-- completed requests (not taken down by moderation) count, against farming with a second
+-- account, only when:
+--   - at least 15 minutes passed between accepting and completing;
+--   - the requester's account was at least a day old when it was completed;
+--   - it is one of at most 2 from the same requester in any hour (by completion time).
+-- The stages:
 --    10 → bee_10  「雷蜂」 common
 --    25 → bee_25  「靁蜂」 epic
 --    50 → bee_50  「靐蜂」 legendary
@@ -18,15 +23,45 @@ begin;
 insert into public.badges (key, sort_order) values
   ('bee_10', 20), ('bee_25', 21), ('bee_50', 22), ('bee_100', 23);
 
--- How many requests the user has helped complete. The backend shows it as the bee's progress.
+-- How many requests the user has helped complete, by the rules above. The backend shows it as
+-- the bee's progress. Each requester's requests are walked in completion order, keeping the
+-- counted ones of the last hour.
 create or replace function public.helped_count(p_user uuid)
 returns int
-language sql
+language plpgsql
 stable
 as $$
-  select count(*)::int
-  from public.requests
-  where helper_id = p_user and status = 'completed' and not moderation_flagged;
+declare
+  r         record;
+  counted   int := 0;
+  requester uuid;
+  last_hour timestamptz[] := '{}';
+begin
+  for r in
+    select q.requester_id, q.completed_at
+    from public.requests q
+    join public.profiles p on p.id = q.requester_id
+    where q.helper_id = p_user
+      and q.status = 'completed'
+      and not q.moderation_flagged
+      and q.completed_at >= q.accepted_at + interval '15 minutes'
+      and q.completed_at >= p.created_at + interval '1 day'
+    order by q.requester_id, q.completed_at
+  loop
+    if requester is distinct from r.requester_id then
+      requester := r.requester_id;
+      last_hour := '{}';
+    end if;
+    last_hour := array(
+      select t from unnest(last_hour) t where t > r.completed_at - interval '1 hour'
+    );
+    if cardinality(last_hour) < 2 then
+      counted := counted + 1;
+      last_hour := last_hour || r.completed_at;
+    end if;
+  end loop;
+  return counted;
+end;
 $$;
 
 -- Gives the user every bee stage they have reached, and moves a worn lower stage up.

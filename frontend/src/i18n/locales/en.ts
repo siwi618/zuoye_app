@@ -112,6 +112,7 @@ export const en = {
     beeEarn: '{{count}} more requests to earn “{{name}}”',
     beeEarn_one: '1 more request to earn “{{name}}”',
     beeMax: 'Fully evolved',
+    beeRules: 'Counts when at least 15 minutes pass from accepting to completing, the requester’s account is at least a day old, and at most 2 per requester in any hour.',
     beeLocked: 'Help classmates complete {{need}} requests to earn it',
     beeLockedHint: 'Not earned yet, so it can’t be worn',
     editName: 'Edit name',

@@ -110,6 +110,7 @@ export const zh: Translations = {
     beeEarn: '再帮 {{count}} 个请求获得「{{name}}」',
     beeEarn_one: '再帮 {{count}} 个请求获得「{{name}}」',
     beeMax: '已进化到最高阶',
+    beeRules: '计数规则：接单到完成满 15 分钟；请求方注册满 1 天；同一位同学 1 小时内最多算 2 个。',
     beeLocked: '帮同学完成 {{need}} 个请求即可获得',
     beeLockedHint: '还没获得，不能佩戴',
     editName: '修改昵称',
