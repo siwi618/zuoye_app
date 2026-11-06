@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
-import { BADGES, type BadgeKey } from '@/api/profile'
-import { BeeIcon, YuguoIcon } from '@/components/BadgeIcons'
+import { BADGES, type BadgeKey, type BadgeProgress } from '@/api/profile'
+import { BeeIcon, WriterIcon, YuguoIcon } from '@/components/BadgeIcons'
 
 // Rarity, each with its own colours: mythic deep crimson, legendary gold, epic purple, common the
 // site's green.
@@ -53,19 +53,47 @@ export const BADGE_META: Record<
   bee_25: { icon: BeeIcon, tier: 'epic' },
   bee_50: { icon: BeeIcon, tier: 'legendary' },
   bee_100: { icon: BeeIcon, tier: 'mythic' },
+  writer_5: { icon: WriterIcon, tier: 'common' },
+  writer_15: { icon: WriterIcon, tier: 'epic' },
+  writer_30: { icon: WriterIcon, tier: 'legendary' },
+  writer_50: { icon: WriterIcon, tier: 'mythic' },
 }
 
-// 「雷蜂」 evolves with the requests a user has helped complete; the database grants each stage
-// (migration 0026). The badge wall shows only the highest stage held.
-export const BEE_STAGES = [
-  { key: 'bee_10', need: 10 },
-  { key: 'bee_25', need: 25 },
-  { key: 'bee_50', need: 50 },
-  { key: 'bee_100', need: 100 },
-] as const satisfies readonly { key: BadgeKey; need: number }[]
+// Badges that evolve: each stage is its own badge, granted by the database as a count grows —
+// 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses
+// (migration 0028). The badge wall shows only the highest stage held, with its progress.
+export type EvolutionFamily = 'bee' | 'writer'
+export interface Evolution {
+  family: EvolutionFamily
+  count: keyof BadgeProgress
+  stages: readonly { key: BadgeKey; need: number }[]
+}
 
-export function isBeeStage(key: string): boolean {
-  return BEE_STAGES.some((s) => s.key === key)
+export const EVOLUTIONS: readonly Evolution[] = [
+  {
+    family: 'bee',
+    count: 'helped_requests',
+    stages: [
+      { key: 'bee_10', need: 10 },
+      { key: 'bee_25', need: 25 },
+      { key: 'bee_50', need: 50 },
+      { key: 'bee_100', need: 100 },
+    ],
+  },
+  {
+    family: 'writer',
+    count: 'counted_analyses',
+    stages: [
+      { key: 'writer_5', need: 5 },
+      { key: 'writer_15', need: 15 },
+      { key: 'writer_30', need: 30 },
+      { key: 'writer_50', need: 50 },
+    ],
+  },
+]
+
+export function evolutionOf(key: string): Evolution | undefined {
+  return EVOLUTIONS.find((e) => e.stages.some((s) => s.key === key))
 }
 
 export function isBadgeKey(key: string | null | undefined): key is BadgeKey {

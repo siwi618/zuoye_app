@@ -18,27 +18,40 @@ import {
   wearBadge,
   type BadgeKey,
 } from '@/api/profile'
-import { BeeIcon } from '@/components/BadgeIcons'
 import { RedDot } from '@/components/RedDot'
-import { BADGE_META, BEE_STAGES, isBeeStage, TIERS, TIER_STYLE } from '@/lib/badges'
+import {
+  BADGE_META,
+  EVOLUTIONS,
+  evolutionOf,
+  TIERS,
+  TIER_STYLE,
+  type Evolution,
+} from '@/lib/badges'
 import { cn } from '@/lib/utils'
 
-// 「雷蜂」's evolution under its card: a bar towards the next stage and the four stages, the ones
-// reached in their colours. `current` is the highest stage held, null before the first.
-function BeeEvolution({ helped, current }: { helped?: number; current: BadgeKey | null }) {
+// An evolving badge's progress under its card: a bar towards the next stage and the four stages,
+// the ones reached in their colours. `current` is the highest stage held, null before the first.
+function EvolutionProgress({
+  evolution: { family, stages },
+  count,
+  current,
+}: {
+  evolution: Evolution
+  count?: number
+  current: BadgeKey | null
+}) {
   const { t } = useTranslation()
-  const at = BEE_STAGES.findIndex((s) => s.key === current)
-  const next = BEE_STAGES[at + 1]
-  const count = helped ?? 0
-  const width = next ? Math.min(100, (count / next.need) * 100) : 100
-  const nextName = next && t(`profile.badges.${next.key}.name`)
+  const at = stages.findIndex((s) => s.key === current)
+  const next = stages[at + 1]
+  const n = count ?? 0
+  const width = next ? Math.min(100, (n / next.need) * 100) : 100
   return (
     <div className="w-full space-y-2 border-t border-border/60 pt-3 text-left">
       <div className="flex items-center justify-between text-xs font-medium">
-        <span>{t('profile.beeProgress')}</span>
+        <span>{t('profile.evolution.progress')}</span>
         {next && (
           <span className="text-muted-foreground tabular-nums">
-            {helped ?? '…'} / {next.need}
+            {count ?? '…'} / {next.need}
           </span>
         )}
       </div>
@@ -46,21 +59,21 @@ function BeeEvolution({ helped, current }: { helped?: number; current: BadgeKey 
         <div
           className={cn(
             'h-full rounded-full bg-gradient-to-r transition-[width] duration-700',
-            TIER_STYLE[BADGE_META[next?.key ?? 'bee_100'].tier].medal,
+            TIER_STYLE[BADGE_META[(next ?? stages[stages.length - 1]).key].tier].medal,
           )}
           style={{ width: `${width}%` }}
         />
       </div>
       <p className="text-xs text-muted-foreground">
         {!next
-          ? t('profile.beeMax')
-          : t(at < 0 ? 'profile.beeEarn' : 'profile.beeNext', {
-              count: Math.max(0, next.need - count),
-              name: nextName,
+          ? t('profile.evolution.max')
+          : t(`profile.evolution.${family}.${at < 0 ? 'earn' : 'next'}`, {
+              count: Math.max(0, next.need - n),
+              name: t(`profile.badges.${next.key}.name`),
             })}
       </p>
       <ol className="flex flex-wrap items-center gap-1">
-        {BEE_STAGES.map((s, i) => (
+        {stages.map((s, i) => (
           <li key={s.key} className="flex items-center gap-1">
             {i > 0 && <ChevronRight className="size-3 text-muted-foreground/60" />}
             <span
@@ -76,7 +89,9 @@ function BeeEvolution({ helped, current }: { helped?: number; current: BadgeKey 
           </li>
         ))}
       </ol>
-      <p className="text-[11px] leading-4 text-muted-foreground/80">{t('profile.beeRules')}</p>
+      <p className="text-[11px] leading-4 text-muted-foreground/80">
+        {t(`profile.evolution.${family}.rules`)}
+      </p>
     </div>
   )
 }
@@ -84,8 +99,9 @@ function BeeEvolution({ helped, current }: { helped?: number; current: BadgeKey 
 // The badges the user holds (opened from the account menu), rarest first. Badges are given with
 // one-time codes (CORAL-XXXX-XXXX), redeemed here; some also allow something, e.g. 「鱼果」
 // adds works to the literature tool. Clicking one wears it after the user's name across the site;
-// clicking the worn one takes it off. 「雷蜂」 shows as one card at its highest stage, with its
-// evolution; before the first stage it shows locked, so everyone sees how to earn it.
+// clicking the worn one takes it off. An evolving badge (「雷蜂」, 「鲷苗人」) shows as one card at
+// its highest stage, with its progress; before the first stage it shows locked, so everyone sees
+// how to earn it.
 export function Badges() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
@@ -99,10 +115,14 @@ export function Badges() {
   const held = (badges.data ?? []).filter(
     (b): b is typeof b & { key: BadgeKey } => b.key in BADGE_META,
   )
-  const topBee =
-    [...BEE_STAGES].reverse().find((s) => held.some((b) => b.key === s.key))?.key ?? null
+  const topStage = (e: Evolution) =>
+    [...e.stages].reverse().find((s) => held.some((b) => b.key === s.key))?.key ?? null
+  const locked = EVOLUTIONS.filter((e) => !topStage(e))
   const shown = held
-    .filter((b) => !isBeeStage(b.key) || b.key === topBee)
+    .filter((b) => {
+      const e = evolutionOf(b.key)
+      return !e || b.key === topStage(e)
+    })
     .sort((a, b) => TIERS.indexOf(BADGE_META[a.key].tier) - TIERS.indexOf(BADGE_META[b.key].tier))
 
   const redeem = useMutation({
@@ -227,6 +247,7 @@ export function Badges() {
               const style = TIER_STYLE[tier]
               const isWorn = worn === b.key
               const name = t(`profile.badges.${b.key}.name`)
+              const evo = evolutionOf(b.key)
               return (
                 <li key={b.key}>
                   <button
@@ -287,46 +308,58 @@ export function Badges() {
                         })}
                       </p>
                     </div>
-                    {isBeeStage(b.key) && (
-                      <BeeEvolution helped={progress.data?.helped_requests} current={b.key} />
+                    {evo && (
+                      <EvolutionProgress
+                        evolution={evo}
+                        count={progress.data?.[evo.count]}
+                        current={b.key}
+                      />
                     )}
                   </button>
                 </li>
               )
             })}
-            {!topBee && (
+            {locked.map((e) => {
               // Not earned yet: greyed, and not wearable.
-              <li>
-                <div
-                  title={t('profile.beeLockedHint')}
-                  className="relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-5 pt-8 pb-6 text-center"
-                >
-                  <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                    <Lock className="size-3" />
-                  </span>
-                  <span
-                    className={cn(
-                      'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
-                      TIER_STYLE.common.chip,
-                    )}
+              const first = e.stages[0]
+              const Icon = BADGE_META[first.key].icon
+              return (
+                <li key={e.family}>
+                  <div
+                    title={t('profile.evolution.lockedHint')}
+                    className="relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-5 pt-8 pb-6 text-center"
                   >
-                    {t('profile.tiers.common')}
-                  </span>
-                  <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-100">
-                    <BeeIcon className="size-14" />
-                  </span>
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold text-muted-foreground">
-                      {t('profile.badges.bee_10.name')}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {t('profile.beeLocked', { need: BEE_STAGES[0].need })}
-                    </p>
+                    <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                      <Lock className="size-3" />
+                    </span>
+                    <span
+                      className={cn(
+                        'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
+                        TIER_STYLE.common.chip,
+                      )}
+                    >
+                      {t('profile.tiers.common')}
+                    </span>
+                    <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-100">
+                      <Icon className="size-14" />
+                    </span>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-muted-foreground">
+                        {t(`profile.badges.${first.key}.name`)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {t(`profile.evolution.${e.family}.locked`, { need: first.need })}
+                      </p>
+                    </div>
+                    <EvolutionProgress
+                      evolution={e}
+                      count={progress.data?.[e.count]}
+                      current={null}
+                    />
                   </div>
-                  <BeeEvolution helped={progress.data?.helped_requests} current={null} />
-                </div>
-              </li>
-            )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

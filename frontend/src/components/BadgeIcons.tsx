@@ -49,3 +49,36 @@ export function BeeIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// 「鲷苗人」: a bream (鲷) seen from the side with a sprout growing from its back, which grows into
+// a tree as the stages go (鲷苗人 → 鲷木人 → 鲷树人 → 鲈鲟哥儿). Every stage uses it; the medal's
+// colour shows the stage.
+export function WriterIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M6.5 31C11 22.5 22 20.5 31.5 26.5L40.5 21L39 31L40.5 41L31.5 35.5C22 41.5 11 39.5 6.5 31Z"
+        />
+        <path strokeWidth="2" d="M17.5 26C19.8 29 19.8 33 17.5 36" />
+        <circle cx="12.4" cy="29.6" r="1.7" fill="currentColor" stroke="none" />
+        <path strokeWidth="2.2" d="M24 23.2V13" />
+        <path
+          strokeWidth="2"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M24 16.5C19.8 16.6 16.6 14 16 10C20.2 9.8 23.4 12.4 24 16.5Z"
+        />
+        <path
+          strokeWidth="2"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M24 13.8C24.8 9.6 28.2 6.8 32.4 7C31.9 11.2 28.6 13.9 24 13.8Z"
+        />
+      </g>
+    </svg>
+  )
+}
