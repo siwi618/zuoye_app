@@ -42,6 +42,7 @@ from app.supabase_client import get_supabase
 QUOTE_CITED = "quote_cited"
 INVALID_ANALYSIS = "invalid_analysis"
 WORK_EXISTS = "work_exists"
+WORK_NOT_EMPTY = "work_not_empty"
 
 # Postgres unique_violation — another request created the same tag first.
 _UNIQUE_VIOLATION = "23505"
@@ -454,6 +455,27 @@ def create_work(user_id: str, payload: WorkCreate) -> WorkInfo:
         raise _reject("Failed to add work", status.HTTP_500_INTERNAL_SERVER_ERROR)
     _known_works.add(row["key"])
     return _work_info(inserted[0])
+
+
+def delete_work(user_id: str, work_key: str) -> None:
+    """Holders of the 「鱼果」 badge may delete a work nothing has been written under yet: no
+    quotes, no analyses, no @character tags. Its introduction goes with it."""
+    require_badge(user_id, LEAD_READER)
+    db = get_supabase()
+    if not db.table("lit_works").select("key").eq("key", work_key).limit(1).execute().data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work not found")
+
+    def used(table: str) -> bool:
+        return bool(db.table(table).select("id").eq("work_key", work_key).limit(1).execute().data)
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        if any(pool.map(used, ("lit_quotes", "lit_analyses", "lit_tags"))):
+            raise _reject(WORK_NOT_EMPTY, status.HTTP_409_CONFLICT)
+    db.table("lit_intro_versions").delete().eq("subject_kind", "work").eq(
+        "subject_key", work_key
+    ).execute()
+    db.table("lit_works").delete().eq("key", work_key).execute()
+    _known_works.discard(work_key)
 
 
 # ---------------------------------------------------------------- quotes

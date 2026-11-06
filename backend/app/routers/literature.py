@@ -62,6 +62,13 @@ def create_work(user: CurrentUserDep, payload: WorkCreate) -> WorkInfo:
     return svc.create_work(user.id, payload)
 
 
+@router.delete("/works/{work_key}", status_code=204)
+def delete_work(user: CurrentUserDep, work_key: WorkKeyStr) -> None:
+    """Only holders of the 「鱼果」 badge, and only while the work has no quotes, analyses or
+    @character tags (409 otherwise)."""
+    svc.delete_work(user.id, work_key)
+
+
 @router.get("/works/{work_key}", response_model=WorkRead)
 def get_work(user: CurrentUserDep, work_key: WorkKeyStr) -> WorkRead:
     return svc.get_work(user.id, work_key)
