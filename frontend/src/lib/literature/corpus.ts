@@ -1,5 +1,5 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { listWorks, type Work } from '@/api/literature'
+import { listEmptyWorks, listWorks, type Work } from '@/api/literature'
 
 export type { Work }
 
@@ -34,6 +34,12 @@ export const worksQuery = queryOptions({
   initialData: () => known,
   initialDataUpdatedAt: 0, // kept from an earlier visit: always fetch the current list
   staleTime: 60_000,
+})
+
+// Works with nothing written under them, which a 「鱼果」 holder may delete.
+export const emptyWorksQuery = queryOptions({
+  queryKey: ['literature-works-empty'],
+  queryFn: listEmptyWorks,
 })
 
 // `ready` is false only on a first visit, until the list arrives.

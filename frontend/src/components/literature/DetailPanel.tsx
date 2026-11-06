@@ -15,7 +15,14 @@ import {
   type Work,
 } from '@/api/literature'
 import { LEAD_READER, useHasBadge } from '@/api/profile'
-import { devicePath, useWorks, workByline, workPath, worksQuery } from '@/lib/literature/corpus'
+import {
+  devicePath,
+  emptyWorksQuery,
+  useWorks,
+  workByline,
+  workPath,
+  worksQuery,
+} from '@/lib/literature/corpus'
 import { deviceQuery, usePrefetch, workQuery } from '@/lib/literature/queries'
 import { cleanTag } from '@/lib/literature/text'
 import { cn } from '@/lib/utils'
@@ -142,6 +149,7 @@ function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => 
     onSuccess: (work) => {
       queryClient.setQueryData(worksQuery.queryKey, (ws) => [...(ws ?? []), work])
       void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      void queryClient.invalidateQueries({ queryKey: emptyWorksQuery.queryKey })
       toast.success(t(`${K}.workAdded`, { title: work.title }))
       reset()
       onAdded(work.key)
@@ -222,18 +230,20 @@ function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => 
 }
 
 // Holders of the 「鱼果」 badge can delete a work while nothing is written under it (no quotes or
-// analyses; the server also checks for @character tags). `empty` is known once the work's page
-// data has loaded (fetched here, shared with the page).
+// analyses or @character tags). Which works are empty comes from the server in one list.
 function useDeleteWork(work: Work, onDeleted?: () => void) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const data = useQuery(workQuery(work.key)).data
-  const empty = !!data && !data.quotes.length && !data.analysis_count && !data.tags.length
+  const keys = useQuery(emptyWorksQuery).data
+  // An older backend answers this path with a work, not a list: then nothing is deletable.
+  const empty = Array.isArray(keys) && keys.includes(work.key)
   const remove = useMutation({
     mutationFn: () => deleteWork(work.key),
     onSuccess: () => {
       queryClient.setQueryData(worksQuery.queryKey, (ws) => ws?.filter((w) => w.key !== work.key))
+      queryClient.setQueryData(emptyWorksQuery.queryKey, (ks) => ks?.filter((k) => k !== work.key))
       void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      void queryClient.invalidateQueries({ queryKey: emptyWorksQuery.queryKey })
       queryClient.removeQueries({ queryKey: workQuery(work.key).queryKey })
       toast.success(t(`${K}.workDeleted`, { title: work.title }))
       onDeleted?.()

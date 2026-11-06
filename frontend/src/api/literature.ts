@@ -130,6 +130,11 @@ export function createWork(payload: WorkCreate): Promise<Work> {
   return apiFetch<Work>('/literature/works', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+// Keys of the works nothing is written under yet (only for holders of the 「鱼果」 badge).
+export function listEmptyWorks(): Promise<string[]> {
+  return apiFetch<string[]>('/literature/works/empty')
+}
+
 // Only holders of the 「鱼果」 badge, and only while nothing is written under the work.
 export function deleteWork(key: string): Promise<void> {
   return apiFetch<void>(`/literature/works/${key}`, { method: 'DELETE' })
