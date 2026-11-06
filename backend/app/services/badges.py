@@ -4,7 +4,7 @@ import time
 
 from fastapi import HTTPException, status
 
-from app.schemas.profile import BadgeRead
+from app.schemas.profile import BadgeProgress, BadgeRead
 from app.supabase_client import get_supabase
 
 # Sent as error details so the frontend can show a translated message.
@@ -32,6 +32,11 @@ def list_badges(user_id: str) -> list[BadgeRead]:
     )
     rows.sort(key=lambda r: ((r.get("badges") or {}).get("sort_order", 0), r["granted_at"]))
     return [BadgeRead(key=r["badge"], granted_at=r["granted_at"]) for r in rows]
+
+
+def progress(user_id: str) -> BadgeProgress:
+    helped = get_supabase().rpc("helped_count", {"p_user": user_id}).execute().data
+    return BadgeProgress(helped_requests=int(helped or 0))
 
 
 def has_badge(user_id: str, badge: str) -> bool:

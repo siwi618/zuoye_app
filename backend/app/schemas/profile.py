@@ -47,6 +47,11 @@ class BadgeRead(BaseModel):
     granted_at: datetime
 
 
+class BadgeProgress(BaseModel):
+    """What the evolving badges count: requests helped complete (the 「雷蜂」 stages)."""
+    helped_requests: int
+
+
 class WornBadgeUpdate(BaseModel):
     badge: Annotated[str, StringConstraints(max_length=40)] | None  # None takes it off
 

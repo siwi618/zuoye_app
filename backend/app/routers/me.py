@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.deps import CurrentUserDep
 from app.schemas.profile import (
     GRADES,
+    BadgeProgress,
     BadgeRead,
     BadgeRedeem,
     MyProfile,
@@ -137,6 +138,13 @@ def mark_notices_seen(user: CurrentUserDep) -> None:
 @router.get("/badges", response_model=list[BadgeRead])
 def list_my_badges(user: CurrentUserDep) -> list[BadgeRead]:
     return badges.list_badges(user.id)
+
+
+@router.get("/badges/progress", response_model=BadgeProgress)
+def badge_progress(user: CurrentUserDep) -> BadgeProgress:
+    """Counts behind the evolving badges; the stages themselves are granted by the database
+    (migration 0026)."""
+    return badges.progress(user.id)
 
 
 @router.post("/badges/redeem", response_model=list[BadgeRead])
