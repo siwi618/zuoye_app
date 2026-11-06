@@ -15,6 +15,7 @@ const KNOWN_ERRORS: Record<string, string> = {
   quote_cited: 'tools.literature.quoteCited',
   invalid_analysis: 'tools.literature.invalidAnalysis',
   work_exists: 'tools.literature.workExists',
+  work_not_empty: 'tools.literature.workNotEmpty',
   badge_required: 'tools.literature.badgeRequired',
   invalid_badge_code: 'profile.badgeCodeInvalid',
   badge_already_have: 'profile.badgeAlreadyHave',

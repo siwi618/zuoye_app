@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState, type FormEvent } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BookOpen, ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   createWork,
+  deleteWork,
   searchTags,
   type OverviewRead,
   type TagRead,
@@ -15,7 +16,7 @@ import {
 } from '@/api/literature'
 import { LEAD_READER, useHasBadge } from '@/api/profile'
 import { devicePath, useWorks, workByline, workPath, worksQuery } from '@/lib/literature/corpus'
-import { deviceQuery, usePrefetch } from '@/lib/literature/queries'
+import { deviceQuery, usePrefetch, workQuery } from '@/lib/literature/queries'
 import { cleanTag } from '@/lib/literature/text'
 import type { Selection } from './DysonScene'
 import { IntroBlock } from './IntroBlock'
@@ -189,6 +190,40 @@ function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => 
         </Button>
       </div>
     </form>
+  )
+}
+
+// Holders of the 「鱼果」 badge can delete a work while nothing is written under it (no quotes or
+// analyses; the server also checks for @character tags).
+function DeleteWork({ work, onDeleted }: { work: Work; onDeleted: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const data = useQuery(workQuery(work.key)).data
+  const empty = !!data && !data.quotes.length && !data.analysis_count && !data.tags.length
+  const remove = useMutation({
+    mutationFn: () => deleteWork(work.key),
+    onSuccess: () => {
+      queryClient.setQueryData(worksQuery.queryKey, (ws) => ws?.filter((w) => w.key !== work.key))
+      void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      queryClient.removeQueries({ queryKey: workQuery(work.key).queryKey })
+      toast.success(t(`${K}.workDeleted`, { title: work.title }))
+      onDeleted()
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+  if (!empty) return null
+  return (
+    <button
+      type="button"
+      disabled={remove.isPending}
+      onClick={() =>
+        window.confirm(t(`${K}.deleteWorkConfirm`, { title: work.title })) && remove.mutate()
+      }
+      className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+    >
+      <Trash2 className="size-3.5" />
+      {t(`${K}.deleteWork`)}
+    </button>
   )
 }
 
@@ -475,6 +510,7 @@ export function DetailPanel({
           <p className="text-sm text-muted-foreground">{t(`${K}.workNoTags`)}</p>
         )}
       </section>
+      {leadReader && <DeleteWork work={w} onDeleted={() => onHome('work')} />}
     </div>
   )
 }
