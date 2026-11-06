@@ -78,6 +78,7 @@ export const zh: Translations = {
     browseSubtitle: '看看你能帮哪些同学。',
   },
   profile: {
+    editName: '修改昵称',
     displayName: '昵称',
     displayNameHint: '每 30 天可以改一次昵称。',
     nextNameChange: '{{date}} 之后可以再改。',
@@ -686,6 +687,7 @@ export const zh: Translations = {
     loading: '加载中…',
     error: '出错了',
     cancel: '取消',
+    close: '关闭',
     save: '保存',
     contentRejected: '内容不符合社区规范，请修改后再发布。',
   },

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2, GraduationCap, Mail, UserRoundPen, Wrench } from 'lucide-react'
+import { CheckCircle2, Feather, GraduationCap, Mail, UserRoundPen, Wrench, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -41,6 +41,7 @@ export function Profile() {
   })
 
   const completed = useMemo(() => mine.data ?? [], [mine.data])
+  const [editingName, setEditingName] = useState(false)
   const displayName = (user?.user_metadata?.display_name as string | undefined) ?? user?.email
   const initials = (displayName ?? '?').toString().trim().slice(0, 2).toUpperCase()
 
@@ -58,7 +59,22 @@ export function Profile() {
               </AvatarFallback>
             </Avatar>
             <div className="mb-1 space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
+                <button
+                  type="button"
+                  onClick={() => setEditingName((v) => !v)}
+                  aria-label={t('profile.editName')}
+                  aria-expanded={editingName}
+                  title={t('profile.editName')}
+                  className={cn(
+                    'grid size-7 place-items-center rounded-full text-muted-foreground transition-colors outline-none hover:bg-brand-100 hover:text-brand-700 focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                    editingName && 'bg-brand-100 text-brand-700',
+                  )}
+                >
+                  <Feather className="size-4" />
+                </button>
+              </div>
               <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Mail className="size-3.5" />
                 {user?.email ?? '—'}
@@ -71,7 +87,7 @@ export function Profile() {
         </CardContent>
       </Card>
 
-      <DisplayNameCard />
+      {editingName && <DisplayNameCard onClose={() => setEditingName(false)} />}
       <DefaultGradeCard />
       <ToolSettingsCard />
 
@@ -237,8 +253,9 @@ function DefaultGradeCard() {
   )
 }
 
-function DisplayNameCard() {
+function DisplayNameCard({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
+  const inputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const profile = useMyProfile()
   const saved = profile.data?.display_name ?? ''
@@ -255,6 +272,7 @@ function DisplayNameCard() {
       // The header reads the name from the session; fetch the updated one.
       void supabase.auth.refreshSession()
       toast.success(t('profile.nameSaved'))
+      onClose()
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : t('common.error'))
@@ -264,8 +282,20 @@ function DisplayNameCard() {
   const locked = Boolean(nextChange)
   const trimmed = value.trim()
 
+  useEffect(() => {
+    if (!locked && !profile.isLoading) inputRef.current?.focus()
+  }, [locked, profile.isLoading])
+
   return (
-    <Card>
+    <Card className="relative animate-in fade-in slide-in-from-top-2 duration-200">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t('common.close')}
+        className="absolute top-2 right-2 grid size-7 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-4" />
+      </button>
       <CardContent className="flex flex-wrap items-end gap-4">
         <div className="flex min-w-56 flex-1 items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
@@ -286,9 +316,22 @@ function DisplayNameCard() {
         </div>
         <div className="flex items-center gap-2">
           <Input
+            ref={inputRef}
             id="display-name"
             value={value}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onClose()
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                !locked &&
+                trimmed &&
+                trimmed !== saved &&
+                !mutation.isPending
+              )
+                mutation.mutate(trimmed)
+            }}
             disabled={profile.isLoading || locked}
             maxLength={50}
             className="w-48"

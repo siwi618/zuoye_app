@@ -77,6 +77,7 @@ export const en = {
     browseSubtitle: 'Find requests you can help with.',
   },
   profile: {
+    editName: 'Edit name',
     displayName: 'Display name',
     displayNameHint: 'You can change your name once every 30 days.',
     nextNameChange: 'You can change it again on {{date}}.',
@@ -689,6 +690,7 @@ export const en = {
     loading: 'Loading…',
     error: 'Something went wrong',
     cancel: 'Cancel',
+    close: 'Close',
     save: 'Save',
     contentRejected: 'This content breaks the community guidelines. Please edit it and try again.',
   },
