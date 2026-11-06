@@ -79,7 +79,7 @@ export const en = {
   },
   profile: {
     badgeWall: 'Badges',
-    badgeWallEmpty: 'No badges yet.',
+    badgeWallEmpty: 'No badges yet? Go explore!',
     badgeWallHint: 'Got a code? Use “Redeem a badge”.',
     badgeGranted: 'Earned {{date}}',
     redeemBadge: 'Redeem a badge',

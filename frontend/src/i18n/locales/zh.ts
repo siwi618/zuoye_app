@@ -80,7 +80,7 @@ export const zh: Translations = {
   },
   profile: {
     badgeWall: '勋章墙',
-    badgeWallEmpty: '还没有勋章。',
+    badgeWallEmpty: '还没有勋章？快去探索吧',
     badgeWallHint: '收到兑换码？点「兑换勋章」领取。',
     badgeGranted: '{{date}} 获得',
     redeemBadge: '兑换勋章',
