@@ -681,6 +681,8 @@ export const zh: Translations = {
     Chinese: '语文',
     History: '历史',
     Geography: '地理',
+    'Business Management': '商管（BM）',
+    Economics: '经济',
     'Computer Science': '计算机',
     TOK: 'TOK（知识论）',
     Other: '其他',

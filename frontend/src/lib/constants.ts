@@ -9,6 +9,8 @@ export const SUBJECT_OPTIONS = [
   'Chinese',
   'History',
   'Geography',
+  'Business Management',
+  'Economics',
   'Computer Science',
   'TOK',
   'Other',

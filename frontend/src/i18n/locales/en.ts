@@ -687,6 +687,8 @@ export const en = {
     Chinese: 'Chinese',
     History: 'History',
     Geography: 'Geography',
+    'Business Management': 'Business Management',
+    Economics: 'Economics',
     'Computer Science': 'Computer Science',
     TOK: 'TOK',
     Other: 'Other',
