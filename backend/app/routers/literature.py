@@ -69,6 +69,12 @@ def empty_works(user: CurrentUserDep) -> list[str]:
     return svc.empty_works(user.id)
 
 
+@router.patch("/works/{work_key}", response_model=WorkInfo)
+def update_work(user: CurrentUserDep, work_key: WorkKeyStr, payload: WorkCreate) -> WorkInfo:
+    """Only holders of the 「鱼果」 badge; 409 if another work already has the title and author."""
+    return svc.update_work(user.id, work_key, payload)
+
+
 @router.delete("/works/{work_key}", status_code=204)
 def delete_work(user: CurrentUserDep, work_key: WorkKeyStr) -> None:
     """Only holders of the 「鱼果」 badge, and only while the work has no quotes, analyses or

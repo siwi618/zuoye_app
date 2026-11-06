@@ -457,6 +457,32 @@ def create_work(user_id: str, payload: WorkCreate) -> WorkInfo:
     return _work_info(inserted[0])
 
 
+def update_work(user_id: str, work_key: str, payload: WorkCreate) -> WorkInfo:
+    """Holders of the 「鱼果」 badge may correct a work's title, author, year or collection; its
+    key stays, so everything written under it stays with it."""
+    require_badge(user_id, LEAD_READER)
+    moderated = ensure_allowed(payload.title, payload.author, payload.group)
+    fields = {
+        "title": payload.title,
+        "author": payload.author,
+        "year": payload.year,
+        "group_name": payload.group,
+        "moderated": moderated,
+    }
+    try:
+        updated = (
+            get_supabase().table("lit_works").update(fields).eq("key", work_key)
+            .eq("moderation_flagged", False).execute().data
+        )
+    except APIError as e:
+        if e.code == _UNIQUE_VIOLATION:
+            raise _reject(WORK_EXISTS, status.HTTP_409_CONFLICT) from e
+        raise
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work not found")
+    return _work_info(updated[0])
+
+
 def empty_works(user_id: str) -> list[str]:
     """Keys of the works nothing is written under yet, which a 「鱼果」 holder may delete
     (one query, migration 0024)."""
