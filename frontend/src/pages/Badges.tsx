@@ -9,19 +9,22 @@ import { Input } from '@/components/ui/input'
 import { MY_BADGES_KEY, redeemBadgeCode, useMyBadges, type BadgeKey } from '@/api/profile'
 import { cn } from '@/lib/utils'
 
-// 「鱼果」: a line-drawn apple whose bottom notch turns inward and up into a fish head
-// (鱼果 sounds like 雨果, and the fish fits the sea).
+// 「鱼果」: a line-drawn apple whose bottom notch turns inward and up into a fish head that is
+// also the apple's pip (鱼果 sounds like 雨果, and the fish fits the sea).
 function YuguoIcon({ className }: { className?: string }) {
+  const pip =
+    'C20.2 38.4 19.4 35.2 20.2 32.2C21 29.2 22.8 26.8 24.4 25.2C25.9 26.8 27.6 29.2 28.2 32.2C28.9 35.2 28 38.4 25.2 40.2'
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path d={`M22.9 40.2${pip}Z`} fill="currentColor" fillOpacity="0.28" stroke="none" />
         <path
           strokeWidth="2.4"
-          d="M24 14C20.5 11 9 10.5 8.4 21.5C7.8 31 13 41.5 18.6 41.5C20.4 41.5 21.6 40.9 22.6 40.4C19.4 37.6 18.8 33.2 20.6 29.8C21.6 27.8 23.2 26.4 24.6 25.8C26.6 27.4 28.6 30.4 28.6 33.6C28.6 36.4 27.4 38.8 25.6 40.4C26.6 40.9 27.8 41.5 29.6 41.5C35 41.5 40.2 31 39.6 21.5C39 10.5 27.5 11 24 14Z"
+          d={`M24 14C20.5 11 9 10.5 8.4 21.5C7.8 31 13 41.5 18.6 41.5C20.6 41.5 22 40.9 22.9 40.2${pip}C26 40.9 27.4 41.5 29.4 41.5C35 41.5 40.2 31 39.6 21.5C39 10.5 27.5 11 24 14Z`}
         />
         <path strokeWidth="2.4" d="M24 14C24 11 25 8.5 27.5 6.5" />
         <path strokeWidth="2" d="M25.8 10C27.8 6.8 32 6 34.2 7.2C32.8 10.2 28.6 11.2 25.8 10Z" />
-        <circle cx="25.4" cy="30.6" r="1.4" fill="currentColor" stroke="none" />
+        <circle cx="25.4" cy="31.2" r="1.4" fill="currentColor" stroke="none" />
       </g>
     </svg>
   )
