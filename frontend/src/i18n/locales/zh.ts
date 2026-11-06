@@ -477,6 +477,7 @@ export const zh: Translations = {
       closeCard: '关掉这张卡片',
       openDevice: '打开手法页',
       searchDevices: '搜索手法',
+      filterWorks: '搜索书名、作者或合集',
       deviceSearchEmpty: '没有找到「{{query}}」',
       loadingWorks: '加载相关作品中…',
     },

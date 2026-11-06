@@ -479,6 +479,7 @@ export const en = {
       closeCard: 'Close this card',
       openDevice: 'Open the device page',
       searchDevices: 'Search devices',
+      filterWorks: 'Search title, author or collection',
       deviceSearchEmpty: 'Nothing matches “{{query}}”',
       loadingWorks: 'Loading the works…',
     },

@@ -401,6 +401,70 @@ function NoTags() {
   )
 }
 
+// The round search field atop the devices and works list pages.
+function SearchBox({
+  value,
+  onChange,
+  label,
+}: {
+  value: string
+  onChange: (value: string) => void
+  label: string
+}) {
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={label}
+        aria-label={label}
+        className="h-9 w-full rounded-full border border-border bg-background pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+      />
+    </div>
+  )
+}
+
+// The works list page: every work, or with a query, those whose title, author, collection or year
+// contain it. The list is already loaded, so it filters as you type.
+function WorkSearch({
+  works,
+  leadReader,
+  onPick,
+}: {
+  works: Work[]
+  leadReader: boolean
+  onPick: (key: string) => void
+}) {
+  const { t } = useTranslation()
+  const [query, setQuery] = useState('')
+  const term = query
+    .replace(/[《》「」]/g, '')
+    .trim()
+    .toLowerCase()
+  const rows = term
+    ? works.filter((w) =>
+        [w.title, w.author, w.group ?? '', w.year != null ? String(w.year) : ''].some((f) =>
+          f.toLowerCase().includes(term),
+        ),
+      )
+    : works
+  return (
+    <>
+      <SearchBox value={query} onChange={setQuery} label={t(`${K}.filterWorks`)} />
+      {leadReader && <AddWork works={works} onAdded={onPick} />}
+      {rows.map((w) => (
+        <WorkRow key={w.key} work={w} onClick={() => onPick(w.key)} deletable={leadReader} />
+      ))}
+      {term && !rows.length && (
+        <p className="text-sm text-muted-foreground">
+          {t(`${K}.deviceSearchEmpty`, { query: query.trim() })}
+        </p>
+      )}
+    </>
+  )
+}
+
 // The devices list page: the hottest devices, or with a query, every device matching it.
 function DeviceSearch({ hot, onPick }: { hot: TagRead[]; onPick: (tag: TagRead) => void }) {
   const { t } = useTranslation()
@@ -419,16 +483,7 @@ function DeviceSearch({ hot, onPick }: { hot: TagRead[]; onPick: (tag: TagRead) 
   const rows = term ? (found.data ?? []) : hot
   return (
     <>
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t(`${K}.searchDevices`)}
-          aria-label={t(`${K}.searchDevices`)}
-          className="h-9 w-full rounded-full border border-border bg-background pr-3 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
-        />
-      </div>
+      <SearchBox value={query} onChange={setQuery} label={t(`${K}.searchDevices`)} />
       {rows.length ? (
         rows.map((tag) => (
           <TagRow key={tag.id} name={tag.name} count={tag.count} onClick={() => onPick(tag)} />
@@ -570,17 +625,7 @@ export function DetailPanel({
               }}
             />
           ) : (
-            <>
-              {leadReader && <AddWork works={works} onAdded={pickWork} />}
-              {works.map((w) => (
-                <WorkRow
-                  key={w.key}
-                  work={w}
-                  onClick={() => pickWork(w.key)}
-                  deletable={leadReader}
-                />
-              ))}
-            </>
+            <WorkSearch works={works} leadReader={leadReader} onPick={pickWork} />
           )}
         </div>
       </div>
