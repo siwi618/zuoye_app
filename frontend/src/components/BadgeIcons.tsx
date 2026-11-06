@@ -19,41 +19,27 @@ export function YuguoIcon({ className }: { className?: string }) {
   )
 }
 
-// 「雷蜂」: a line-drawn bee seen from above with a lightning bolt down its body. Every stage
-// (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂) uses it; the medal's colour shows the stage.
+// 「雷蜂」: a honeycomb of five hexagons sharing their walls (two above, one in the middle, two
+// below) with a lightning bolt in the middle cell. Every stage (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂) uses
+// it; the medal's colour shows the stage.
+const COMB = [
+  'M16.9 3.5L24 7.6L24 15.8L16.9 19.9L9.8 15.8L9.8 7.6Z',
+  'M31.1 3.5L38.2 7.6L38.2 15.8L31.1 19.9L24 15.8L24 7.6Z',
+  'M16.9 28.1L24 32.2L24 40.4L16.9 44.5L9.8 40.4L9.8 32.2Z',
+  'M31.1 28.1L38.2 32.2L38.2 40.4L31.1 44.5L24 40.4L24 32.2Z',
+]
+const MIDDLE = 'M24 15.8L31.1 19.9L31.1 28.1L24 32.2L16.9 28.1L16.9 19.9Z'
+
 export function BeeIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
-      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse
-          cx="13.5"
-          cy="18"
-          rx="7.5"
-          ry="4.6"
-          transform="rotate(-32 13.5 18)"
-          fill="currentColor"
-          fillOpacity="0.28"
-          strokeWidth="2"
-        />
-        <ellipse
-          cx="34.5"
-          cy="18"
-          rx="7.5"
-          ry="4.6"
-          transform="rotate(32 34.5 18)"
-          fill="currentColor"
-          fillOpacity="0.28"
-          strokeWidth="2"
-        />
-        <circle cx="24" cy="12.6" r="4" strokeWidth="2.4" />
+      <g fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2">
+        {COMB.map((d) => (
+          <path key={d} d={d} fill="currentColor" fillOpacity="0.12" />
+        ))}
+        <path d={MIDDLE} fill="currentColor" fillOpacity="0.35" />
         <path
-          strokeWidth="2"
-          d="M22.2 9.3C21.4 6.6 19.8 5 17.4 4.6M25.8 9.3C26.6 6.6 28.2 5 30.6 4.6"
-        />
-        <ellipse cx="24" cy="29.6" rx="8.4" ry="11" strokeWidth="2.4" />
-        <path strokeWidth="2.2" d="M24 40.6V44" />
-        <path
-          d="M25.9 20.6L19.6 30.2H24.1L21.9 38.6L28.5 27.8H24Z"
+          d="M26.2 17.8L20 25.6H24.2L22.2 30.6L28.4 22.4H24.1Z"
           fill="currentColor"
           stroke="none"
         />
