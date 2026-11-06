@@ -115,6 +115,7 @@ export const en = {
       progress: 'Evolution',
       max: 'Fully evolved',
       lockedHint: 'Not earned yet, so it can’t be worn',
+      unknown: '???',
       bee: {
         next: '{{count}} more requests to evolve into “{{name}}”',
         next_one: '1 more request to evolve into “{{name}}”',

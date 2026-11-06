@@ -30,7 +30,8 @@ import {
 import { cn } from '@/lib/utils'
 
 // An evolving badge's progress under its card: a bar towards the next stage and the four stages,
-// the ones reached in their colours. `current` is the highest stage held, null before the first.
+// the ones reached in their colours. Stages not reached yet keep their names hidden (？？？) to
+// leave something to discover. `current` is the highest stage held, null before the first.
 function EvolutionProgress({
   evolution: { family, stages },
   count,
@@ -69,7 +70,7 @@ function EvolutionProgress({
           ? t('profile.evolution.max')
           : t(`profile.evolution.${family}.${at < 0 ? 'earn' : 'next'}`, {
               count: Math.max(0, next.need - n),
-              name: t(`profile.badges.${next.key}.name`),
+              name: t('profile.evolution.unknown'),
             })}
       </p>
       <ol className="flex flex-wrap items-center gap-1">
@@ -81,10 +82,10 @@ function EvolutionProgress({
                 'rounded-full border px-1.5 py-px text-[11px] leading-4 font-semibold',
                 i <= at
                   ? TIER_STYLE[BADGE_META[s.key].tier].tag
-                  : 'border-dashed border-border text-muted-foreground/70',
+                  : 'border-dashed border-border tracking-[-0.2em] text-muted-foreground/70',
               )}
             >
-              {t(`profile.badges.${s.key}.name`)}
+              {i <= at ? t(`profile.badges.${s.key}.name`) : t('profile.evolution.unknown')}
             </span>
           </li>
         ))}
@@ -345,7 +346,7 @@ export function Badges() {
                     </span>
                     <div className="space-y-1">
                       <p className="text-lg font-semibold text-muted-foreground">
-                        {t(`profile.badges.${first.key}.name`)}
+                        {t('profile.evolution.unknown')}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {t(`profile.evolution.${e.family}.locked`, { need: first.need })}

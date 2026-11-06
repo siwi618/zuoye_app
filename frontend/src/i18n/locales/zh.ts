@@ -113,6 +113,7 @@ export const zh: Translations = {
       progress: '进化进度',
       max: '已进化到最高阶',
       lockedHint: '还没获得，不能佩戴',
+      unknown: '？？？',
       bee: {
         next: '再帮 {{count}} 个请求进化成「{{name}}」',
         next_one: '再帮 {{count}} 个请求进化成「{{name}}」',
