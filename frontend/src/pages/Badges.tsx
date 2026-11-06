@@ -9,24 +9,19 @@ import { Input } from '@/components/ui/input'
 import { MY_BADGES_KEY, redeemBadgeCode, useMyBadges, type BadgeKey } from '@/api/profile'
 import { cn } from '@/lib/utils'
 
-// 「鱼果」: a fish head drawn inside an apple (鱼果 sounds like 雨果, and the fish fits the sea).
+// 「鱼果」: a line-drawn apple whose bottom notch turns inward and up into a fish head
+// (鱼果 sounds like 雨果, and the fish fits the sea).
 function YuguoIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <path
-          strokeWidth="2.2"
-          d="M24 13.5C20.5 10.5 9.5 10 8.6 20.5C7.8 30 14.5 41 19.6 41C21.6 41 22.6 40.1 24 40.1C25.4 40.1 26.4 41 28.4 41C33.5 41 40.2 30 39.4 20.5C38.5 10 27.5 10.5 24 13.5Z"
+          strokeWidth="2.4"
+          d="M24 14C20.5 11 9 10.5 8.4 21.5C7.8 31 13 41.5 18.6 41.5C20.4 41.5 21.6 40.9 22.6 40.4C19.4 37.6 18.8 33.2 20.6 29.8C21.6 27.8 23.2 26.4 24.6 25.8C26.6 27.4 28.6 30.4 28.6 33.6C28.6 36.4 27.4 38.8 25.6 40.4C26.6 40.9 27.8 41.5 29.6 41.5C35 41.5 40.2 31 39.6 21.5C39 10.5 27.5 11 24 14Z"
         />
-        <path strokeWidth="2.2" d="M24 13.5C24 10.5 25 8 27.5 6" />
-        <path strokeWidth="1.8" d="M25.6 9.6C27.6 6.4 31.8 5.6 34 6.8C32.6 9.8 28.4 10.8 25.6 9.6Z" />
-        <path
-          strokeWidth="2"
-          d="M13.6 20.8C19.5 18.6 27.6 19.4 31.8 23.4C33.4 24.9 34.4 26.4 34.8 27.6L31.4 28.6L34.4 30C33.4 32 30.6 33.8 26.6 34.6C21.6 35.6 16.6 35 13.6 33.8"
-        />
-        <path strokeWidth="1.8" d="M20.2 20.2C23.4 23.6 23.6 30.4 20.6 34.6" />
-        <circle strokeWidth="1.6" cx="27.6" cy="25.2" r="2.4" />
-        <circle cx="28" cy="25.2" r="1" fill="currentColor" stroke="none" />
+        <path strokeWidth="2.4" d="M24 14C24 11 25 8.5 27.5 6.5" />
+        <path strokeWidth="2" d="M25.8 10C27.8 6.8 32 6 34.2 7.2C32.8 10.2 28.6 11.2 25.8 10Z" />
+        <circle cx="25.4" cy="30.6" r="1.4" fill="currentColor" stroke="none" />
       </g>
     </svg>
   )
@@ -173,7 +168,7 @@ export function Badges() {
                     style.medal,
                   )}
                 >
-                  <Icon className="size-12" />
+                  <Icon className="size-14" />
                 </span>
                 <div className="space-y-1">
                   <p className="text-lg font-semibold">{t(`profile.badges.${b.key}.name`)}</p>
