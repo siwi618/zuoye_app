@@ -18,6 +18,7 @@ import { LEAD_READER, useHasBadge } from '@/api/profile'
 import { devicePath, useWorks, workByline, workPath, worksQuery } from '@/lib/literature/corpus'
 import { deviceQuery, usePrefetch, workQuery } from '@/lib/literature/queries'
 import { cleanTag } from '@/lib/literature/text'
+import { cn } from '@/lib/utils'
 import type { Selection } from './DysonScene'
 import { IntroBlock } from './IntroBlock'
 
@@ -72,17 +73,44 @@ function TagRow({ name, count, onClick }: { name: string; count: number; onClick
   )
 }
 
-function WorkRow({ work: w, onClick }: { work: Work; onClick: () => void }) {
+// `deletable`: a 「鱼果」 holder's list page, where empty works get a bin at the end of the row.
+function WorkRow({
+  work: w,
+  onClick,
+  deletable = false,
+}: {
+  work: Work
+  onClick: () => void
+  deletable?: boolean
+}) {
   const prefetch = usePrefetch()
-  return (
-    <button type="button" onClick={onClick} className={rowClass} {...prefetch.work(w.key)}>
-      <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
-      <span className="text-sm text-muted-foreground">
+  const row = (
+    <button
+      type="button"
+      onClick={onClick}
+      className={rowClass}
+      {...prefetch.work(w.key)}
+    >
+      <span className="shrink-0 font-semibold whitespace-nowrap group-hover:text-primary">
+        《{w.title}》
+      </span>
+      <span className="min-w-0 truncate text-sm text-muted-foreground">
         {workByline(w)}
         {w.group && ` · 「${w.group}」`}
       </span>
-      <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
+      {/* room for the bin, left of the chevron */}
+      {deletable && <span className="ml-auto w-7 shrink-0" />}
+      <ChevronRight
+        className={cn('size-4 shrink-0 text-muted-foreground', !deletable && 'ml-auto')}
+      />
     </button>
+  )
+  if (!deletable) return row
+  return (
+    <div className="relative">
+      {row}
+      <DeleteWorkBin work={w} />
+    </div>
   )
 }
 
@@ -194,8 +222,9 @@ function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => 
 }
 
 // Holders of the 「鱼果」 badge can delete a work while nothing is written under it (no quotes or
-// analyses; the server also checks for @character tags).
-function DeleteWork({ work, onDeleted }: { work: Work; onDeleted: () => void }) {
+// analyses; the server also checks for @character tags). `empty` is known once the work's page
+// data has loaded (fetched here, shared with the page).
+function useDeleteWork(work: Work, onDeleted?: () => void) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const data = useQuery(workQuery(work.key)).data
@@ -207,22 +236,50 @@ function DeleteWork({ work, onDeleted }: { work: Work; onDeleted: () => void }) 
       void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
       queryClient.removeQueries({ queryKey: workQuery(work.key).queryKey })
       toast.success(t(`${K}.workDeleted`, { title: work.title }))
-      onDeleted()
+      onDeleted?.()
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
   })
+  const ask = () => {
+    if (!remove.isPending && window.confirm(t(`${K}.deleteWorkConfirm`, { title: work.title })))
+      remove.mutate()
+  }
+  return { empty, ask, pending: remove.isPending }
+}
+
+// At the bottom of a work's details.
+function DeleteWork({ work, onDeleted }: { work: Work; onDeleted: () => void }) {
+  const { t } = useTranslation()
+  const { empty, ask, pending } = useDeleteWork(work, onDeleted)
   if (!empty) return null
   return (
     <button
       type="button"
-      disabled={remove.isPending}
-      onClick={() =>
-        window.confirm(t(`${K}.deleteWorkConfirm`, { title: work.title })) && remove.mutate()
-      }
+      disabled={pending}
+      onClick={ask}
       className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
     >
       <Trash2 className="size-3.5" />
       {t(`${K}.deleteWork`)}
+    </button>
+  )
+}
+
+// At the end of a row on the works list page, left of the chevron.
+function DeleteWorkBin({ work }: { work: Work }) {
+  const { t } = useTranslation()
+  const { empty, ask, pending } = useDeleteWork(work)
+  if (!empty) return null
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={ask}
+      aria-label={`${t(`${K}.deleteWork`)}《${work.title}》`}
+      title={t(`${K}.deleteWork`)}
+      className="absolute top-1/2 right-9 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+    >
+      <Trash2 className="size-3.5" />
     </button>
   )
 }
@@ -408,7 +465,12 @@ export function DetailPanel({
             <>
               {leadReader && <AddWork works={works} onAdded={pickWork} />}
               {works.map((w) => (
-                <WorkRow key={w.key} work={w} onClick={() => pickWork(w.key)} />
+                <WorkRow
+                  key={w.key}
+                  work={w}
+                  onClick={() => pickWork(w.key)}
+                  deletable={leadReader}
+                />
               ))}
             </>
           )}
