@@ -50,8 +50,10 @@ class BadgeRead(BaseModel):
 
 
 class BadgeProgress(BaseModel):
-    """What the evolving badges count: requests helped complete (the 「雷蜂」 stages)."""
+    """What the evolving badges count: requests helped complete (「雷蜂」) and literature
+    analyses that count (「鲷苗人」)."""
     helped_requests: int
+    counted_analyses: int = 0
 
 
 class WornBadgeUpdate(BaseModel):

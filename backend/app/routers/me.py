@@ -138,6 +138,7 @@ def mark_notices_seen(user: CurrentUserDep) -> None:
 
 @router.get("/badges", response_model=list[BadgeRead])
 def list_my_badges(user: CurrentUserDep) -> list[BadgeRead]:
+    badges.grant_due(user.id)
     return badges.list_badges(user.id)
 
 

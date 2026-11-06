@@ -34,9 +34,17 @@ def list_badges(user_id: str) -> list[BadgeRead]:
     return [BadgeRead(key=r["badge"], granted_at=r["granted_at"]) for r in rows]
 
 
+def grant_due(user_id: str) -> None:
+    """Grant writer stages that came due with time: an analysis counts only once it is 30 minutes
+    old, which no database event marks (migration 0028)."""
+    get_supabase().rpc("grant_writer_badges", {"p_user": user_id}).execute()
+
+
 def progress(user_id: str) -> BadgeProgress:
-    helped = get_supabase().rpc("helped_count", {"p_user": user_id}).execute().data
-    return BadgeProgress(helped_requests=int(helped or 0))
+    db = get_supabase()
+    helped = db.rpc("helped_count", {"p_user": user_id}).execute().data
+    written = db.rpc("counted_analyses", {"p_user": user_id}).execute().data
+    return BadgeProgress(helped_requests=int(helped or 0), counted_analyses=int(written or 0))
 
 
 def has_badge(user_id: str, badge: str) -> bool:
