@@ -15,6 +15,7 @@ export const zh: Translations = {
     leaderboard: '排行榜',
     profile: '个人资料',
     badges: '勋章墙',
+    newBadge: '有新勋章',
     signOut: '退出登录',
   },
   auth: {

@@ -12,6 +12,8 @@ export interface MyProfile {
   next_name_change_at: string | null
   // The badge worn after the name, if any.
   worn_badge?: string | null
+  // When the badge wall was last opened; badges granted after it are new.
+  badges_seen_at?: string | null
 }
 
 export function getMyProfile(): Promise<MyProfile> {
@@ -82,6 +84,28 @@ export const MY_BADGES_KEY = ['my-badges'] as const
 
 export function useMyBadges() {
   return useQuery({ queryKey: MY_BADGES_KEY, queryFn: listMyBadges, staleTime: 5 * 60_000 })
+}
+
+// The badge wall was opened: what's held so far is no longer new.
+export function markBadgesSeen(): Promise<MyProfile> {
+  return apiFetch<MyProfile>('/me/badges/seen', { method: 'POST' })
+}
+
+// Badges granted after `seenAt` (all of them when it's null), only the ones this site knows.
+export function newBadgeKeys(badges: Badge[] | undefined, seenAt: string | null | undefined) {
+  const since = seenAt ? Date.parse(seenAt) : -Infinity
+  return (badges ?? [])
+    .filter(
+      (b) => (BADGES as readonly string[]).includes(b.key) && Date.parse(b.granted_at) > since,
+    )
+    .map((b) => b.key as BadgeKey)
+}
+
+// A red dot on the avatar and the badge wall's menu item until the wall is opened.
+export function useHasNewBadges(): boolean {
+  const badges = useMyBadges().data
+  const profile = useMyProfile().data
+  return !!profile && newBadgeKeys(badges, profile.badges_seen_at).length > 0
 }
 
 export function useHasBadge(badge: BadgeKey): boolean {

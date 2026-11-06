@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -8,8 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   getBadgeProgress,
+  markBadgesSeen,
   MY_BADGES_KEY,
   MY_PROFILE_KEY,
+  newBadgeKeys,
   redeemBadgeCode,
   useMyBadges,
   useMyProfile,
@@ -17,6 +19,7 @@ import {
   type BadgeKey,
 } from '@/api/profile'
 import { BeeIcon } from '@/components/BadgeIcons'
+import { RedDot } from '@/components/RedDot'
 import { BADGE_META, BEE_STAGES, isBeeStage, TIERS, TIER_STYLE } from '@/lib/badges'
 import { cn } from '@/lib/utils'
 
@@ -87,7 +90,8 @@ export function Badges() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const badges = useMyBadges()
-  const worn = useMyProfile().data?.worn_badge ?? null
+  const profile = useMyProfile()
+  const worn = profile.data?.worn_badge ?? null
   const [redeeming, setRedeeming] = useState(false)
   const [code, setCode] = useState('')
   const [fresh, setFresh] = useState<string | null>(null) // just redeemed: shown with a flourish
@@ -107,6 +111,7 @@ export function Badges() {
       const before = new Set((badges.data ?? []).map((b) => b.key))
       const added = all.find((b) => !before.has(b.key))
       queryClient.setQueryData(MY_BADGES_KEY, all)
+      markSeen()
       setRedeeming(false)
       setCode('')
       if (added && added.key in BADGE_META) {
@@ -118,6 +123,26 @@ export function Badges() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
   })
+  // Opening the wall clears the red dots. The badges that were new keep a dot here until you
+  // leave: when the wall was last seen is kept from the first render that knows it. Newly
+  // redeemed ones are seen right away.
+  const [seenBefore, setSeenBefore] = useState<string | null | undefined>(undefined)
+  if (seenBefore === undefined && profile.data) setSeenBefore(profile.data.badges_seen_at ?? null)
+  const newHere = seenBefore === undefined ? [] : newBadgeKeys(badges.data, seenBefore)
+  const seen = useMutation({
+    mutationFn: markBadgesSeen,
+    onSuccess: (p) => queryClient.setQueryData(MY_PROFILE_KEY, p),
+  })
+  const markSeen = seen.mutate
+  const anyNew = newHere.length > 0
+  const marked = useRef(false)
+  useEffect(() => {
+    if (anyNew && !marked.current) {
+      marked.current = true
+      markSeen()
+    }
+  }, [anyNew, markSeen])
+
   const wear = useMutation({
     mutationFn: wearBadge,
     onSuccess: (profile, badge) => {
@@ -239,11 +264,17 @@ export function Badges() {
                     </span>
                     <span
                       className={cn(
-                        'grid size-20 place-items-center rounded-full bg-gradient-to-br text-white shadow-sm ring-4',
+                        'relative grid size-20 place-items-center rounded-full bg-gradient-to-br text-white shadow-sm ring-4',
                         style.medal,
                       )}
                     >
                       <Icon className="size-14" />
+                      {newHere.includes(b.key) && (
+                        <RedDot
+                          className="absolute top-0.5 right-0.5 size-3.5"
+                          label={t('nav.newBadge')}
+                        />
+                      )}
                     </span>
                     <div className="space-y-1">
                       <p className="text-lg font-semibold">{name}</p>

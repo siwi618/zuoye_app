@@ -13,6 +13,7 @@ export const en = {
     leaderboard: 'Leaderboard',
     profile: 'Profile',
     badges: 'Badges',
+    newBadge: 'New badge',
     signOut: 'Sign out',
   },
   auth: {

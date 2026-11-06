@@ -15,6 +15,8 @@ import { Brand } from '@/components/Brand'
 import { GradeReminder } from '@/components/GradeReminder'
 import { ModerationAlert } from '@/components/ModerationAlert'
 import { ReviewReminder } from '@/components/ReviewReminder'
+import { useHasNewBadges } from '@/api/profile'
+import { RedDot } from '@/components/RedDot'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +35,7 @@ export function AppLayout() {
     void i18n.changeLanguage(i18n.language.startsWith('zh') ? 'en' : 'zh')
   }
 
+  const newBadges = useHasNewBadges()
   const initials = (user?.user_metadata?.display_name ?? user?.email ?? '?')
     .toString()
     .trim()
@@ -99,13 +102,15 @@ export function AppLayout() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 w-10 rounded-full p-0 ring-1 ring-border hover:ring-primary/50"
+                  aria-label={newBadges ? t('nav.newBadge') : undefined}
+                  className="relative h-10 w-10 rounded-full p-0 ring-1 ring-border hover:ring-primary/50"
                 >
                   <Avatar className="size-9">
                     <AvatarFallback className="bg-brand-100 font-semibold text-brand-700">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
+                  {newBadges && <RedDot className="absolute top-0 right-0" />}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 rounded-xl">
@@ -127,6 +132,7 @@ export function AppLayout() {
                 <DropdownMenuItem onClick={() => navigate('/badges')}>
                   <Award className="mr-2 size-4" />
                   {t('nav.badges')}
+                  {newBadges && <RedDot className="ml-auto" label={t('nav.newBadge')} />}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 size-4" />
