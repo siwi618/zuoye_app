@@ -85,7 +85,7 @@ function WorkRow({ work: w, onClick }: { work: Work; onClick: () => void }) {
   )
 }
 
-// Holders of the 「领读人」 badge add a work here; it then appears on the sphere's shell.
+// Holders of the 「鱼果」 badge add a work here; it then appears on the sphere's shell.
 function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => void }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()

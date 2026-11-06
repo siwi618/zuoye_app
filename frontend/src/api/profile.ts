@@ -39,7 +39,8 @@ export function useMyProfile() {
 // Keep in sync with the badges table (migration 0023) and profile.badges.* in the translations.
 export const BADGES = ['lead_reader'] as const
 export type BadgeKey = (typeof BADGES)[number]
-export const LEAD_READER: BadgeKey = 'lead_reader' // may add works to the literature tool
+// 「鱼果」 (the key predates the name): may add works to the literature tool.
+export const LEAD_READER: BadgeKey = 'lead_reader'
 
 export interface Badge {
   key: string

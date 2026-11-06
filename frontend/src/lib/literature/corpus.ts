@@ -4,7 +4,7 @@ import { listWorks, type Work } from '@/api/literature'
 export type { Work }
 
 // The works of the literature tool (the sphere's outer shell), from the server; holders of the
-// 「领读人」 badge can add more. Everything students add to a work — quotes, #device tags,
+// 「鱼果」 badge can add more. Everything students add to a work — quotes, #device tags,
 // analyses — lives in the database under the work's key.
 //
 // The last list fetched is kept in this browser, so on later visits the pages show it at once

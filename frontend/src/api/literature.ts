@@ -125,7 +125,7 @@ export function listWorks(): Promise<Work[]> {
   return apiFetch<Work[]>('/literature/works')
 }
 
-// Only holders of the 「领读人」 badge may add a work.
+// Only holders of the 「鱼果」 badge may add a work.
 export function createWork(payload: WorkCreate): Promise<Work> {
   return apiFetch<Work>('/literature/works', { method: 'POST', body: JSON.stringify(payload) })
 }

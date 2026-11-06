@@ -90,8 +90,12 @@ export const en = {
     badgeAlreadyHave: 'You already have this badge; the code was not used.',
     badgeTooMany: 'Too many wrong codes. Try again in 15 minutes.',
     badges: {
-      lead_reader: { name: 'Lead Reader', desc: 'Can add new works to Literature.' },
+      lead_reader: {
+        name: 'Yuguo',
+        desc: 'In recognition of your outstanding contributions to literary analysis',
+      },
     },
+    tiers: { legendary: 'Legendary', epic: 'Epic', common: 'Common' },
     editName: 'Edit name',
     displayName: 'Display name',
     displayNameHint: 'You can change your name once every 30 days.',
@@ -362,7 +366,7 @@ export const en = {
       published: 'Analysis published',
       invalidAnalysis: 'Some picked quotes or marked words are no longer valid. Reload the page and try again.',
       workExists: 'This work is already here.',
-      badgeRequired: 'Adding works needs the Lead Reader badge.',
+      badgeRequired: 'Adding works needs the Yuguo badge.',
       addWork: 'Add a work',
       addWorkSubmit: 'Add',
       workTitle: 'Title',
