@@ -26,6 +26,8 @@ class MyProfile(BaseModel):
     display_name: str = ""
     # When the next rename is allowed; None = allowed now.
     next_name_change_at: datetime | None = None
+    # The badge worn after the name, if any.
+    worn_badge: str | None = None
 
 
 class MyProfileUpdate(BaseModel):
@@ -43,6 +45,10 @@ LEAD_READER = "lead_reader"  # may add works to the literature tool
 class BadgeRead(BaseModel):
     key: str
     granted_at: datetime
+
+
+class WornBadgeUpdate(BaseModel):
+    badge: Annotated[str, StringConstraints(max_length=40)] | None  # None takes it off
 
 
 class BadgeRedeem(BaseModel):

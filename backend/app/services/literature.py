@@ -57,7 +57,7 @@ def _reject(detail: str, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HT
 
 # Profile columns embedded with each row: enough for ProfileSummary, plus is_deleted, since
 # content of soft-deleted users is hidden.
-_PROFILE = "id, display_name, avatar_url, is_deleted"
+_PROFILE = "id, display_name, avatar_url, worn_badge, is_deleted"
 # Analyses and quotes each reach profiles two ways (their author, and the users who liked an
 # analysis / edited a quote version), so PostgREST needs the foreign key named or it refuses
 # the query.

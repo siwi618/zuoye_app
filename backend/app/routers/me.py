@@ -11,6 +11,7 @@ from app.schemas.profile import (
     MyProfile,
     MyProfileUpdate,
     NameUpdate,
+    WornBadgeUpdate,
 )
 from app.services import badges
 from app.services.moderation import ensure_allowed
@@ -41,7 +42,7 @@ def _read_profile(user_id: str) -> MyProfile:
     rows = (
         get_supabase()
         .table("profiles")
-        .select("grade, display_name, display_name_changed_at")
+        .select("grade, display_name, display_name_changed_at, worn_badge")
         .eq("id", user_id)
         .limit(1)
         .execute()
@@ -62,6 +63,7 @@ def _read_profile(user_id: str) -> MyProfile:
         grade=grade if grade in GRADES else None,
         display_name=row.get("display_name") or "",
         next_name_change_at=next_change,
+        worn_badge=row.get("worn_badge"),
     )
 
 
@@ -141,3 +143,18 @@ def list_my_badges(user: CurrentUserDep) -> list[BadgeRead]:
 def redeem_badge_code(payload: BadgeRedeem, user: CurrentUserDep) -> list[BadgeRead]:
     """Redeem a one-time code for a badge; returns the caller's badges, the new one included."""
     return badges.redeem(user.id, payload.code)
+
+
+@router.put("/badges/worn", response_model=MyProfile)
+def wear_badge(payload: WornBadgeUpdate, user: CurrentUserDep) -> MyProfile:
+    """Wear one of your badges after your name (403 if you don't hold it), or take it off."""
+    if payload.badge is not None:
+        badges.require_badge(user.id, payload.badge)
+    (
+        get_supabase()
+        .table("profiles")
+        .update({"worn_badge": payload.badge})
+        .eq("id", user.id)
+        .execute()
+    )
+    return _read_profile(user.id)

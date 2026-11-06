@@ -52,6 +52,7 @@ class PostCreate(BaseModel):
 class TopComment(BaseModel):
     """Most-liked comment on a post, previewed in the post list."""
     author_name: str
+    author_badge: str | None = None  # the badge the author wears
     body: str
     like_count: int
 

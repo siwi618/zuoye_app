@@ -37,7 +37,7 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
     res = (
         get_supabase()
         .table("profiles")
-        .select("id, display_name, avatar_url, is_deleted")
+        .select("id, display_name, avatar_url, worn_badge, is_deleted")
         .in_("id", list(user_ids))
         .execute()
     )
@@ -120,6 +120,7 @@ def _top_comments(post_ids: list[str], deleted: list[str]) -> dict[str, TopComme
     return {
         post_id: TopComment(
             author_name=profiles[r["author_id"]]["display_name"],
+            author_badge=profiles[r["author_id"]].get("worn_badge"),
             body=r["body"],
             like_count=r["like_count"],
         )

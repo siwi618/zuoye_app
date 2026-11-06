@@ -62,7 +62,7 @@ def _fetch_profiles(user_ids: set[str]) -> dict[str, dict]:
     res = (
         get_supabase()
         .table("profiles")
-        .select("id, display_name, avatar_url, is_deleted")
+        .select("id, display_name, avatar_url, worn_badge, is_deleted")
         .in_("id", list(user_ids))
         .execute()
     )

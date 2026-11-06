@@ -31,6 +31,8 @@ class ProfileSummary(BaseModel):
     id: str
     display_name: str
     avatar_url: str | None = None
+    # The badge the user wears after their name, if any (migration 0025).
+    worn_badge: str | None = None
 
 
 class RequestCreate(BaseModel):
