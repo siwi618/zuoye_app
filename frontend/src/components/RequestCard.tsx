@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
+import { CardThumbnail } from '@/components/CardThumbnail'
 import type { RequestRead } from '@/api/requests'
 import { displayStatus, statusIcon } from '@/lib/requestStatus'
 
@@ -58,27 +59,35 @@ export function RequestCard({ request }: { request: RequestRead }) {
             </span>
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="line-clamp-2 text-sm text-muted-foreground">{request.description}</p>
-          <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-            <Avatar className="size-6">
-              <AvatarFallback className="bg-brand-100 text-[10px] font-semibold text-brand-700">
-                {requesterInitials}
-              </AvatarFallback>
-            </Avatar>
-            <span>
-              <span className="font-medium text-foreground">
-                {request.requester.display_name}
+        <CardContent className="flex flex-1 flex-col">
+          <div className="flex items-start gap-3">
+            <p className="line-clamp-2 min-w-0 flex-1 text-sm text-muted-foreground">
+              {request.description}
+            </p>
+            <CardThumbnail media={request.media} />
+          </div>
+          {/* pinned to the bottom so footers line up across a row of cards */}
+          <div className="mt-auto pt-4">
+            <div className="flex items-center gap-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+              <Avatar className="size-6">
+                <AvatarFallback className="bg-brand-100 text-[10px] font-semibold text-brand-700">
+                  {requesterInitials}
+                </AvatarFallback>
+              </Avatar>
+              <span>
+                <span className="font-medium text-foreground">
+                  {request.requester.display_name}
+                </span>
+                {request.helper ? (
+                  <>
+                    {' '}· helper{' '}
+                    <span className="font-medium text-foreground">
+                      {request.helper.display_name}
+                    </span>
+                  </>
+                ) : null}
               </span>
-              {request.helper ? (
-                <>
-                  {' '}· helper{' '}
-                  <span className="font-medium text-foreground">
-                    {request.helper.display_name}
-                  </span>
-                </>
-              ) : null}
-            </span>
+            </div>
           </div>
         </CardContent>
       </Card>

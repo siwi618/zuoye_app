@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { CardThumbnail } from '@/components/CardThumbnail'
 import {
   Select,
   SelectContent,
@@ -144,7 +145,10 @@ function PostCard({ post }: { post: PostRead }) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col">
-          <p className="line-clamp-2 text-sm text-muted-foreground">{post.body}</p>
+          <div className="flex items-start gap-3">
+            <p className="line-clamp-2 min-w-0 flex-1 text-sm text-muted-foreground">{post.body}</p>
+            <CardThumbnail media={post.media} />
+          </div>
           {/* pinned to the bottom so footers line up across a row of cards */}
           <div className="mt-auto pt-4">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
