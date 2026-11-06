@@ -10,6 +10,7 @@ import { BrowseRequests } from '@/pages/BrowseRequests'
 import { NewRequest } from '@/pages/NewRequest'
 import { RequestDetail } from '@/pages/RequestDetail'
 import { Profile } from '@/pages/Profile'
+import { Badges } from '@/pages/Badges'
 import { Leaderboard } from '@/pages/Leaderboard'
 import { Forum } from '@/pages/Forum'
 import { MyRequests } from '@/pages/MyRequests'
@@ -60,6 +61,7 @@ export default function App() {
             {/* The old global history page now lives in My Tasks. */}
             <Route path="/history" element={<Navigate to="/my-tasks?tab=history" replace />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/badges" element={<Badges />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewPost />} />
             <Route path="/forum/:id" element={<PostDetail />} />

@@ -12,6 +12,7 @@ export const en = {
     forum: 'Discussion',
     leaderboard: 'Leaderboard',
     profile: 'Profile',
+    badges: 'Badges',
     signOut: 'Sign out',
   },
   auth: {

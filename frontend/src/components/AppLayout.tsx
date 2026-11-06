@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Languages, LogOut, UserRound } from 'lucide-react'
+import { Award, Languages, LogOut, UserRound } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,6 +123,10 @@ export function AppLayout() {
                 <DropdownMenuItem onClick={() => navigate('/profile')}>
                   <UserRound className="mr-2 size-4" />
                   {t('nav.profile')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/badges')}>
+                  <Award className="mr-2 size-4" />
+                  {t('nav.badges')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 size-4" />

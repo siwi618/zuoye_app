@@ -14,6 +14,7 @@ export const zh: Translations = {
     tools: '工具瑚',
     leaderboard: '排行榜',
     profile: '个人资料',
+    badges: '勋章墙',
     signOut: '退出登录',
   },
   auth: {
