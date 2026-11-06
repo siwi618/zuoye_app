@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Award, Check, Ticket } from 'lucide-react'
+import { Award, Check, ChevronRight, Lock, Ticket } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
+  getBadgeProgress,
   MY_BADGES_KEY,
   MY_PROFILE_KEY,
   redeemBadgeCode,
@@ -15,13 +16,72 @@ import {
   wearBadge,
   type BadgeKey,
 } from '@/api/profile'
-import { BADGE_META, TIERS, TIER_STYLE } from '@/lib/badges'
+import { BeeIcon } from '@/components/BadgeIcons'
+import { BADGE_META, BEE_STAGES, isBeeStage, TIERS, TIER_STYLE } from '@/lib/badges'
 import { cn } from '@/lib/utils'
+
+// 「雷蜂」's evolution under its card: a bar towards the next stage and the four stages, the ones
+// reached in their colours. `current` is the highest stage held, null before the first.
+function BeeEvolution({ helped, current }: { helped?: number; current: BadgeKey | null }) {
+  const { t } = useTranslation()
+  const at = BEE_STAGES.findIndex((s) => s.key === current)
+  const next = BEE_STAGES[at + 1]
+  const count = helped ?? 0
+  const width = next ? Math.min(100, (count / next.need) * 100) : 100
+  const nextName = next && t(`profile.badges.${next.key}.name`)
+  return (
+    <div className="w-full space-y-2 border-t border-border/60 pt-3 text-left">
+      <div className="flex items-center justify-between text-xs font-medium">
+        <span>{t('profile.beeProgress')}</span>
+        {next && (
+          <span className="text-muted-foreground tabular-nums">
+            {helped ?? '…'} / {next.need}
+          </span>
+        )}
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            'h-full rounded-full bg-gradient-to-r transition-[width] duration-700',
+            TIER_STYLE[BADGE_META[next?.key ?? 'bee_100'].tier].medal,
+          )}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {!next
+          ? t('profile.beeMax')
+          : t(at < 0 ? 'profile.beeEarn' : 'profile.beeNext', {
+              count: Math.max(0, next.need - count),
+              name: nextName,
+            })}
+      </p>
+      <ol className="flex flex-wrap items-center gap-1">
+        {BEE_STAGES.map((s, i) => (
+          <li key={s.key} className="flex items-center gap-1">
+            {i > 0 && <ChevronRight className="size-3 text-muted-foreground/60" />}
+            <span
+              className={cn(
+                'rounded-full border px-1.5 py-px text-[11px] leading-4 font-semibold',
+                i <= at
+                  ? TIER_STYLE[BADGE_META[s.key].tier].tag
+                  : 'border-dashed border-border text-muted-foreground/70',
+              )}
+            >
+              {t(`profile.badges.${s.key}.name`)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
 
 // The badges the user holds (opened from the account menu), rarest first. Badges are given with
 // one-time codes (CORAL-XXXX-XXXX), redeemed here; some also allow something, e.g. 「鱼果」
 // adds works to the literature tool. Clicking one wears it after the user's name across the site;
-// clicking the worn one takes it off.
+// clicking the worn one takes it off. 「雷蜂」 shows as one card at its highest stage, with its
+// evolution; before the first stage it shows locked, so everyone sees how to earn it.
 export function Badges() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
@@ -30,8 +90,14 @@ export function Badges() {
   const [redeeming, setRedeeming] = useState(false)
   const [code, setCode] = useState('')
   const [fresh, setFresh] = useState<string | null>(null) // just redeemed: shown with a flourish
-  const shown = (badges.data ?? [])
-    .filter((b): b is typeof b & { key: BadgeKey } => b.key in BADGE_META)
+  const progress = useQuery({ queryKey: ['badge-progress'], queryFn: getBadgeProgress })
+  const held = (badges.data ?? []).filter(
+    (b): b is typeof b & { key: BadgeKey } => b.key in BADGE_META,
+  )
+  const topBee =
+    [...BEE_STAGES].reverse().find((s) => held.some((b) => b.key === s.key))?.key ?? null
+  const shown = held
+    .filter((b) => !isBeeStage(b.key) || b.key === topBee)
     .sort((a, b) => TIERS.indexOf(BADGE_META[a.key].tier) - TIERS.indexOf(BADGE_META[b.key].tier))
 
   const redeem = useMutation({
@@ -124,9 +190,11 @@ export function Badges() {
         <p className="text-destructive">
           {badges.error instanceof Error ? badges.error.message : t('common.error')}
         </p>
-      ) : shown.length ? (
+      ) : (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{t('profile.badgeWearHint')}</p>
+          {shown.length > 0 && (
+            <p className="text-sm text-muted-foreground">{t('profile.badgeWearHint')}</p>
+          )}
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shown.map((b) => {
               const { icon: Icon, tier } = BADGE_META[b.key]
@@ -187,15 +255,47 @@ export function Badges() {
                         })}
                       </p>
                     </div>
+                    {isBeeStage(b.key) && (
+                      <BeeEvolution helped={progress.data?.helped_requests} current={b.key} />
+                    )}
                   </button>
                 </li>
               )
             })}
+            {!topBee && (
+              // Not earned yet: greyed, and not wearable.
+              <li>
+                <div
+                  title={t('profile.beeLockedHint')}
+                  className="relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-5 pt-8 pb-6 text-center"
+                >
+                  <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                    <Lock className="size-3" />
+                  </span>
+                  <span
+                    className={cn(
+                      'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
+                      TIER_STYLE.common.chip,
+                    )}
+                  >
+                    {t('profile.tiers.common')}
+                  </span>
+                  <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-100">
+                    <BeeIcon className="size-14" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-lg font-semibold text-muted-foreground">
+                      {t('profile.badges.bee_10.name')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('profile.beeLocked', { need: BEE_STAGES[0].need })}
+                    </p>
+                  </div>
+                  <BeeEvolution helped={progress.data?.helped_requests} current={null} />
+                </div>
+              </li>
+            )}
           </ul>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-12 text-center text-sm text-muted-foreground">
-          {t('profile.badgeWallEmpty')}
         </div>
       )}
     </div>

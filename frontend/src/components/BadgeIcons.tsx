@@ -18,3 +18,46 @@ export function YuguoIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// 「雷蜂」: a line-drawn bee seen from above with a lightning bolt down its body. Every stage
+// (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂) uses it; the medal's colour shows the stage.
+export function BeeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse
+          cx="13.5"
+          cy="18"
+          rx="7.5"
+          ry="4.6"
+          transform="rotate(-32 13.5 18)"
+          fill="currentColor"
+          fillOpacity="0.28"
+          strokeWidth="2"
+        />
+        <ellipse
+          cx="34.5"
+          cy="18"
+          rx="7.5"
+          ry="4.6"
+          transform="rotate(32 34.5 18)"
+          fill="currentColor"
+          fillOpacity="0.28"
+          strokeWidth="2"
+        />
+        <circle cx="24" cy="12.6" r="4" strokeWidth="2.4" />
+        <path
+          strokeWidth="2"
+          d="M22.2 9.3C21.4 6.6 19.8 5 17.4 4.6M25.8 9.3C26.6 6.6 28.2 5 30.6 4.6"
+        />
+        <ellipse cx="24" cy="29.6" rx="8.4" ry="11" strokeWidth="2.4" />
+        <path strokeWidth="2.2" d="M24 40.6V44" />
+        <path
+          d="M25.9 20.6L19.6 30.2H24.1L21.9 38.6L28.5 27.8H24Z"
+          fill="currentColor"
+          stroke="none"
+        />
+      </g>
+    </svg>
+  )
+}

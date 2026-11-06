@@ -1,14 +1,23 @@
 import type { ComponentType } from 'react'
 import { BADGES, type BadgeKey } from '@/api/profile'
-import { YuguoIcon } from '@/components/BadgeIcons'
+import { BeeIcon, YuguoIcon } from '@/components/BadgeIcons'
 
-// Rarity, each with its own colours: legendary gold, epic purple, common the site's green.
-export type Tier = 'legendary' | 'epic' | 'common'
-export const TIERS: Tier[] = ['legendary', 'epic', 'common']
+// Rarity, each with its own colours: mythic deep crimson, legendary gold, epic purple, common the
+// site's green.
+export type Tier = 'mythic' | 'legendary' | 'epic' | 'common'
+export const TIERS: Tier[] = ['mythic', 'legendary', 'epic', 'common']
 export const TIER_STYLE: Record<
   Tier,
   { card: string; medal: string; chip: string; tag: string; ring: string; wearing: string }
 > = {
+  mythic: {
+    card: 'border-red-300 from-red-50 dark:border-red-500/40 dark:from-red-500/10',
+    medal: 'from-red-500 via-red-700 to-rose-950 ring-red-100 dark:ring-red-500/25',
+    chip: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-200',
+    ring: 'ring-red-600/60',
+    wearing: 'bg-gradient-to-r from-red-600 to-rose-900 text-white',
+    tag: 'border-red-300/80 bg-gradient-to-r from-red-50 to-rose-100 text-red-800 dark:border-red-500/40 dark:from-red-500/15 dark:to-rose-500/10 dark:text-red-200',
+  },
   legendary: {
     card: 'border-amber-200 from-amber-50 dark:border-amber-400/30 dark:from-amber-400/10',
     medal: 'from-amber-300 via-amber-500 to-yellow-700 ring-amber-100 dark:ring-amber-400/25',
@@ -40,6 +49,23 @@ export const BADGE_META: Record<
   { icon: ComponentType<{ className?: string }>; tier: Tier }
 > = {
   lead_reader: { icon: YuguoIcon, tier: 'legendary' },
+  bee_10: { icon: BeeIcon, tier: 'common' },
+  bee_25: { icon: BeeIcon, tier: 'epic' },
+  bee_50: { icon: BeeIcon, tier: 'legendary' },
+  bee_100: { icon: BeeIcon, tier: 'mythic' },
+}
+
+// 「雷蜂」 evolves with the requests a user has helped complete; the database grants each stage
+// (migration 0026). The badge wall shows only the highest stage held.
+export const BEE_STAGES = [
+  { key: 'bee_10', need: 10 },
+  { key: 'bee_25', need: 25 },
+  { key: 'bee_50', need: 50 },
+  { key: 'bee_100', need: 100 },
+] as const satisfies readonly { key: BadgeKey; need: number }[]
+
+export function isBeeStage(key: string): boolean {
+  return BEE_STAGES.some((s) => s.key === key)
 }
 
 export function isBadgeKey(key: string | null | undefined): key is BadgeKey {

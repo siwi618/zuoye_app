@@ -39,7 +39,7 @@ export function useMyProfile() {
 }
 
 // Keep in sync with the badges table (migration 0023) and profile.badges.* in the translations.
-export const BADGES = ['lead_reader'] as const
+export const BADGES = ['lead_reader', 'bee_10', 'bee_25', 'bee_50', 'bee_100'] as const
 export type BadgeKey = (typeof BADGES)[number]
 // 「鱼果」 (the key predates the name): may add works to the literature tool.
 export const LEAD_READER: BadgeKey = 'lead_reader'
@@ -67,6 +67,15 @@ export function wearBadge(badge: BadgeKey | null): Promise<MyProfile> {
     method: 'PUT',
     body: JSON.stringify({ badge }),
   })
+}
+
+// Counts behind the evolving badges (「雷蜂」: requests helped complete).
+export interface BadgeProgress {
+  helped_requests: number
+}
+
+export function getBadgeProgress(): Promise<BadgeProgress> {
+  return apiFetch<BadgeProgress>('/me/badges/progress')
 }
 
 export const MY_BADGES_KEY = ['my-badges'] as const
