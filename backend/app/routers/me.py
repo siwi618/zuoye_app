@@ -43,7 +43,7 @@ def _read_profile(user_id: str) -> MyProfile:
     rows = (
         get_supabase()
         .table("profiles")
-        .select("grade, display_name, display_name_changed_at, worn_badge")
+        .select("grade, display_name, display_name_changed_at, worn_badge, badges_seen_at")
         .eq("id", user_id)
         .limit(1)
         .execute()
@@ -65,6 +65,7 @@ def _read_profile(user_id: str) -> MyProfile:
         display_name=row.get("display_name") or "",
         next_name_change_at=next_change,
         worn_badge=row.get("worn_badge"),
+        badges_seen_at=row.get("badges_seen_at"),
     )
 
 
@@ -151,6 +152,19 @@ def badge_progress(user: CurrentUserDep) -> BadgeProgress:
 def redeem_badge_code(payload: BadgeRedeem, user: CurrentUserDep) -> list[BadgeRead]:
     """Redeem a one-time code for a badge; returns the caller's badges, the new one included."""
     return badges.redeem(user.id, payload.code)
+
+
+@router.post("/badges/seen", response_model=MyProfile)
+def mark_badges_seen(user: CurrentUserDep) -> MyProfile:
+    """The badge wall was opened: badges held so far are no longer new."""
+    (
+        get_supabase()
+        .table("profiles")
+        .update({"badges_seen_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", user.id)
+        .execute()
+    )
+    return _read_profile(user.id)
 
 
 @router.put("/badges/worn", response_model=MyProfile)

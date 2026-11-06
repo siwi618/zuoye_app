@@ -28,6 +28,8 @@ class MyProfile(BaseModel):
     next_name_change_at: datetime | None = None
     # The badge worn after the name, if any.
     worn_badge: str | None = None
+    # When the badge wall was last opened; badges granted after it are new (a red dot).
+    badges_seen_at: datetime | None = None
 
 
 class MyProfileUpdate(BaseModel):
