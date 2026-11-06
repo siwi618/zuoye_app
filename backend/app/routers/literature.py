@@ -62,6 +62,13 @@ def create_work(user: CurrentUserDep, payload: WorkCreate) -> WorkInfo:
     return svc.create_work(user.id, payload)
 
 
+# Before /works/{work_key}, which would take "empty" as a key.
+@router.get("/works/empty", response_model=list[str])
+def empty_works(user: CurrentUserDep) -> list[str]:
+    """Works with no quotes, analyses or @character tags; only holders of the 「鱼果」 badge."""
+    return svc.empty_works(user.id)
+
+
 @router.delete("/works/{work_key}", status_code=204)
 def delete_work(user: CurrentUserDep, work_key: WorkKeyStr) -> None:
     """Only holders of the 「鱼果」 badge, and only while the work has no quotes, analyses or

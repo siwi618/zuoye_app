@@ -457,6 +457,14 @@ def create_work(user_id: str, payload: WorkCreate) -> WorkInfo:
     return _work_info(inserted[0])
 
 
+def empty_works(user_id: str) -> list[str]:
+    """Keys of the works nothing is written under yet, which a 「鱼果」 holder may delete
+    (one query, migration 0024)."""
+    require_badge(user_id, LEAD_READER)
+    rows = get_supabase().rpc("lit_empty_works", {}).execute().data or []
+    return [r["key"] for r in rows]
+
+
 def delete_work(user_id: str, work_key: str) -> None:
     """Holders of the 「鱼果」 badge may delete a work nothing has been written under yet: no
     quotes, no analyses, no @character tags. Its introduction goes with it."""
