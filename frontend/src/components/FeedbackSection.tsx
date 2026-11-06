@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { StarRating } from '@/components/StarRating'
 import { createFeedback, listFeedbacks, type FeedbackRead } from '@/api/feedback'
 import { useAuthStore } from '@/store/auth'
+import { BadgeTag } from '@/components/BadgeTag'
 
 export function FeedbackSection({
   requestId,
@@ -93,8 +94,10 @@ export function FeedbackSection({
                         <div className="text-sm leading-tight">
                           <p>
                             <span className="font-medium">{fb.from_user.display_name}</span>
+                            <BadgeTag badge={fb.from_user.worn_badge} className="ml-1" />
                             <span className="text-muted-foreground"> {t('feedback.to').toLowerCase()} </span>
                             <span className="font-medium">{fb.to_user.display_name}</span>
+                            <BadgeTag badge={fb.to_user.worn_badge} className="ml-1" />
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {new Date(fb.created_at).toLocaleString()}

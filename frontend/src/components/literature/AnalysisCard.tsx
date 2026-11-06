@@ -16,6 +16,7 @@ import {
 import { AnalysisBody, PageLabel, QuoteText } from './QuoteText'
 import { AnalysisComposer } from './AnalysisComposer'
 import { AnalysisComments } from './AnalysisComments'
+import { BadgeTag } from '@/components/BadgeTag'
 
 const K = 'tools.literature'
 
@@ -122,6 +123,7 @@ export function AnalysisCard({
           </AvatarFallback>
         </Avatar>
         <span className="font-medium text-foreground">{a.author.display_name}</span>
+        <BadgeTag badge={a.author.worn_badge} />
         <span>{new Date(a.created_at).toLocaleDateString()}</span>
         {mine && (
           <Button

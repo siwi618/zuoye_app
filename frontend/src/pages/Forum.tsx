@@ -18,6 +18,7 @@ import {
 import { listPosts, type PostRead, type PostSort, type TimeRange } from '@/api/forum'
 import { FORUM_TAG_OPTIONS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { BadgeTag } from '@/components/BadgeTag'
 
 const ANY = '__any__'
 
@@ -161,6 +162,7 @@ function PostCard({ post }: { post: PostRead }) {
                 <span className="truncate font-medium text-foreground">
                   {post.author.display_name}
                 </span>
+                <BadgeTag badge={post.author.worn_badge} />
                 <span>{new Date(post.created_at).toLocaleDateString()}</span>
               </span>
               <span className="ml-auto inline-flex items-center gap-3">
@@ -184,6 +186,7 @@ function PostCard({ post }: { post: PostRead }) {
               // Single line; longer comments end in an ellipsis.
               <p className="mt-3 truncate rounded-lg bg-secondary/60 px-2.5 py-1.5 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">{post.top_comment.author_name}</span>
+                <BadgeTag badge={post.top_comment.author_badge} className="ml-1" />
                 {': '}
                 {post.top_comment.body.replace(/\s+/g, ' ')}
               </p>

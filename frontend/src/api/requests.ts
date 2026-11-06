@@ -8,6 +8,8 @@ export interface ProfileSummary {
   id: string
   display_name: string
   avatar_url: string | null
+  // The badge worn after the name, if any.
+  worn_badge?: string | null
 }
 
 export interface RequestRead {

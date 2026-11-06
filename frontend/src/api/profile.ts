@@ -10,6 +10,8 @@ export interface MyProfile {
   display_name: string
   // When the next rename is allowed (one per 30 days); null = allowed now.
   next_name_change_at: string | null
+  // The badge worn after the name, if any.
+  worn_badge?: string | null
 }
 
 export function getMyProfile(): Promise<MyProfile> {
@@ -56,6 +58,14 @@ export function redeemBadgeCode(code: string): Promise<Badge[]> {
   return apiFetch<Badge[]>('/me/badges/redeem', {
     method: 'POST',
     body: JSON.stringify({ code }),
+  })
+}
+
+// Wears one of the caller's badges after their name, or takes it off (null).
+export function wearBadge(badge: BadgeKey | null): Promise<MyProfile> {
+  return apiFetch<MyProfile>('/me/badges/worn', {
+    method: 'PUT',
+    body: JSON.stringify({ badge }),
   })
 }
 

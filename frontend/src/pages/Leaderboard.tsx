@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { StarRating } from '@/components/StarRating'
 import { getLeaderboard } from '@/api/feedback'
 import { cn } from '@/lib/utils'
+import { BadgeTag } from '@/components/BadgeTag'
 
 const podiumStyles: Record<number, { ring: string; bg: string; badge: string; rankText: string }> = {
   0: {
@@ -87,8 +88,17 @@ export function Leaderboard() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className={cn('font-medium truncate', podium && podium.rankText)}>
-                        {entry.user.display_name}
+                      {/* On a narrow row the badge wraps under the name instead of hiding it. */}
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        <span
+                          className={cn(
+                            'max-w-full font-medium truncate',
+                            podium && podium.rankText,
+                          )}
+                        >
+                          {entry.user.display_name}
+                        </span>
+                        <BadgeTag badge={entry.user.worn_badge} />
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {entry.feedback_count} {t('leaderboard.reviews')}

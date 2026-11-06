@@ -44,6 +44,7 @@ import { FeedbackSection } from '@/components/FeedbackSection'
 import { MediaGallery } from '@/components/MediaGallery'
 import { displayStatus, statusIcon } from '@/lib/requestStatus'
 import { RequestChat } from '@/components/RequestChat'
+import { BadgeTag } from '@/components/BadgeTag'
 
 function toLocalInputValue(iso: string | null): string {
   if (!iso) return ''
@@ -207,6 +208,7 @@ export function RequestDetail() {
                   </AvatarFallback>
                 </Avatar>
                 <span>{req.requester.display_name}</span>
+                <BadgeTag badge={req.requester.worn_badge} />
               </div>
             </InfoRow>
             <InfoRow Icon={Users} label={t('request.helper')}>
@@ -218,6 +220,7 @@ export function RequestDetail() {
                     </AvatarFallback>
                   </Avatar>
                   <span>{req.helper.display_name}</span>
+                  <BadgeTag badge={req.helper.worn_badge} />
                 </div>
               ) : (
                 <span className="text-muted-foreground">{t('request.notYet')}</span>

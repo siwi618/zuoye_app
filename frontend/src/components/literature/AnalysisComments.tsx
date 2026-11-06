@@ -16,6 +16,8 @@ import {
   type CommentSort,
   type LitComment,
 } from '@/api/literature'
+import { BadgeTag } from '@/components/BadgeTag'
+import { useMyProfile } from '@/api/profile'
 
 // A reply's thread is its top-level comment.
 const threadOf = (c: LitComment) => c.parent_id ?? c.id
@@ -37,6 +39,7 @@ export function AnalysisComments({
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const userId = user?.id
+  const wornBadge = useMyProfile().data?.worn_badge ?? null
   const [sort, setSort] = useState<CommentSort>('top')
   const [body, setBody] = useState('')
   const [replyTo, setReplyTo] = useState<LitComment | null>(null)
@@ -81,6 +84,7 @@ export function AnalysisComments({
           display_name:
             (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? '',
           avatar_url: null,
+          worn_badge: wornBadge,
         },
         body: draft.body,
         like_count: 0,
@@ -344,7 +348,10 @@ function CommentItem({
             </AvatarFallback>
           </Avatar>
           <div className="text-sm leading-tight">
-            <p className="font-medium">{c.author.display_name}</p>
+            <p className="font-medium">
+              {c.author.display_name}
+              <BadgeTag badge={c.author.worn_badge} className="ml-1" />
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {c.pending ? t('forum.sending') : new Date(c.created_at).toLocaleString()}
             </p>

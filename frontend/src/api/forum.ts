@@ -24,6 +24,7 @@ export interface PostRead {
 
 export interface TopComment {
   author_name: string
+  author_badge?: string | null
   body: string
   like_count: number
 }

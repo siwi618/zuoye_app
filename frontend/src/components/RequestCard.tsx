@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { CardThumbnail } from '@/components/CardThumbnail'
 import type { RequestRead } from '@/api/requests'
 import { displayStatus, statusIcon } from '@/lib/requestStatus'
+import { BadgeTag } from '@/components/BadgeTag'
 
 function ModeIcon({ mode }: { mode: RequestRead['mode'] }) {
   if (mode === 'online') return <Video className="size-3.5" />
@@ -78,12 +79,14 @@ export function RequestCard({ request }: { request: RequestRead }) {
                 <span className="font-medium text-foreground">
                   {request.requester.display_name}
                 </span>
+                <BadgeTag badge={request.requester.worn_badge} className="ml-1" />
                 {request.helper ? (
                   <>
                     {' '}· helper{' '}
                     <span className="font-medium text-foreground">
                       {request.helper.display_name}
                     </span>
+                    <BadgeTag badge={request.helper.worn_badge} className="ml-1" />
                   </>
                 ) : null}
               </span>

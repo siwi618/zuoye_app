@@ -41,6 +41,8 @@ import {
   patchPost,
   snapshotForum,
 } from '@/lib/forumCache'
+import { BadgeTag } from '@/components/BadgeTag'
+import { useMyProfile } from '@/api/profile'
 
 // Count a view at most once per post per browser session.
 function useRecordView(
@@ -158,6 +160,7 @@ export function PostDetail() {
             </AvatarFallback>
           </Avatar>
           <span className="font-medium text-foreground">{p.author.display_name}</span>
+          <BadgeTag badge={p.author.worn_badge} />
           <span>{new Date(p.created_at).toLocaleString()}</span>
         </div>
 
@@ -221,6 +224,7 @@ function CommentsSection({ postId }: { postId: string }) {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const userId = user?.id
+  const wornBadge = useMyProfile().data?.worn_badge ?? null
   const [sort, setSort] = useState<CommentSort>('top')
   const [body, setBody] = useState('')
   const [media, setMedia] = useState<MediaRead[]>([])
@@ -265,6 +269,7 @@ function CommentsSection({ postId }: { postId: string }) {
           display_name:
             (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? '',
           avatar_url: null,
+          worn_badge: wornBadge,
         },
         body: draft.body,
         media: draft.media,
@@ -544,7 +549,10 @@ function CommentItem({
             </AvatarFallback>
           </Avatar>
           <div className="text-sm leading-tight">
-            <p className="font-medium">{comment.author.display_name}</p>
+            <p className="font-medium">
+              {comment.author.display_name}
+              <BadgeTag badge={comment.author.worn_badge} className="ml-1" />
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {comment.pending ? t('forum.sending') : new Date(comment.created_at).toLocaleString()}
             </p>

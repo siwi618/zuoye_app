@@ -1,68 +1,32 @@
-import { useState, type ComponentType, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Award, Ticket } from 'lucide-react'
+import { Award, Check, Ticket } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { MY_BADGES_KEY, redeemBadgeCode, useMyBadges, type BadgeKey } from '@/api/profile'
+import {
+  MY_BADGES_KEY,
+  MY_PROFILE_KEY,
+  redeemBadgeCode,
+  useMyBadges,
+  useMyProfile,
+  wearBadge,
+  type BadgeKey,
+} from '@/api/profile'
+import { BADGE_META, TIERS, TIER_STYLE } from '@/lib/badges'
 import { cn } from '@/lib/utils'
-
-// 「鱼果」: a line-drawn apple whose bottom notch turns inward and up into a fish head that is
-// also the apple's pip (鱼果 sounds like 雨果, and the fish fits the sea).
-function YuguoIcon({ className }: { className?: string }) {
-  const pip =
-    'C19.4 37.9 18.4 34 19.4 30.4C20.3 26.7 22.5 23.8 24.5 21.8C26.3 23.8 28.4 26.7 29.1 30.4C30 34 28.9 37.9 25.5 40.1'
-  return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden>
-      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path d={`M22.6 40.1${pip}Z`} fill="currentColor" fillOpacity="0.28" stroke="none" />
-        <path
-          strokeWidth="2.4"
-          d={`M24 14C20.5 11 9 10.5 8.4 21.5C7.8 31 13 41.5 18.6 41.5C20.6 41.5 22 40.9 22.6 40.1${pip}C26 40.9 27.4 41.5 29.4 41.5C35 41.5 40.2 31 39.6 21.5C39 10.5 27.5 11 24 14Z`}
-        />
-        <path strokeWidth="2.4" d="M24 14C24 11 25 8.5 27.5 6.5" />
-        <path strokeWidth="2" d="M25.8 10C27.8 6.8 32 6 34.2 7.2C32.8 10.2 28.6 11.2 25.8 10Z" />
-        <circle cx="25.7" cy="29.1" r="1.6" fill="currentColor" stroke="none" />
-      </g>
-    </svg>
-  )
-}
-
-// Rarity, each with its own colours: legendary gold, epic purple, common the site's green.
-type Tier = 'legendary' | 'epic' | 'common'
-const TIERS: Tier[] = ['legendary', 'epic', 'common']
-const TIER_STYLE: Record<Tier, { card: string; medal: string; chip: string }> = {
-  legendary: {
-    card: 'border-amber-200 from-amber-50 dark:border-amber-400/30 dark:from-amber-400/10',
-    medal:
-      'from-amber-300 via-amber-500 to-yellow-700 ring-amber-100 dark:ring-amber-400/25',
-    chip: 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200',
-  },
-  epic: {
-    card: 'border-violet-200 from-violet-50 dark:border-violet-400/30 dark:from-violet-400/10',
-    medal: 'from-violet-400 via-purple-500 to-purple-800 ring-violet-100 dark:ring-violet-400/25',
-    chip: 'bg-violet-100 text-violet-800 dark:bg-violet-400/15 dark:text-violet-200',
-  },
-  common: {
-    card: 'border-brand-100 from-brand-50 dark:border-brand-700/40 dark:from-brand-700/15',
-    medal: 'from-brand-600 to-brand-700 ring-brand-100 dark:ring-brand-700/40',
-    chip: 'bg-brand-100 text-brand-700 dark:bg-brand-700/30 dark:text-brand-100',
-  },
-}
-
-const BADGE_META: Record<BadgeKey, { icon: ComponentType<{ className?: string }>; tier: Tier }> = {
-  lead_reader: { icon: YuguoIcon, tier: 'legendary' },
-}
 
 // The badges the user holds (opened from the account menu), rarest first. Badges are given with
 // one-time codes (CORAL-XXXX-XXXX), redeemed here; some also allow something, e.g. 「鱼果」
-// adds works to the literature tool.
+// adds works to the literature tool. Clicking one wears it after the user's name across the site;
+// clicking the worn one takes it off.
 export function Badges() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const badges = useMyBadges()
+  const worn = useMyProfile().data?.worn_badge ?? null
   const [redeeming, setRedeeming] = useState(false)
   const [code, setCode] = useState('')
   const [fresh, setFresh] = useState<string | null>(null) // just redeemed: shown with a flourish
@@ -87,6 +51,23 @@ export function Badges() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
   })
+  const wear = useMutation({
+    mutationFn: wearBadge,
+    onSuccess: (profile, badge) => {
+      queryClient.setQueryData(MY_PROFILE_KEY, profile)
+      // Names already on screen carry the old badge; fetch them again.
+      void queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] !== MY_PROFILE_KEY[0] && q.queryKey[0] !== MY_BADGES_KEY[0],
+      })
+      toast.success(
+        badge
+          ? t('profile.badgeWorn', { name: t(`profile.badges.${badge}.name`) })
+          : t('profile.badgeTakenOff'),
+      )
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (code.trim() && !redeem.isPending) redeem.mutate()
@@ -144,50 +125,69 @@ export function Badges() {
           {badges.error instanceof Error ? badges.error.message : t('common.error')}
         </p>
       ) : shown.length ? (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((b) => {
-            const { icon: Icon, tier } = BADGE_META[b.key]
-            const style = TIER_STYLE[tier]
-            return (
-              <li
-                key={b.key}
-                className={cn(
-                  'relative flex flex-col items-center gap-3 rounded-2xl border bg-gradient-to-b to-card px-5 pt-8 pb-6 text-center',
-                  style.card,
-                  fresh === b.key && 'animate-in duration-500 fade-in zoom-in-90',
-                )}
-              >
-                <span
-                  className={cn(
-                    'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
-                    style.chip,
-                  )}
-                >
-                  {t(`profile.tiers.${tier}`)}
-                </span>
-                <span
-                  className={cn(
-                    'grid size-20 place-items-center rounded-full bg-gradient-to-br text-white shadow-sm ring-4',
-                    style.medal,
-                  )}
-                >
-                  <Icon className="size-14" />
-                </span>
-                <div className="space-y-1">
-                  <p className="text-lg font-semibold">{t(`profile.badges.${b.key}.name`)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t(`profile.badges.${b.key}.desc`)}
-                  </p>
-                  <p className="text-xs text-muted-foreground/80">
-                    {t('profile.badgeGranted', {
-                      date: new Date(b.granted_at).toLocaleDateString(i18n.language),
-                    })}
-                  </p>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t('profile.badgeWearHint')}</p>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((b) => {
+              const { icon: Icon, tier } = BADGE_META[b.key]
+              const style = TIER_STYLE[tier]
+              const isWorn = worn === b.key
+              const name = t(`profile.badges.${b.key}.name`)
+              return (
+                <li key={b.key}>
+                  <button
+                    type="button"
+                    disabled={wear.isPending}
+                    onClick={() => wear.mutate(isWorn ? null : b.key)}
+                    aria-pressed={isWorn}
+                    aria-label={t(isWorn ? 'profile.takeOffBadge' : 'profile.wearBadge', { name })}
+                    className={cn(
+                      'relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border bg-gradient-to-b to-card px-5 pt-8 pb-6 text-center transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-wait',
+                      style.card,
+                      isWorn &&
+                        cn('shadow-md ring-2 ring-offset-2 ring-offset-background', style.ring),
+                      fresh === b.key && 'animate-in duration-500 fade-in zoom-in-90',
+                    )}
+                  >
+                    {isWorn && (
+                      <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-1 text-xs font-semibold text-background">
+                        <Check className="size-3" />
+                        {t('profile.badgeWearing')}
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
+                        style.chip,
+                      )}
+                    >
+                      {t(`profile.tiers.${tier}`)}
+                    </span>
+                    <span
+                      className={cn(
+                        'grid size-20 place-items-center rounded-full bg-gradient-to-br text-white shadow-sm ring-4',
+                        style.medal,
+                      )}
+                    >
+                      <Icon className="size-14" />
+                    </span>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold">{name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t(`profile.badges.${b.key}.desc`)}
+                      </p>
+                      <p className="text-xs text-muted-foreground/80">
+                        {t('profile.badgeGranted', {
+                          date: new Date(b.granted_at).toLocaleDateString(i18n.language),
+                        })}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-border bg-card/50 px-6 py-12 text-center text-sm text-muted-foreground">
           {t('profile.badgeWallEmpty')}

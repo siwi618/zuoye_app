@@ -30,6 +30,7 @@ import { GRADE_OPTIONS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { saveToolSettings, useToolSettings } from '@/lib/toolSettings'
 import { useAuthStore } from '@/store/auth'
+import { BadgeTag } from '@/components/BadgeTag'
 
 export function Profile() {
   const { t } = useTranslation()
@@ -43,6 +44,7 @@ export function Profile() {
   const completed = useMemo(() => mine.data ?? [], [mine.data])
   const [editingName, setEditingName] = useState(false)
   const displayName = (user?.user_metadata?.display_name as string | undefined) ?? user?.email
+  const wornBadge = useMyProfile().data?.worn_badge
   const initials = (displayName ?? '?').toString().trim().slice(0, 2).toUpperCase()
 
   return (
@@ -61,6 +63,7 @@ export function Profile() {
             <div className="mb-1 space-y-1">
               <div className="flex items-center gap-1.5">
                 <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
+                <BadgeTag badge={wornBadge} className="text-xs" />
                 <button
                   type="button"
                   onClick={() => setEditingName((v) => !v)}
