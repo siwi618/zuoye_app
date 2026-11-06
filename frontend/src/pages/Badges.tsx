@@ -150,7 +150,12 @@ export function Badges() {
                     )}
                   >
                     {isWorn && (
-                      <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-sm ring-2 ring-white/80">
+                      <span
+                        className={cn(
+                          'absolute top-3 left-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ring-2 ring-white/80',
+                          style.wearing,
+                        )}
+                      >
                         <Check className="size-3" />
                         {t('profile.badgeWearing')}
                       </span>
