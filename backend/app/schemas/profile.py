@@ -34,3 +34,16 @@ class MyProfileUpdate(BaseModel):
 
 class NameUpdate(BaseModel):
     display_name: DisplayNameStr
+
+
+# Keep in sync with the badges table (migration 0023) and the frontend's profile.badges.*.
+LEAD_READER = "lead_reader"  # may add works to the literature tool
+
+
+class BadgeRead(BaseModel):
+    key: str
+    granted_at: datetime
+
+
+class BadgeRedeem(BaseModel):
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]

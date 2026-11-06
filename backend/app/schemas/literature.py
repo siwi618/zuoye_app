@@ -124,6 +124,37 @@ class AnalysisRead(BaseModel):
     created_at: datetime
 
 
+# A work's title, author or group: no 《》 or 「」 around it (the pages add them).
+WorkNameStr = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=40, pattern=r"^[^《》「」]+$"
+    ),
+]
+
+
+class WorkInfo(BaseModel):
+    """A work on the sphere's shell. Who added it is not sent."""
+    key: str
+    title: str
+    author: str
+    year: int | None = None
+    group: str | None = None  # works published together, e.g. 阿城「三王」
+
+
+class WorkCreate(BaseModel):
+    title: WorkNameStr
+    author: WorkNameStr
+    year: int | None = Field(default=None, ge=-3000, le=2100)
+    group: Annotated[str, StringConstraints(max_length=20)] | None = None
+
+    @model_validator(mode="after")
+    def _blank_group(self) -> "WorkCreate":
+        if self.group is not None:
+            self.group = self.group.strip().strip("「」").strip() or None
+        return self
+
+
 class WorkRead(BaseModel):
     work_key: str
     quotes: list[QuoteRead]

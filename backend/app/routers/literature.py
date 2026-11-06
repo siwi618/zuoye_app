@@ -22,6 +22,8 @@ from app.schemas.literature import (
     QuoteRead,
     TagKind,
     TagRead,
+    WorkCreate,
+    WorkInfo,
     WorkKeyStr,
     WorkRead,
 )
@@ -46,6 +48,18 @@ def list_tags(
 ) -> list[TagRead]:
     _ = user
     return svc.list_tags(q, limit, kind, work)
+
+
+@router.get("/works", response_model=list[WorkInfo])
+def list_works(user: CurrentUserDep) -> list[WorkInfo]:
+    _ = user
+    return svc.list_works()
+
+
+@router.post("/works", response_model=WorkInfo, status_code=201)
+def create_work(user: CurrentUserDep, payload: WorkCreate) -> WorkInfo:
+    """Only holders of the 「领读人」 badge (403 otherwise)."""
+    return svc.create_work(user.id, payload)
 
 
 @router.get("/works/{work_key}", response_model=WorkRead)

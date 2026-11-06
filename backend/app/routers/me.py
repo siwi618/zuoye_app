@@ -4,7 +4,15 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
 from app.deps import CurrentUserDep
-from app.schemas.profile import GRADES, MyProfile, MyProfileUpdate, NameUpdate
+from app.schemas.profile import (
+    GRADES,
+    BadgeRead,
+    BadgeRedeem,
+    MyProfile,
+    MyProfileUpdate,
+    NameUpdate,
+)
+from app.services import badges
 from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
 
@@ -122,3 +130,14 @@ def mark_notices_seen(user: CurrentUserDep) -> None:
         .is_("seen_at", "null")
         .execute()
     )
+
+
+@router.get("/badges", response_model=list[BadgeRead])
+def list_my_badges(user: CurrentUserDep) -> list[BadgeRead]:
+    return badges.list_badges(user.id)
+
+
+@router.post("/badges/redeem", response_model=list[BadgeRead])
+def redeem_badge_code(payload: BadgeRedeem, user: CurrentUserDep) -> list[BadgeRead]:
+    """Redeem a one-time code for a badge; returns the caller's badges, the new one included."""
+    return badges.redeem(user.id, payload.code)

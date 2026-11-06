@@ -1,3 +1,4 @@
+import secrets
 from collections import Counter
 from typing import NamedTuple
 from concurrent.futures import ThreadPoolExecutor
@@ -24,18 +25,23 @@ from app.schemas.literature import (
     QuoteRead,
     QuoteVersion,
     TagRead,
+    WorkCreate,
+    WorkInfo,
     WorkLink,
     WorkRead,
 )
+from app.schemas.profile import LEAD_READER
 from app.schemas.request import ProfileSummary
 from app.schemas.forum import LikeResult
 from app.services.forum import _fetch_profiles, _toggle_like
+from app.services.badges import require_badge
 from app.services.moderation import CONTENT_REJECTED, ensure_allowed
 from app.supabase_client import get_supabase
 
 # Sent as error details so the frontend can show a translated message.
 QUOTE_CITED = "quote_cited"
 INVALID_ANALYSIS = "invalid_analysis"
+WORK_EXISTS = "work_exists"
 
 # Postgres unique_violation — another request created the same tag first.
 _UNIQUE_VIOLATION = "23505"
@@ -387,6 +393,69 @@ def overview(limit: int) -> OverviewRead:
     )
 
 
+# ---------------------------------------------------------------- works
+
+_WORK_COLUMNS = "key, title, author, year, group_name"
+# Works are never removed by the app, so a key once found stays valid.
+_known_works: set[str] = set()
+
+
+def _work_info(r: dict) -> WorkInfo:
+    return WorkInfo(
+        key=r["key"], title=r["title"], author=r["author"], year=r.get("year"),
+        group=r.get("group_name"),
+    )
+
+
+def list_works() -> list[WorkInfo]:
+    rows = (
+        get_supabase().table("lit_works").select(_WORK_COLUMNS)
+        .eq("moderation_flagged", False).order("created_at").execute().data
+        or []
+    )
+    _known_works.update(r["key"] for r in rows)
+    return [_work_info(r) for r in rows]
+
+
+def _ensure_work(work_key: str) -> None:
+    if work_key in _known_works:
+        return
+    rows = (
+        get_supabase().table("lit_works").select("key")
+        .eq("key", work_key).eq("moderation_flagged", False).limit(1).execute().data
+    )
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Work not found")
+    _known_works.add(work_key)
+
+
+def create_work(user_id: str, payload: WorkCreate) -> WorkInfo:
+    """Holders of the 「领读人」 badge may add a work; it gets a new random key."""
+    require_badge(user_id, LEAD_READER)
+    db = get_supabase()
+    moderated = ensure_allowed(payload.title, payload.author, payload.group)
+    row = {
+        "key": "w-" + "".join(secrets.choice("abcdefghijkmnpqrstuvwxyz23456789") for _ in range(6)),
+        "title": payload.title,
+        "author": payload.author,
+        "year": payload.year,
+        "group_name": payload.group,
+        "added_by": user_id,
+        "moderated": moderated,
+    }
+    try:
+        inserted = db.table("lit_works").insert(row).execute().data
+    except APIError as e:
+        # One work per title and author (case aside); a clash of the random keys is unlikely.
+        if e.code == _UNIQUE_VIOLATION:
+            raise _reject(WORK_EXISTS, status.HTTP_409_CONFLICT) from e
+        raise
+    if not inserted:
+        raise _reject("Failed to add work", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    _known_works.add(row["key"])
+    return _work_info(inserted[0])
+
+
 # ---------------------------------------------------------------- quotes
 
 
@@ -402,6 +471,7 @@ def _quote_row(quote_id: str) -> dict:
 
 
 def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead:
+    _ensure_work(work_key)
     moderated = ensure_allowed(payload.body, payload.edition)
     inserted = (
         get_supabase()
@@ -742,6 +812,8 @@ def intro_history(kind: str, key: str) -> list[IntroVersion]:
 def update_intro(user_id: str, kind: str, key: str, payload: IntroUpdate) -> IntroRead:
     """Anyone may edit an introduction: the text becomes its next version. Bringing back an
     older text is saving it again."""
+    if kind == "work":
+        _ensure_work(key)
     current = _intro_versions(kind, key)  # the newest visible one is what readers see
     if current and current[0]["body"] == payload.body:
         return get_intro(kind, key)

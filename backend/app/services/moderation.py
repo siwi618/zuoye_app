@@ -44,6 +44,7 @@ _SWEEP_TABLES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("lit_analyses", ("body",)),
     ("lit_intro_versions", ("body",)),
     ("lit_analysis_comments", ("body",)),
+    ("lit_works", ("title", "author", "group_name")),
 )
 
 
