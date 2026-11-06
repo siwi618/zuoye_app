@@ -19,16 +19,18 @@ export function YuguoIcon({ className }: { className?: string }) {
   )
 }
 
-// 「雷蜂」: a honeycomb of five hexagons sharing their walls (two above, one in the middle, two
-// below) with a lightning bolt in the middle cell. Every stage (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂) uses
-// it; the medal's colour shows the stage.
+// 「雷蜂」: a honeycomb of seven flat-topped hexagons sharing their walls (one in the middle, six
+// around it) with a lightning bolt in the middle cell. Every stage (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂)
+// uses it; the medal's colour shows the stage.
 const COMB = [
-  'M16.9 3.5L24 7.6L24 15.8L16.9 19.9L9.8 15.8L9.8 7.6Z',
-  'M31.1 3.5L38.2 7.6L38.2 15.8L31.1 19.9L24 15.8L24 7.6Z',
-  'M16.9 28.1L24 32.2L24 40.4L16.9 44.5L9.8 40.4L9.8 32.2Z',
-  'M31.1 28.1L38.2 32.2L38.2 40.4L31.1 44.5L24 40.4L24 32.2Z',
+  'M32.2 9.8L28.1 16.9L19.9 16.9L15.8 9.8L19.9 2.7L28.1 2.7Z',
+  'M19.9 16.9L15.8 24L7.6 24L3.5 16.9L7.6 9.8L15.8 9.8Z',
+  'M44.5 16.9L40.4 24L32.2 24L28.1 16.9L32.2 9.8L40.4 9.8Z',
+  'M19.9 31.1L15.8 38.2L7.6 38.2L3.5 31.1L7.6 24L15.8 24Z',
+  'M44.5 31.1L40.4 38.2L32.2 38.2L28.1 31.1L32.2 24L40.4 24Z',
+  'M32.2 38.2L28.1 45.3L19.9 45.3L15.8 38.2L19.9 31.1L28.1 31.1Z',
 ]
-const MIDDLE = 'M24 15.8L31.1 19.9L31.1 28.1L24 32.2L16.9 28.1L16.9 19.9Z'
+const MIDDLE = 'M32.2 24L28.1 31.1L19.9 31.1L15.8 24L19.9 16.9L28.1 16.9Z'
 
 export function BeeIcon({ className }: { className?: string }) {
   return (
