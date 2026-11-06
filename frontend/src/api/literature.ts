@@ -105,6 +105,31 @@ export interface AnalysisCreate {
   body: string
 }
 
+// A work on the sphere's shell.
+export interface Work {
+  key: string
+  title: string
+  author: string
+  year: number | null
+  group: string | null // works published together, e.g. 阿城「三王」
+}
+
+export interface WorkCreate {
+  title: string
+  author: string
+  year: number | null
+  group: string | null
+}
+
+export function listWorks(): Promise<Work[]> {
+  return apiFetch<Work[]>('/literature/works')
+}
+
+// Only holders of the 「领读人」 badge may add a work.
+export function createWork(payload: WorkCreate): Promise<Work> {
+  return apiFetch<Work>('/literature/works', { method: 'POST', body: JSON.stringify(payload) })
+}
+
 export function getOverview(): Promise<OverviewRead> {
   return apiFetch<OverviewRead>('/literature/overview')
 }

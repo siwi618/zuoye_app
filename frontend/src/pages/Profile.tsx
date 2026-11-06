@@ -1,9 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2, Feather, GraduationCap, Mail, UserRoundPen, Wrench, X } from 'lucide-react'
+import {
+  Award,
+  BookMarked,
+  CheckCircle2,
+  Feather,
+  GraduationCap,
+  Mail,
+  Ticket,
+  UserRoundPen,
+  Wrench,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,9 +32,13 @@ import { RequestCard } from '@/components/RequestCard'
 import { listRequests } from '@/api/requests'
 import {
   changeMyName,
+  MY_BADGES_KEY,
   MY_PROFILE_KEY,
+  redeemBadgeCode,
   updateMyProfile,
+  useMyBadges,
   useMyProfile,
+  type BadgeKey,
   type Grade,
 } from '@/api/profile'
 import { supabase } from '@/api/supabase'
@@ -88,6 +104,7 @@ export function Profile() {
       </Card>
 
       {editingName && <DisplayNameCard onClose={() => setEditingName(false)} />}
+      <BadgeWall />
       <DefaultGradeCard />
       <ToolSettingsCard />
 
@@ -117,6 +134,123 @@ export function Profile() {
         )}
       </section>
     </div>
+  )
+}
+
+const BADGE_ICONS: Record<BadgeKey, LucideIcon> = {
+  lead_reader: BookMarked,
+}
+
+// The badges the user holds. Badges are given with one-time codes (CORAL-XXXX-XXXX), redeemed
+// here; some also allow something, e.g. 「领读人」 adds works to the literature tool.
+function BadgeWall() {
+  const { t, i18n } = useTranslation()
+  const queryClient = useQueryClient()
+  const badges = useMyBadges()
+  const [redeeming, setRedeeming] = useState(false)
+  const [code, setCode] = useState('')
+  const [fresh, setFresh] = useState<string | null>(null) // just redeemed: shown with a flourish
+  const shown = (badges.data ?? []).filter((b): b is typeof b & { key: BadgeKey } => b.key in BADGE_ICONS)
+
+  const redeem = useMutation({
+    mutationFn: () => redeemBadgeCode(code),
+    onSuccess: (all) => {
+      const before = new Set((badges.data ?? []).map((b) => b.key))
+      const added = all.find((b) => !before.has(b.key))
+      queryClient.setQueryData(MY_BADGES_KEY, all)
+      setRedeeming(false)
+      setCode('')
+      if (added && added.key in BADGE_ICONS) {
+        setFresh(added.key)
+        toast.success(t('profile.badgeRedeemed', { name: t(`profile.badges.${added.key as BadgeKey}.name`) }))
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (code.trim() && !redeem.isPending) redeem.mutate()
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-700">
+            <Award className="size-4.5" />
+          </span>
+          <h2 className="text-base font-semibold">{t('profile.badgeWall')}</h2>
+          {!redeeming && (
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => setRedeeming(true)}>
+              <Ticket className="size-4" />
+              {t('profile.redeemBadge')}
+            </Button>
+          )}
+        </div>
+
+        {redeeming && (
+          <form onSubmit={submit} className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Escape' && setRedeeming(false)}
+              placeholder={t('profile.redeemPlaceholder')}
+              aria-label={t('profile.redeemBadge')}
+              maxLength={20}
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              className="w-52 font-mono tracking-wider"
+            />
+            <Button type="submit" disabled={!code.trim() || redeem.isPending}>
+              {redeem.isPending ? '…' : t('profile.redeemSubmit')}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setRedeeming(false)}>
+              {t('common.cancel')}
+            </Button>
+          </form>
+        )}
+
+        {badges.isLoading ? (
+          <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+        ) : shown.length ? (
+          <ul className="flex flex-wrap gap-3">
+            {shown.map((b) => {
+              const Icon = BADGE_ICONS[b.key]
+              return (
+                <li
+                  key={b.key}
+                  className={cn(
+                    'flex w-64 items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50 to-card p-3 dark:border-brand-700/40 dark:from-brand-700/15',
+                    fresh === b.key && 'animate-in zoom-in-90 fade-in duration-500',
+                  )}
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm ring-4 ring-brand-100 dark:ring-brand-700/40">
+                    <Icon className="size-5.5" />
+                  </span>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="font-semibold">{t(`profile.badges.${b.key}.name`)}</p>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {t(`profile.badges.${b.key}.desc`)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/80">
+                      {t('profile.badgeGranted', {
+                        date: new Date(b.granted_at).toLocaleDateString(i18n.language),
+                      })}
+                    </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
+            <p>{t('profile.badgeWallEmpty')}</p>
+            <p className="mt-1 text-xs">{t('profile.badgeWallHint')}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

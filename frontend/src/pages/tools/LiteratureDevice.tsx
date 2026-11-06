@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, BookOpen, Search, X } from 'lucide-react'
 import type { DeviceRead } from '@/api/literature'
-import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
+import { devicePath, useWorks, workPath, type Work } from '@/lib/literature/corpus'
 import { useAnalysisList } from '@/lib/literature/analysisList'
 import { recall, remember, type Side } from '@/lib/literature/deviceMemory'
 import { deviceQuery, usePrefetch } from '@/lib/literature/queries'
@@ -41,8 +41,6 @@ const slideCards = () => {
   })
 }
 
-const valid = (key: string | null) => (findWork(key ?? undefined) ? key : null)
-
 // Finds a work to put in a card: matches title, author or group, those using the device first.
 function WorkSearch({
   name,
@@ -59,8 +57,9 @@ function WorkSearch({
   const prefetch = usePrefetch()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const { works } = useWorks()
   const q = query.trim().toLowerCase()
-  const found = WORKS.filter(
+  const found = works.filter(
     (w) => !q || [w.title, w.author, w.group ?? ''].some((s) => s.toLowerCase().includes(q)),
   ).sort((a, b) => (counts.get(b.key) ?? 0) - (counts.get(a.key) ?? 0))
   const full = shown.length >= 2
@@ -152,7 +151,8 @@ function WorkCard({
   const state = useAnalysisList(workKey, { sort: 'hot', tag: name })
   const scroller = useRef<HTMLDivElement>(null)
   useRubberBand(scroller)
-  const work = findWork(workKey)!
+  const work: Work | undefined = useWorks().find(workKey)
+  if (!work) return null
   return (
     <section
       data-work-card={workKey}
@@ -221,20 +221,26 @@ export function LiteratureDevice() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const device = useQuery(deviceQuery(name))
+  const works = useWorks()
+  // Until the works list arrives (first visit only), keys can't be checked yet.
+  const valid = (key: string | null) => (!works.ready || works.find(key) ? key : null)
   // Each card shows the work in the link, else the one last shown there; the first time ever,
   // the left card starts on the work using the device most.
   const fromUrl = (side: Side) => (params.has(side) ? valid(params.get(side)) : recall(side))
   const leftWanted = fromUrl('work')
-  const deciding = leftWanted === undefined && device.isLoading
+  const deciding = (leftWanted === undefined && device.isLoading) || !works.ready
   const left = leftWanted === undefined ? (device.data?.works[0]?.work_key ?? null) : leftWanted
   const rightWanted = fromUrl('compare') ?? null
-  const cards = [left, rightWanted !== left ? rightWanted : null].filter((k): k is string => !!k)
+  const cards = [left, rightWanted !== left ? rightWanted : null].filter(
+    (k): k is string => !!k && !!works.find(k),
+  )
 
   // Coming in with a work chosen (from the side panel's list) counts as choosing it.
   const fromLink = params.get('work')
+  const linked = works.ready && works.find(fromLink) ? fromLink : null
   useEffect(() => {
-    if (valid(fromLink)) remember('work', fromLink)
-  }, [fromLink])
+    if (linked) remember('work', linked)
+  }, [linked])
 
   const show = (next: string[]) => {
     noteWhereCardsAre()

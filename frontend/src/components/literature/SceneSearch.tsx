@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ChevronRight, Maximize2, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { WORKS } from '@/lib/literature/corpus'
+import { useWorks, workByline } from '@/lib/literature/corpus'
 import type { CoreDevice, Selection } from './DysonScene'
 
 const K = 'tools.literature'
@@ -49,6 +49,7 @@ export function SceneSearch({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const { works } = useWorks()
 
   const groups = useMemo<{ kind: Selection['kind']; title: string; items: Item[] }[]>(
     () => [
@@ -60,16 +61,16 @@ export function SceneSearch({
       {
         kind: 'work',
         title: t(`${K}.kindWork`),
-        items: WORKS.map((w) => ({
+        items: works.map((w) => ({
           kind: 'work',
           key: w.key,
           label: `《${w.title}》`,
-          meta: `${w.author} · ${w.year}`,
+          meta: workByline(w),
           text: [w.title, w.author, w.group ?? ''].join(' '),
         })),
       },
     ],
-    [t, devices],
+    [t, devices, works],
   )
 
   const q = query.trim().toLowerCase()

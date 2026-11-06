@@ -14,6 +14,11 @@ const KNOWN_ERRORS: Record<string, string> = {
   name_change_too_soon: 'profile.nameTooSoon',
   quote_cited: 'tools.literature.quoteCited',
   invalid_analysis: 'tools.literature.invalidAnalysis',
+  work_exists: 'tools.literature.workExists',
+  badge_required: 'tools.literature.badgeRequired',
+  invalid_badge_code: 'profile.badgeCodeInvalid',
+  badge_already_have: 'profile.badgeAlreadyHave',
+  badge_too_many_attempts: 'profile.badgeTooMany',
 }
 
 async function authHeader(): Promise<Record<string, string>> {

@@ -16,6 +16,7 @@ import {
 } from '@/components/literature/DysonScene'
 import { DetailPanel } from '@/components/literature/DetailPanel'
 import { SceneSearch } from '@/components/literature/SceneSearch'
+import { useWorks } from '@/lib/literature/corpus'
 
 const K = 'tools.literature'
 
@@ -37,6 +38,7 @@ export function Literature() {
   // The node the scene has zoomed into (its local graph), or null for the whole sphere.
   const [zoom, setZoom] = useState<Selection | null>(null)
   const overview = useQuery({ queryKey: ['literature-overview'], queryFn: getOverview })
+  const works = useWorks()
   const devices = useMemo<CoreDevice[]>(
     () => (overview.data?.tags ?? []).map((t) => ({ key: t.id, label: `#${t.name}` })),
     [overview.data],
@@ -127,14 +129,30 @@ export function Literature() {
             />
           </div>
           <div className="relative aspect-square max-h-[620px] w-full sm:aspect-[6/5]">
-            <DysonScene
-              devices={devices}
-              links={links}
-              selected={selected}
-              onPick={pick}
-              focus={focus}
-              zoom={zoom}
-            />
+            {works.ready ? (
+              <DysonScene
+                works={works.works}
+                devices={devices}
+                links={links}
+                selected={selected}
+                onPick={pick}
+                focus={focus}
+                zoom={zoom}
+              />
+            ) : (
+              <p
+                className={cn(
+                  'absolute inset-0 grid place-items-center text-sm',
+                  works.error ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {works.error
+                  ? works.error instanceof Error
+                    ? works.error.message
+                    : t('common.error')
+                  : t('common.loading')}
+              </p>
+            )}
             <p
               className={cn(
                 'pointer-events-none absolute top-3 left-4 text-xs text-muted-foreground',

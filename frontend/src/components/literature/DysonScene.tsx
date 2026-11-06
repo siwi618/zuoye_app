@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { WORKS } from '@/lib/literature/corpus'
+import type { Work } from '@/lib/literature/corpus'
 import {
   type Mat3,
   type Projected,
@@ -115,9 +115,9 @@ interface Graph {
 }
 
 // Nodes are spread evenly, then moved onto the nearest polyhedron vertex.
-function buildGraph(devices: CoreDevice[], edges: Link[]): Graph {
+function buildGraph(works: Work[], devices: CoreDevice[], edges: Link[]): Graph {
   const core = snapToVertices(spherePoints(devices.length, CORE_R, 0.7), CORE_MESH)
-  const works = snapToVertices(spherePoints(WORKS.length, SHELL_R), SHELL_MESH)
+  const shell = snapToVertices(spherePoints(works.length, SHELL_R), SHELL_MESH)
   return {
     nodes: [
       ...core.map((base, i) => ({
@@ -126,11 +126,11 @@ function buildGraph(devices: CoreDevice[], edges: Link[]): Graph {
         label: devices[i].label,
         base,
       })),
-      ...works.map((base, i) => ({
+      ...shell.map((base, i) => ({
         kind: 'work' as const,
-        key: WORKS[i].key,
-        label: `《${WORKS[i].title}》`,
-        initial: [...WORKS[i].title][0],
+        key: works[i].key,
+        label: `《${works[i].title}》`,
+        initial: [...works[i].title][0],
         base,
       })),
     ],
@@ -139,10 +139,11 @@ function buildGraph(devices: CoreDevice[], edges: Link[]): Graph {
 }
 
 // Works published together (阿城「三王」) are joined by a faint dashed line on the shell.
-const GROUP_LINKS = WORKS.flatMap((w, i) => {
-  const next = WORKS.slice(i + 1).find((x) => x.group && x.group === w.group)
-  return next ? [[w.key, next.key] as const] : []
-})
+const groupLinks = (works: Work[]) =>
+  works.flatMap((w, i) => {
+    const next = works.slice(i + 1).find((x) => x.group && x.group === w.group)
+    return next ? [[w.key, next.key] as const] : []
+  })
 
 const id = (kind: string, key: string) => `${kind}:${key}`
 
@@ -267,6 +268,7 @@ function labelWidth(label: string, fontSize: number) {
 }
 
 export function DysonScene({
+  works,
   devices,
   links,
   selected,
@@ -274,6 +276,7 @@ export function DysonScene({
   focus,
   zoom,
 }: {
+  works: Work[]
   devices: CoreDevice[]
   links: Link[]
   selected: Selection | null
@@ -349,7 +352,8 @@ export function DysonScene({
   useEffect(() => {
     viewNow.current = view
   }, [view])
-  const graph = useMemo(() => buildGraph(devices, links), [devices, links])
+  const graph = useMemo(() => buildGraph(works, devices, links), [works, devices, links])
+  const grouped = useMemo(() => groupLinks(works), [works])
   const graphNow = useRef(graph)
   useEffect(() => {
     graphNow.current = graph
@@ -908,7 +912,7 @@ export function DysonScene({
             strokeWidth={0.004}
           />
         </g>
-        {GROUP_LINKS.map(([a, b]) => {
+        {grouped.map(([a, b]) => {
           const p = pos.get(id('work', a))!
           const q = pos.get(id('work', b))!
           const keep = 1 - Math.max(gone.get(id('work', a)) ?? 0, gone.get(id('work', b)) ?? 0)

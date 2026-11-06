@@ -33,7 +33,7 @@ import {
   type QuoteRead,
   type WorkRead,
 } from '@/api/literature'
-import { findWork } from '@/lib/literature/corpus'
+import { useWorks, workByline } from '@/lib/literature/corpus'
 import { workQuery } from '@/lib/literature/queries'
 import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
@@ -368,7 +368,10 @@ function PageJump({ onJump }: { onJump: (page: number) => void }) {
 // the analyses themselves. Picking quotes and pressing「分享我自己的分析」opens the composer.
 export function LiteratureWork() {
   const { key } = useParams<{ key: string }>()
-  const work = findWork(key)
+  const works = useWorks()
+  const work = works.find(key)
+  // On a first visit the works list is still loading: fetch the page's data alongside it.
+  const loadKey = key && (work || !works.ready) ? key : null
   const { t } = useTranslation()
   const userId = useAuthStore((s) => s.user?.id)
   // Sort and filters live in the URL, so they survive a reload and can be shared.
@@ -396,12 +399,12 @@ export function LiteratureWork() {
   const [composing, setComposing] = useState(false)
   const composerAt = useRef<HTMLDivElement>(null)
 
-  const data = useQuery({ ...workQuery(key ?? ''), enabled: !!work })
+  const data = useQuery({ ...workQuery(key ?? ''), enabled: !!loadKey })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
   const byId = useMemo(() => new Map(quotes.map((q) => [q.id, q])), [quotes])
 
   // The analyses come a page at a time, sorted and filtered by the server.
-  const analysisList = useAnalysisList(work ? work.key : null, {
+  const analysisList = useAnalysisList(loadKey, {
     sort,
     tag: tagFilter,
     who: whoFilter,
@@ -430,6 +433,7 @@ export function LiteratureWork() {
     quotes: w.quotes.filter((q) => q.id !== id),
   }))
 
+  if (!work && !works.ready) return <p className="text-muted-foreground">{t('common.loading')}</p>
   if (!work) {
     return (
       <div className="space-y-4">
@@ -495,7 +499,7 @@ export function LiteratureWork() {
         <header className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">《{work.title}》</h1>
           <p className="text-muted-foreground">
-            {work.author} · {work.year}
+            {workByline(work)}
             {work.group && ` · ${t(`${K}.group`, { name: work.group })}`}
           </p>
         </header>

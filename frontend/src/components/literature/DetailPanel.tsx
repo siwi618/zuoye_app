@@ -1,11 +1,20 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { BookOpen, ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { BookOpen, ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { searchTags, type OverviewRead, type TagRead } from '@/api/literature'
-import { WORKS, devicePath, findWork, workPath } from '@/lib/literature/corpus'
+import { Input } from '@/components/ui/input'
+import {
+  createWork,
+  searchTags,
+  type OverviewRead,
+  type TagRead,
+  type Work,
+} from '@/api/literature'
+import { LEAD_READER, useHasBadge } from '@/api/profile'
+import { devicePath, useWorks, workByline, workPath, worksQuery } from '@/lib/literature/corpus'
 import { deviceQuery, usePrefetch } from '@/lib/literature/queries'
 import { cleanTag } from '@/lib/literature/text'
 import type { Selection } from './DysonScene'
@@ -62,18 +71,124 @@ function TagRow({ name, count, onClick }: { name: string; count: number; onClick
   )
 }
 
-function WorkRow({ workKey, onClick }: { workKey: string; onClick: () => void }) {
-  const w = findWork(workKey)!
+function WorkRow({ work: w, onClick }: { work: Work; onClick: () => void }) {
   const prefetch = usePrefetch()
   return (
-    <button type="button" onClick={onClick} className={rowClass} {...prefetch.work(workKey)}>
+    <button type="button" onClick={onClick} className={rowClass} {...prefetch.work(w.key)}>
       <span className="font-semibold group-hover:text-primary">《{w.title}》</span>
       <span className="text-sm text-muted-foreground">
-        {w.author} · {w.year}
+        {workByline(w)}
         {w.group && ` · 「${w.group}」`}
       </span>
       <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
     </button>
+  )
+}
+
+// Holders of the 「领读人」 badge add a work here; it then appears on the sphere's shell.
+function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
+  const [year, setYear] = useState('')
+  const [group, setGroup] = useState('')
+  const groups = [...new Set(works.flatMap((w) => (w.group ? [w.group] : [])))]
+  const reset = () => {
+    setOpen(false)
+    setTitle('')
+    setAuthor('')
+    setYear('')
+    setGroup('')
+  }
+  const add = useMutation({
+    mutationFn: () =>
+      createWork({
+        title: title.replace(/[《》]/g, '').trim(),
+        author: author.trim(),
+        year: year.trim() ? Number(year) : null,
+        group: group.replace(/[「」]/g, '').trim() || null,
+      }),
+    onSuccess: (work) => {
+      queryClient.setQueryData(worksQuery.queryKey, (ws) => [...(ws ?? []), work])
+      void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      toast.success(t(`${K}.workAdded`, { title: work.title }))
+      reset()
+      onAdded(work.key)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+  const yearOk = !year.trim() || /^-?\d{1,4}$/.test(year.trim())
+  const ready = !!title.replace(/[《》]/g, '').trim() && !!author.trim() && yearOk
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (ready && !add.isPending) add.mutate()
+  }
+
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/50 p-3 text-sm font-medium text-primary hover:border-primary hover:bg-primary/5"
+      >
+        <Plus className="size-4" />
+        {t(`${K}.addWork`)}
+      </button>
+    )
+  return (
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-primary/40 p-3">
+      <div className="grid grid-cols-2 gap-3">
+        <label className="col-span-2 space-y-1.5">
+          <span className="block text-sm font-medium">{t(`${K}.workTitle`)}</span>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={40}
+            placeholder={t(`${K}.workTitlePlaceholder`)}
+            autoFocus
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="block text-sm font-medium">{t(`${K}.workAuthor`)}</span>
+          <Input value={author} onChange={(e) => setAuthor(e.target.value)} maxLength={40} />
+        </label>
+        <label className="space-y-1.5">
+          <span className="block text-sm font-medium">{t(`${K}.workYear`)}</span>
+          <Input
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            inputMode="numeric"
+            maxLength={5}
+            aria-invalid={!yearOk}
+          />
+        </label>
+        <label className="col-span-2 space-y-1.5">
+          <span className="block text-sm font-medium">{t(`${K}.workGroup`)}</span>
+          <Input
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            maxLength={20}
+            list="lit-work-groups"
+            placeholder={t(`${K}.workGroupPlaceholder`)}
+          />
+          <datalist id="lit-work-groups">
+            {groups.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+        </label>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={reset}>
+          {t('common.cancel')}
+        </Button>
+        <Button type="submit" size="sm" disabled={!ready || add.isPending}>
+          {add.isPending ? '…' : t(`${K}.addWorkSubmit`)}
+        </Button>
+      </div>
+    </form>
   )
 }
 
@@ -135,6 +250,7 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
   const { t } = useTranslation()
   const prefetch = usePrefetch()
   const device = useQuery(deviceQuery(tag.name))
+  const { find } = useWorks()
   // Opening the device's page is the likely next step: start loading it now.
   useEffect(() => prefetch.load.device(tag.name), [prefetch, tag.name])
   return (
@@ -166,9 +282,9 @@ function DeviceDetail({ tag, onHome }: { tag: TagRead; onHome: () => void }) {
           </p>
         )}
         {(device.data?.works ?? [])
-          .filter((l) => findWork(l.work_key))
+          .filter((l) => find(l.work_key))
           .map((l) => {
-            const w = findWork(l.work_key)!
+            const w = find(l.work_key)!
             return (
               <Link
                 key={l.work_key}
@@ -217,8 +333,10 @@ export function DetailPanel({
   const links = overview?.links ?? []
   const pickTag = (key: string) => onSelect({ kind: 'device', key })
   const pickWork = (key: string) => onSelect({ kind: 'work', key })
+  const { works, find } = useWorks()
+  const leadReader = useHasBadge(LEAD_READER)
   // A work's details lead to its page: start loading it as soon as they show.
-  const shownWork = selected?.kind === 'work' ? findWork(selected.key)?.key : undefined
+  const shownWork = selected?.kind === 'work' ? find(selected.key)?.key : undefined
   useEffect(() => {
     if (shownWork) prefetch.load.work(shownWork)
   }, [prefetch, shownWork])
@@ -234,7 +352,7 @@ export function DetailPanel({
             {t(devices ? `${K}.kindDevice` : `${K}.kindWork`)}
             <span className="ml-2 text-base font-normal text-muted-foreground">
               {t(devices ? `${K}.deviceCount` : `${K}.workCount`, {
-                count: devices ? hot.length : WORKS.length,
+                count: devices ? hot.length : works.length,
               })}
             </span>
           </h2>
@@ -252,9 +370,12 @@ export function DetailPanel({
               }}
             />
           ) : (
-            WORKS.map((w) => (
-              <WorkRow key={w.key} workKey={w.key} onClick={() => pickWork(w.key)} />
-            ))
+            <>
+              {leadReader && <AddWork works={works} onAdded={pickWork} />}
+              {works.map((w) => (
+                <WorkRow key={w.key} work={w} onClick={() => pickWork(w.key)} />
+              ))}
+            </>
           )}
         </div>
       </div>
@@ -292,8 +413,8 @@ export function DetailPanel({
         </section>
         <section className="space-y-2">
           <GroupLink label={t(`${K}.kindWork`)} onClick={() => onHome('work')} />
-          {WORKS.map((w) => (
-            <WorkRow key={w.key} workKey={w.key} onClick={() => pickWork(w.key)} />
+          {works.map((w) => (
+            <WorkRow key={w.key} work={w} onClick={() => pickWork(w.key)} />
           ))}
         </section>
       </div>
@@ -309,7 +430,7 @@ export function DetailPanel({
   }
 
   // A work: its hottest tags, and the way into its own page.
-  const w = findWork(selected.key)
+  const w = find(selected.key)
   if (!w) return null
   const used = links
     .filter((l) => l.work_key === w.key)
@@ -326,9 +447,7 @@ export function DetailPanel({
           {w.group && <span>· {t(`${K}.group`, { name: w.group })}</span>}
         </div>
         <h2 className="text-2xl font-bold tracking-tight">《{w.title}》</h2>
-        <p className="text-sm text-muted-foreground">
-          {w.author} · {w.year}
-        </p>
+        <p className="text-sm text-muted-foreground">{workByline(w)}</p>
       </header>
       {/* The same introduction as on the work's page: editing either changes both. */}
       <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
