@@ -3,16 +3,18 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState, type FormEvent } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BookOpen, ChevronLeft, ChevronRight, Plus, Search, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   createWork,
   deleteWork,
   searchTags,
+  updateWork,
   type OverviewRead,
   type TagRead,
   type Work,
+  type WorkCreate,
 } from '@/api/literature'
 import { LEAD_READER, useHasBadge } from '@/api/profile'
 import {
@@ -121,59 +123,41 @@ function WorkRow({
   )
 }
 
-// Holders of the 「鱼果」 badge add a work here; it then appears on the sphere's shell.
-function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => void }) {
+// The fields of a work, for adding one or correcting one.
+function WorkForm({
+  works,
+  initial,
+  submitLabel,
+  pending,
+  onSubmit,
+  onCancel,
+}: {
+  works: Work[]
+  initial?: Work
+  submitLabel: string
+  pending: boolean
+  onSubmit: (payload: WorkCreate) => void
+  onCancel: () => void
+}) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
-  const [year, setYear] = useState('')
-  const [group, setGroup] = useState('')
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [author, setAuthor] = useState(initial?.author ?? '')
+  const [year, setYear] = useState(initial?.year != null ? String(initial.year) : '')
+  const [group, setGroup] = useState(initial?.group ?? '')
   const groups = [...new Set(works.flatMap((w) => (w.group ? [w.group] : [])))]
-  const reset = () => {
-    setOpen(false)
-    setTitle('')
-    setAuthor('')
-    setYear('')
-    setGroup('')
-  }
-  const add = useMutation({
-    mutationFn: () =>
-      createWork({
-        title: title.replace(/[《》]/g, '').trim(),
-        author: author.trim(),
-        year: year.trim() ? Number(year) : null,
-        group: group.replace(/[「」]/g, '').trim() || null,
-      }),
-    onSuccess: (work) => {
-      queryClient.setQueryData(worksQuery.queryKey, (ws) => [...(ws ?? []), work])
-      void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
-      void queryClient.invalidateQueries({ queryKey: emptyWorksQuery.queryKey })
-      toast.success(t(`${K}.workAdded`, { title: work.title }))
-      reset()
-      onAdded(work.key)
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
-  })
   const yearOk = !year.trim() || /^-?\d{1,4}$/.test(year.trim())
   const ready = !!title.replace(/[《》]/g, '').trim() && !!author.trim() && yearOk
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (ready && !add.isPending) add.mutate()
+    if (ready && !pending)
+      onSubmit({
+        title: title.replace(/[《》]/g, '').trim(),
+        author: author.trim(),
+        year: year.trim() ? Number(year) : null,
+        group: group.replace(/[「」]/g, '').trim() || null,
+      })
   }
 
-  if (!open)
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/50 p-3 text-sm font-medium text-primary hover:border-primary hover:bg-primary/5"
-      >
-        <Plus className="size-4" />
-        {t(`${K}.addWork`)}
-      </button>
-    )
   return (
     <form onSubmit={submit} className="space-y-3 rounded-xl border border-primary/40 p-3">
       <div className="grid grid-cols-2 gap-3">
@@ -218,14 +202,83 @@ function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => 
         </label>
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={reset}>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           {t('common.cancel')}
         </Button>
-        <Button type="submit" size="sm" disabled={!ready || add.isPending}>
-          {add.isPending ? '…' : t(`${K}.addWorkSubmit`)}
+        <Button type="submit" size="sm" disabled={!ready || pending}>
+          {pending ? '…' : submitLabel}
         </Button>
       </div>
     </form>
+  )
+}
+
+// Holders of the 「鱼果」 badge add a work here; it then appears on the sphere's shell.
+function AddWork({ works, onAdded }: { works: Work[]; onAdded: (key: string) => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const add = useMutation({
+    mutationFn: createWork,
+    onSuccess: (work) => {
+      queryClient.setQueryData(worksQuery.queryKey, (ws) => [...(ws ?? []), work])
+      void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      void queryClient.invalidateQueries({ queryKey: emptyWorksQuery.queryKey })
+      toast.success(t(`${K}.workAdded`, { title: work.title }))
+      setOpen(false)
+      onAdded(work.key)
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/50 p-3 text-sm font-medium text-primary hover:border-primary hover:bg-primary/5"
+      >
+        <Plus className="size-4" />
+        {t(`${K}.addWork`)}
+      </button>
+    )
+  return (
+    <WorkForm
+      works={works}
+      submitLabel={t(`${K}.addWorkSubmit`)}
+      pending={add.isPending}
+      onSubmit={(payload) => add.mutate(payload)}
+      onCancel={() => setOpen(false)}
+    />
+  )
+}
+
+// Holders of the 「鱼果」 badge correct a work's title, author, year or collection in its details;
+// the key stays, so its quotes and analyses stay with it.
+function EditWork({ work, works, onDone }: { work: Work; works: Work[]; onDone: () => void }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const save = useMutation({
+    mutationFn: (payload: WorkCreate) => updateWork(work.key, payload),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(worksQuery.queryKey, (ws) =>
+        ws?.map((w) => (w.key === updated.key ? updated : w)),
+      )
+      void queryClient.invalidateQueries({ queryKey: worksQuery.queryKey })
+      toast.success(t(`${K}.workSaved`, { title: updated.title }))
+      onDone()
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t('common.error')),
+  })
+  return (
+    <WorkForm
+      works={works}
+      initial={work}
+      submitLabel={t('common.save')}
+      pending={save.isPending}
+      onSubmit={(payload) => save.mutate(payload)}
+      onCancel={onDone}
+    />
   )
 }
 
@@ -291,6 +344,51 @@ function DeleteWorkBin({ work }: { work: Work }) {
     >
       <Trash2 className="size-3.5" />
     </button>
+  )
+}
+
+// A work's title and byline atop its details; a 「鱼果」 holder can turn it into the edit form.
+function WorkHeader({
+  work: w,
+  works,
+  editable,
+  onBack,
+}: {
+  work: Work
+  works: Work[]
+  editable: boolean
+  onBack: () => void
+}) {
+  const { t } = useTranslation()
+  const [editing, setEditing] = useState(false)
+  return (
+    <header className="space-y-2">
+      <div className="flex items-center gap-1 text-xs font-medium text-primary">
+        <BackLink label={t(`${K}.kindWork`)} onClick={onBack} />
+        {w.group && <span>· {t(`${K}.group`, { name: w.group })}</span>}
+      </div>
+      {editing ? (
+        <EditWork work={w} works={works} onDone={() => setEditing(false)} />
+      ) : (
+        <>
+          <div className="flex items-start gap-1">
+            <h2 className="min-w-0 text-2xl font-bold tracking-tight">《{w.title}》</h2>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-label={`${t(`${K}.editWork`)}《${w.title}》`}
+                title={t(`${K}.editWork`)}
+                className="mt-1 grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{workByline(w)}</p>
+        </>
+      )}
+    </header>
   )
 }
 
@@ -548,14 +646,13 @@ export function DetailPanel({
     })
   return (
     <div className="space-y-5">
-      <header className="space-y-2">
-        <div className="flex items-center gap-1 text-xs font-medium text-primary">
-          <BackLink label={t(`${K}.kindWork`)} onClick={() => onHome('work')} />
-          {w.group && <span>· {t(`${K}.group`, { name: w.group })}</span>}
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight">《{w.title}》</h2>
-        <p className="text-sm text-muted-foreground">{workByline(w)}</p>
-      </header>
+      <WorkHeader
+        key={w.key}
+        work={w}
+        works={works}
+        editable={leadReader}
+        onBack={() => onHome('work')}
+      />
       {/* The same introduction as on the work's page: editing either changes both. */}
       <section className="space-y-1.5 rounded-xl bg-secondary/50 p-3">
         <h3 className="text-xs font-medium text-primary">{t(`${K}.introLabel`)}</h3>

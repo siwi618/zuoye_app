@@ -130,6 +130,14 @@ export function createWork(payload: WorkCreate): Promise<Work> {
   return apiFetch<Work>('/literature/works', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+// Only holders of the 「鱼果」 badge; the key stays the same.
+export function updateWork(key: string, payload: WorkCreate): Promise<Work> {
+  return apiFetch<Work>(`/literature/works/${key}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 // Keys of the works nothing is written under yet (only for holders of the 「鱼果」 badge).
 export function listEmptyWorks(): Promise<string[]> {
   return apiFetch<string[]>('/literature/works/empty')
