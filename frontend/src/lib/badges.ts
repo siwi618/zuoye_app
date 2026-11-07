@@ -66,6 +66,10 @@ export const BADGE_META: Record<
 // 「史上最强」: first on the all-time leaderboard, held only while first (migration 0031).
 export const OPEN_BADGES: readonly BadgeKey[] = ['all_time_top', 'month_champion']
 
+// Badges that don't evolve; each has its own description (profile.badgeDesc), while an evolving
+// badge's family shares one (profile.evolution.<family>.desc).
+export type OneTimeBadge = 'lead_reader' | 'month_champion' | 'all_time_top'
+
 // Badges that evolve: each stage is its own badge, granted by the database as a count grows —
 // 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses
 // (migration 0028). The badge wall shows only the highest stage held, with its progress.

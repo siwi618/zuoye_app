@@ -27,6 +27,7 @@ import {
   TIERS,
   TIER_STYLE,
   type Evolution,
+  type OneTimeBadge,
   type Tier,
 } from '@/lib/badges'
 import { cn } from '@/lib/utils'
@@ -143,6 +144,26 @@ function LockedCard({
         {children}
       </div>
     </li>
+  )
+}
+
+// A held badge's description: shown once earned — an evolving badge's only at its last stage,
+// until then a locked line.
+function BadgeDescription({ badge }: { badge: BadgeKey }) {
+  const { t } = useTranslation()
+  const evo = evolutionOf(badge)
+  if (evo && evo.stages[evo.stages.length - 1].key !== badge)
+    return (
+      <p className="inline-flex items-center gap-1 text-xs text-muted-foreground/80">
+        <Lock className="size-3" />
+        {t('profile.descLocked')}
+      </p>
+    )
+  const text = evo
+    ? t(`profile.evolution.${evo.family}.desc`)
+    : t(`profile.badgeDesc.${badge as OneTimeBadge}`)
+  return (
+    <p className="text-sm font-medium text-foreground/80">{t('profile.descQuote', { text })}</p>
   )
 }
 
@@ -350,8 +371,9 @@ export function Badges() {
                     <div className="space-y-1">
                       <p className="text-lg font-semibold">{name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {t(`profile.badges.${b.key}.desc`)}
+                        {t(`profile.badges.${b.key}.cond`)}
                       </p>
+                      <BadgeDescription badge={b.key} />
                       <p className="text-xs text-muted-foreground/80">
                         {b.times && b.last_month
                           ? t('profile.badgeTimes', {
