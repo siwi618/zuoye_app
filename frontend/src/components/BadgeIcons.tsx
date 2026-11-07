@@ -83,39 +83,33 @@ export function WriterIcon({ className }: { className?: string }) {
   )
 }
 
-// 「月度冠军」: a laurel wreath, two leafy branches tied at the bottom.
+// 「月度冠军」: a laurel wreath, two branches tied at the bottom, each with a few leaves growing
+// out of the stem and a pair of berries on a short stalk inside.
 const LAUREL_STEMS = [
   'M18.9 35.5A13.5 13.5 0 0 1 16.5 11.8',
   'M29.1 35.5A13.5 13.5 0 0 0 31.5 11.8',
 ]
+const LAUREL_STALKS = ['M10.5 23.9L12.9 23.8', 'M37.5 23.9L35.1 23.8']
 // Each leaf: centre x, centre y, angle.
 const LAUREL_LEAVES: [number, number, number][] = [
-  [14.5, 36, -176],
-  [17.2, 31.6, -120],
-  [10.4, 31.7, -155],
-  [14.6, 28.6, -99],
-  [8.2, 26.3, -134],
-  [13.2, 24.9, -78],
-  [8.1, 20.4, -113],
-  [13.2, 20.9, -57],
-  [10.1, 14.9, -92],
-  [14.7, 17.1, -36],
-  [13.9, 10.4, -71],
-  [17.4, 14.2, -15],
-  [18.6, 10.4, -34],
-  [33.5, 36, 356],
-  [30.8, 31.6, 300],
-  [37.6, 31.7, 335],
-  [33.4, 28.6, 279],
-  [39.8, 26.3, 314],
-  [34.8, 24.9, 258],
-  [39.9, 20.4, 293],
-  [34.8, 20.9, 237],
-  [37.9, 14.9, 272],
-  [33.3, 17.1, 216],
-  [34.1, 10.4, 251],
-  [30.6, 14.2, 195],
-  [29.4, 10.4, 214],
+  [12.1, 33.6, 180.0],
+  [8.1, 24.9, -145.0],
+  [9.9, 15.4, -110.0],
+  [14.8, 30.1, -104.0],
+  [15.2, 15.3, -25.0],
+  [19.4, 9.8, -34.0],
+  [35.9, 33.6, 0.0],
+  [39.9, 24.9, 325.0],
+  [38.1, 15.4, 290.0],
+  [33.2, 30.1, 284.0],
+  [32.8, 15.3, 205.0],
+  [28.6, 9.8, 214.0],
+]
+const LAUREL_BERRIES: [number, number][] = [
+  [14.2, 25.1],
+  [14.0, 22.2],
+  [33.8, 25.1],
+  [34.0, 22.2],
 ]
 
 export function LaurelIcon({ className }: { className?: string }) {
@@ -125,17 +119,23 @@ export function LaurelIcon({ className }: { className?: string }) {
         {LAUREL_STEMS.map((d) => (
           <path key={d} d={d} strokeWidth="2" />
         ))}
+        {LAUREL_STALKS.map((d) => (
+          <path key={d} d={d} strokeWidth="1.4" />
+        ))}
         {LAUREL_LEAVES.map(([x, y, a]) => (
           <ellipse
             key={`${x},${y}`}
             cx={x}
             cy={y}
             rx="3.4"
-            ry="1.5"
+            ry="1.55"
             transform={`rotate(${a} ${x} ${y})`}
             fill="currentColor"
             stroke="none"
           />
+        ))}
+        {LAUREL_BERRIES.map(([x, y]) => (
+          <circle key={`${x},${y}`} cx={x} cy={y} r="1.45" fill="currentColor" stroke="none" />
         ))}
         <path
           strokeWidth="2"
