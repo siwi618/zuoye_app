@@ -39,7 +39,8 @@
   // CORS_ORIGINS is a comma-separated list — pydantic-settings splits it
   // into list[str] when JSON-decoding fails. Plain commas survive the
   // Worker→Container env-var hop unmangled.
-  // Every 10 min: re-moderate content saved while OpenAI was unreachable.
+  // Every 10 min: re-moderate content saved while OpenAI was unreachable, and move 「史上最强」
+  // to the all-time leaderboard's first.
   // Sundays 20:00 UTC (Monday 04:00 in China): delete literature tags no analysis uses.
   // Daily 16:05 UTC (00:05 in China): settle last month's 「月度冠军」 if not yet.
   // src/index.ts tells them apart by the cron string, so keep the two in step.

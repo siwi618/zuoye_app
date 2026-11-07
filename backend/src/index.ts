@@ -88,6 +88,19 @@ async function runChampionSettle(env: Env): Promise<void> {
 }
 
 /**
+ * Move 「史上最强」 to whoever is first on the all-time leaderboard (see migration 0031). Runs in
+ * the database; does nothing when the first place hasn't changed.
+ */
+async function runCrownUpdate(env: Env): Promise<void> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/update_all_time_top`, {
+    method: 'POST',
+    headers: { ...serviceHeaders(env), 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  if (!res.ok) console.error('crown update failed', res.status, await res.text())
+}
+
+/**
  * Re-moderate rows saved while OpenAI was unreachable (moderated = false).
  * Checks the queue first so an empty queue doesn't wake the container.
  */
@@ -122,12 +135,8 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const job =
-      controller.cron === WEEKLY_CRON
-        ? runTagCleanup
-        : controller.cron === DAILY_CRON
-          ? runChampionSettle
-          : runModerationSweep
-    ctx.waitUntil(job(env))
+    if (controller.cron === WEEKLY_CRON) ctx.waitUntil(runTagCleanup(env))
+    else if (controller.cron === DAILY_CRON) ctx.waitUntil(runChampionSettle(env))
+    else ctx.waitUntil(Promise.all([runModerationSweep(env), runCrownUpdate(env)]))
   },
 }
