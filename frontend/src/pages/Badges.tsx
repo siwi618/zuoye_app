@@ -23,9 +23,11 @@ import {
   BADGE_META,
   EVOLUTIONS,
   evolutionOf,
+  OPEN_BADGES,
   TIERS,
   TIER_STYLE,
   type Evolution,
+  type Tier,
 } from '@/lib/badges'
 import { cn } from '@/lib/utils'
 
@@ -94,6 +96,53 @@ function EvolutionProgress({
         {t(`profile.evolution.${family}.rules`)}
       </p>
     </div>
+  )
+}
+
+// A badge anyone can earn but the user doesn't hold yet: greyed, named 「？？？」, not wearable,
+// saying how to earn it (and, for an evolving one, the progress below).
+function LockedCard({
+  badge,
+  tier,
+  how,
+  children,
+}: {
+  badge: BadgeKey
+  tier: Tier
+  how: string
+  children?: React.ReactNode
+}) {
+  const { t } = useTranslation()
+  const Icon = BADGE_META[badge].icon
+  return (
+    <li>
+      <div
+        title={t('profile.evolution.lockedHint')}
+        className="relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-5 pt-8 pb-6 text-center"
+      >
+        <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+          <Lock className="size-3" />
+        </span>
+        <span
+          className={cn(
+            'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
+            TIER_STYLE[tier].chip,
+          )}
+        >
+          {t(`profile.tiers.${tier}`)}
+        </span>
+        <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-100">
+          <Icon className="size-14" />
+        </span>
+        <div className="space-y-1">
+          <p className="text-lg font-semibold text-muted-foreground">
+            {t('profile.evolution.unknown')}
+          </p>
+          <p className="text-sm text-muted-foreground">{how}</p>
+        </div>
+        {children}
+      </div>
+    </li>
   )
 }
 
@@ -304,9 +353,17 @@ export function Badges() {
                         {t(`profile.badges.${b.key}.desc`)}
                       </p>
                       <p className="text-xs text-muted-foreground/80">
-                        {t('profile.badgeGranted', {
-                          date: new Date(b.granted_at).toLocaleDateString(i18n.language),
-                        })}
+                        {b.times && b.last_month
+                          ? t('profile.badgeTimes', {
+                              count: b.times,
+                              month: new Date(`${b.last_month}T00:00:00`).toLocaleDateString(
+                                i18n.language,
+                                { year: 'numeric', month: 'long' },
+                              ),
+                            })
+                          : t('profile.badgeGranted', {
+                              date: new Date(b.granted_at).toLocaleDateString(i18n.language),
+                            })}
                       </p>
                     </div>
                     {evo && (
@@ -320,47 +377,24 @@ export function Badges() {
                 </li>
               )
             })}
-            {locked.map((e) => {
-              // Not earned yet: greyed, and not wearable.
-              const first = e.stages[0]
-              const Icon = BADGE_META[first.key].icon
-              return (
-                <li key={e.family}>
-                  <div
-                    title={t('profile.evolution.lockedHint')}
-                    className="relative flex h-full w-full flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 px-5 pt-8 pb-6 text-center"
-                  >
-                    <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                      <Lock className="size-3" />
-                    </span>
-                    <span
-                      className={cn(
-                        'absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold',
-                        TIER_STYLE.common.chip,
-                      )}
-                    >
-                      {t('profile.tiers.common')}
-                    </span>
-                    <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 text-white ring-4 ring-zinc-100">
-                      <Icon className="size-14" />
-                    </span>
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-muted-foreground">
-                        {t('profile.evolution.unknown')}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {t(`profile.evolution.${e.family}.locked`, { need: first.need })}
-                      </p>
-                    </div>
-                    <EvolutionProgress
-                      evolution={e}
-                      count={progress.data?.[e.count]}
-                      current={null}
-                    />
-                  </div>
-                </li>
-              )
-            })}
+            {locked.map((e) => (
+              <LockedCard
+                key={e.family}
+                badge={e.stages[0].key}
+                tier={BADGE_META[e.stages[0].key].tier}
+                how={t(`profile.evolution.${e.family}.locked`, { need: e.stages[0].need })}
+              >
+                <EvolutionProgress evolution={e} count={progress.data?.[e.count]} current={null} />
+              </LockedCard>
+            ))}
+            {OPEN_BADGES.filter((k) => !held.some((b) => b.key === k)).map((k) => (
+              <LockedCard
+                key={k}
+                badge={k}
+                tier={BADGE_META[k].tier}
+                how={t(`profile.badgeHow.${k}`)}
+              />
+            ))}
           </ul>
         </div>
       )}

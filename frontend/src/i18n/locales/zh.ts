@@ -84,6 +84,11 @@ export const zh: Translations = {
     badgeWallEmpty: '还没有勋章？快去探索吧',
     badgeWallHint: '收到兑换码？点「兑换勋章」领取。',
     badgeGranted: '{{date}} 获得',
+    badgeTimes: '共 {{count}} 次 · 最近：{{month}}',
+    badgeTimes_one: '共 {{count}} 次 · 最近：{{month}}',
+    badgeHow: {
+      month_champion: '拿下某个月排行榜「本月」的第一即可获得，每月 1 号结算',
+    },
     badgeWearHint: '点一下勋章就能佩戴，它会显示在你的名字后面；再点一下取下。',
     badgeWearing: '佩戴中',
     wearBadge: '佩戴「{{name}}」',
@@ -107,6 +112,7 @@ export const zh: Translations = {
       writer_15: { name: '鲷木人', desc: '写了 15 篇受欢迎的文学分析' },
       writer_30: { name: '鲷树人', desc: '写了 30 篇受欢迎的文学分析' },
       writer_50: { name: '鲈鲟哥儿', desc: '写了 50 篇受欢迎的文学分析' },
+      month_champion: { name: '月度冠军', desc: '拿下过某个月的排行榜第一' },
     },
     tiers: { mythic: '神话', legendary: '传说', epic: '史诗', common: '常见' },
     evolution: {

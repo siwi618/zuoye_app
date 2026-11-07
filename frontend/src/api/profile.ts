@@ -51,6 +51,7 @@ export const BADGES = [
   'writer_15',
   'writer_30',
   'writer_50',
+  'month_champion',
 ] as const
 export type BadgeKey = (typeof BADGES)[number]
 // 「鱼果」 (the key predates the name): may add works to the literature tool.
@@ -58,7 +59,10 @@ export const LEAD_READER: BadgeKey = 'lead_reader'
 
 export interface Badge {
   key: string
-  granted_at: string
+  granted_at: string // for 「月度冠军」, the latest win
+  // 「月度冠军」 only: months won, and the latest one (its first day, YYYY-MM-DD).
+  times?: number | null
+  last_month?: string | null
 }
 
 export function listMyBadges(): Promise<Badge[]> {

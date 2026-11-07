@@ -82,3 +82,66 @@ export function WriterIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// 「月度冠军」: a laurel wreath, two leafy branches tied at the bottom.
+const LAUREL_STEMS = [
+  'M18.9 35.5A13.5 13.5 0 0 1 16.5 11.8',
+  'M29.1 35.5A13.5 13.5 0 0 0 31.5 11.8',
+]
+// Each leaf: centre x, centre y, angle.
+const LAUREL_LEAVES: [number, number, number][] = [
+  [14.5, 36, -176],
+  [17.2, 31.6, -120],
+  [10.4, 31.7, -155],
+  [14.6, 28.6, -99],
+  [8.2, 26.3, -134],
+  [13.2, 24.9, -78],
+  [8.1, 20.4, -113],
+  [13.2, 20.9, -57],
+  [10.1, 14.9, -92],
+  [14.7, 17.1, -36],
+  [13.9, 10.4, -71],
+  [17.4, 14.2, -15],
+  [18.6, 10.4, -34],
+  [33.5, 36, 356],
+  [30.8, 31.6, 300],
+  [37.6, 31.7, 335],
+  [33.4, 28.6, 279],
+  [39.8, 26.3, 314],
+  [34.8, 24.9, 258],
+  [39.9, 20.4, 293],
+  [34.8, 20.9, 237],
+  [37.9, 14.9, 272],
+  [33.3, 17.1, 216],
+  [34.1, 10.4, 251],
+  [30.6, 14.2, 195],
+  [29.4, 10.4, 214],
+]
+
+export function LaurelIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        {LAUREL_STEMS.map((d) => (
+          <path key={d} d={d} strokeWidth="2" />
+        ))}
+        {LAUREL_LEAVES.map(([x, y, a]) => (
+          <ellipse
+            key={`${x},${y}`}
+            cx={x}
+            cy={y}
+            rx="3.4"
+            ry="1.5"
+            transform={`rotate(${a} ${x} ${y})`}
+            fill="currentColor"
+            stroke="none"
+          />
+        ))}
+        <path
+          strokeWidth="2"
+          d="M18.9 35.5Q24 40.5 29.1 35.5M21.5 38.6L19.5 42.5M26.5 38.6L28.5 42.5"
+        />
+      </g>
+    </svg>
+  )
+}

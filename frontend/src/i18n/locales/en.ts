@@ -83,6 +83,11 @@ export const en = {
     badgeWallEmpty: 'No badges yet? Go explore!',
     badgeWallHint: 'Got a code? Use “Redeem a badge”.',
     badgeGranted: 'Earned {{date}}',
+    badgeTimes: 'Won {{count}} times · latest: {{month}}',
+    badgeTimes_one: 'Won once · {{month}}',
+    badgeHow: {
+      month_champion: 'Top the “This month” leaderboard to earn it; settled on the 1st',
+    },
     badgeWearHint: 'Tap a badge to wear it after your name; tap it again to take it off.',
     badgeWearing: 'Wearing',
     wearBadge: 'Wear “{{name}}”',
@@ -109,6 +114,7 @@ export const en = {
       writer_15: { name: 'Bream Sapling', desc: 'Wrote 15 well-liked literature analyses' },
       writer_30: { name: 'Bream Tree', desc: 'Wrote 30 well-liked literature analyses' },
       writer_50: { name: 'Brother Lu Xun', desc: 'Wrote 50 well-liked literature analyses' },
+      month_champion: { name: 'Monthly Champion', desc: 'Topped the leaderboard for a month' },
     },
     tiers: { mythic: 'Mythic', legendary: 'Legendary', epic: 'Epic', common: 'Common' },
     evolution: {
