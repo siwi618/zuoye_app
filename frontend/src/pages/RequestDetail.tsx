@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import {
   ArrowLeft,
   CalendarClock,
+  Check,
   CheckCircle2,
   CircleDot,
   GraduationCap,
@@ -57,6 +58,53 @@ function ModeIcon({ mode }: { mode: RequestRead['mode'] }) {
   if (mode === 'online') return <Video className="size-4" />
   if (mode === 'offline') return <MapPin className="size-4" />
   return <CircleDot className="size-4" />
+}
+
+// Valid requests count towards 「雷蜂」 and the leaderboard (migrations 0026, 0029). Shown to
+// both sides once a request is accepted, so it isn't marked complete too soon by accident; the
+// 15 minutes count down from the accept.
+const VALID_AFTER_MINUTES = 15
+
+function ValidRequestRules({ acceptedAt }: { acceptedAt: string | null }) {
+  const { t } = useTranslation()
+  const [now, setNow] = useState(() => Date.now())
+  const readyAt = acceptedAt ? Date.parse(acceptedAt) + VALID_AFTER_MINUTES * 60_000 : 0
+  const left = Math.ceil((readyAt - now) / 60_000)
+  useEffect(() => {
+    if (left <= 0) return
+    const id = window.setInterval(() => setNow(Date.now()), 15_000)
+    return () => window.clearInterval(id)
+  }, [left])
+  return (
+    <div className="max-w-sm space-y-1 text-xs text-muted-foreground">
+      <p className="font-medium text-foreground">{t('request.validTitle')}</p>
+      <ul className="space-y-0.5">
+        <li className="flex items-center gap-1.5">
+          {left <= 0 ? (
+            <Check className="size-3.5 shrink-0 text-primary" />
+          ) : (
+            <span className="size-3.5 shrink-0 text-center">·</span>
+          )}
+          <span>
+            {t('request.validMinutes', { minutes: VALID_AFTER_MINUTES })}
+            {left > 0 && (
+              <span className="ml-1 font-medium text-amber-600">
+                {t('request.validMinutesLeft', { count: left })}
+              </span>
+            )}
+          </span>
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="size-3.5 shrink-0 text-center">·</span>
+          {t('request.validAccountAge')}
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="size-3.5 shrink-0 text-center">·</span>
+          {t('request.validPerHour')}
+        </li>
+      </ul>
+    </div>
+  )
 }
 
 function InfoRow({
@@ -250,41 +298,44 @@ export function RequestDetail() {
           {anyAction && (
             <>
               <Separator />
-              <div className="flex flex-wrap justify-end gap-2">
-                {showAccept && (
-                  <Button disabled={busy} onClick={() => accept.mutate()}>
-                    {accept.isPending ? '…' : t('request.accept')}
-                  </Button>
-                )}
-                {showSchedule && (
-                  <Button variant="outline" disabled={busy} onClick={() => setScheduleOpen(true)}>
-                    <CalendarClock className="size-4" />
-                    {t('request.schedule')}
-                  </Button>
-                )}
-                {showComplete && (
-                  <Button disabled={busy} onClick={() => complete.mutate()}>
-                    <CheckCircle2 className="size-4" />
-                    {complete.isPending ? '…' : t('request.markComplete')}
-                  </Button>
-                )}
-                {showCancel && (
-                  <Button variant="destructive" disabled={busy} onClick={() => cancel.mutate()}>
-                    {cancel.isPending ? '…' : t('request.cancel')}
-                  </Button>
-                )}
-                {showDelete && (
-                  <Button
-                    variant="destructive"
-                    disabled={busy}
-                    onClick={() => {
-                      if (window.confirm(t('request.deleteConfirm'))) remove.mutate()
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                    {remove.isPending ? '…' : t('request.delete')}
-                  </Button>
-                )}
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                {showComplete && <ValidRequestRules acceptedAt={req.accepted_at} />}
+                <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  {showAccept && (
+                    <Button disabled={busy} onClick={() => accept.mutate()}>
+                      {accept.isPending ? '…' : t('request.accept')}
+                    </Button>
+                  )}
+                  {showSchedule && (
+                    <Button variant="outline" disabled={busy} onClick={() => setScheduleOpen(true)}>
+                      <CalendarClock className="size-4" />
+                      {t('request.schedule')}
+                    </Button>
+                  )}
+                  {showComplete && (
+                    <Button disabled={busy} onClick={() => complete.mutate()}>
+                      <CheckCircle2 className="size-4" />
+                      {complete.isPending ? '…' : t('request.markComplete')}
+                    </Button>
+                  )}
+                  {showCancel && (
+                    <Button variant="destructive" disabled={busy} onClick={() => cancel.mutate()}>
+                      {cancel.isPending ? '…' : t('request.cancel')}
+                    </Button>
+                  )}
+                  {showDelete && (
+                    <Button
+                      variant="destructive"
+                      disabled={busy}
+                      onClick={() => {
+                        if (window.confirm(t('request.deleteConfirm'))) remove.mutate()
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                      {remove.isPending ? '…' : t('request.delete')}
+                    </Button>
+                  )}
+                </div>
               </div>
             </>
           )}
