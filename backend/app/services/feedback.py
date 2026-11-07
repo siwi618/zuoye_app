@@ -1,6 +1,13 @@
 from fastapi import HTTPException, status
 
-from app.schemas.feedback import FeedbackCreate, FeedbackRead, LeaderboardEntry
+from app.schemas.feedback import (
+    LEADERBOARD_MIN_REVIEWS,
+    FeedbackCreate,
+    FeedbackRead,
+    LeaderboardEntry,
+    LeaderboardPeriod,
+    LeaderboardStanding,
+)
 from app.schemas.request import ProfileSummary, RequestStatus
 from app.services.moderation import ensure_allowed
 from app.supabase_client import get_supabase
@@ -133,18 +140,13 @@ def create_feedback(user_id: str, request_id: str, payload: FeedbackCreate) -> F
     return _hydrate_feedback(row, profiles)
 
 
-def get_leaderboard(limit: int = 10) -> list[LeaderboardEntry]:
-    rows = (
-        get_supabase()
-        .from_("user_ratings")
-        .select("user_id, avg_rating, feedback_count")
-        .order("avg_rating", desc=True)
-        .order("feedback_count", desc=True)
-        .limit(limit)
-        .execute()
-        .data
-        or []
-    )
+def _leaderboard_rows(period: LeaderboardPeriod) -> list[dict]:
+    """Every helper with a valid review in the period, ranked ones first (migration 0029)."""
+    return get_supabase().rpc("leaderboard", {"p_period": period}).execute().data or []
+
+
+def get_leaderboard(limit: int = 10, period: LeaderboardPeriod = "all") -> list[LeaderboardEntry]:
+    rows = [r for r in _leaderboard_rows(period) if r["rank"] is not None][:limit]
     if not rows:
         return []
     profiles = _fetch_profiles({r["user_id"] for r in rows})
@@ -158,6 +160,25 @@ def get_leaderboard(limit: int = 10) -> list[LeaderboardEntry]:
                 user=ProfileSummary(**profile),
                 avg_rating=float(r["avg_rating"]),
                 feedback_count=int(r["feedback_count"]),
+                score=float(r["score"]),
+                rank=int(r["rank"]),
             )
         )
     return entries
+
+
+def get_standing(user_id: str, period: LeaderboardPeriod = "all") -> LeaderboardStanding:
+    rows = _leaderboard_rows(period)
+    mine = next((r for r in rows if r["user_id"] == user_id), None)
+    # The prior is the same on every row; with no reviews at all it is the fallback.
+    prior = rows[0] if rows else {"prior_mean": 4.5, "prior_weight": 5}
+    count = int(mine["feedback_count"]) if mine else 0
+    return LeaderboardStanding(
+        rank=mine["rank"] if mine else None,
+        avg_rating=float(mine["avg_rating"]) if mine else None,
+        feedback_count=count,
+        score=float(mine["score"]) if mine else None,
+        needed=max(0, LEADERBOARD_MIN_REVIEWS - count),
+        prior_mean=float(prior["prior_mean"]),
+        prior_weight=float(prior["prior_weight"]),
+    )

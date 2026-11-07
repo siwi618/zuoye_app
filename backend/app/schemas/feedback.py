@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -23,7 +23,29 @@ class FeedbackRead(BaseModel):
     created_at: datetime
 
 
+# all time, or this month (Asia/Shanghai)
+LeaderboardPeriod = Literal["all", "month"]
+# Valid reviews needed to be ranked; keep in sync with leaderboard() in migration 0029.
+LEADERBOARD_MIN_REVIEWS = 3
+
+
 class LeaderboardEntry(BaseModel):
+    """A ranked helper: ranked by `score`, the rating weighted with imaginary reviews (migration
+    0029); `avg_rating` and `feedback_count` are their real average and count of valid reviews."""
     user: ProfileSummary
     avg_rating: float
     feedback_count: int
+    score: float = 0
+    rank: int = 0
+
+
+class LeaderboardStanding(BaseModel):
+    """Where the caller stands, and the imaginary reviews everyone's score is weighted with."""
+    rank: int | None  # None while under LEADERBOARD_MIN_REVIEWS valid reviews
+    avg_rating: float | None
+    feedback_count: int
+    score: float | None
+    needed: int  # valid reviews still needed to be ranked
+    prior_mean: float  # each helper counts as also having prior_weight reviews of prior_mean
+    prior_weight: float
+    min_reviews: int = LEADERBOARD_MIN_REVIEWS

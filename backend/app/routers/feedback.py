@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Query
 
 from app.deps import CurrentUserDep
-from app.schemas.feedback import FeedbackCreate, FeedbackRead, LeaderboardEntry
+from app.schemas.feedback import (
+    FeedbackCreate,
+    FeedbackRead,
+    LeaderboardEntry,
+    LeaderboardPeriod,
+    LeaderboardStanding,
+)
 from app.services import feedback as svc
 
 router = APIRouter(tags=["feedback"])
@@ -24,6 +30,15 @@ def create_feedback(
 def get_leaderboard(
     user: CurrentUserDep,
     limit: int = Query(default=10, ge=1, le=100),
+    period: LeaderboardPeriod = Query(default="all"),
 ) -> list[LeaderboardEntry]:
     _ = user
-    return svc.get_leaderboard(limit=limit)
+    return svc.get_leaderboard(limit=limit, period=period)
+
+
+@router.get("/leaderboard/me", response_model=LeaderboardStanding)
+def get_my_standing(
+    user: CurrentUserDep, period: LeaderboardPeriod = Query(default="all")
+) -> LeaderboardStanding:
+    """The caller's rank, or how many more valid reviews until they are ranked."""
+    return svc.get_standing(user.id, period=period)
