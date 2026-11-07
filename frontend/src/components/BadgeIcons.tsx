@@ -168,8 +168,8 @@ export function CrownIcon({ className }: { className?: string }) {
   )
 }
 
-// 「现代最强」: the dome crown to 「史上最强」's pointed one, after the Imperial State Crown — arches
-// set with pearls dipping under an orb and cross, a cross pattée on the jewelled band, an ermine rim.
+// 「现代最强」: the dome crown to 「史上最强」's pointed one, after the Imperial State Crown — kept as
+// plain: arches dipping under an orb and cross, a gem on the band, an ermine rim.
 export function DomeCrownIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
@@ -180,25 +180,14 @@ export function DomeCrownIcon({ className }: { className?: string }) {
           fillOpacity="0.28"
           d="M11.5 27C11 20 13.6 14.7 18 14.1C21 13.7 23 15.1 24 16.9C25 15.1 27 13.7 30 14.1C34.4 14.7 37 20 36.5 27Z"
         />
-        {/* pearls along the arches */}
-        <path strokeWidth="2" strokeDasharray="0 3.6" d="M15.6 25.2C15.7 21 16.9 18.2 19.3 17" />
-        <path strokeWidth="2" strokeDasharray="0 3.6" d="M32.4 25.2C32.3 21 31.1 18.2 28.7 17" />
-        <path strokeWidth="2" d="M24 16.9V20.5" />
-        <path
-          fill="currentColor"
-          stroke="none"
-          d="M23.25 22.15L22.5 20H25.5L24.75 22.15L26.9 21.4V24.4L24.75 23.65L25.5 25.8H22.5L23.25 23.65L21.1 24.4V21.4Z"
-        />
+        <path strokeWidth="2" d="M24 16.9V27" />
         <path
           strokeWidth="2.4"
           fill="currentColor"
           fillOpacity="0.28"
           d="M10.5 27H37.5L36.8 32.4H11.2Z"
         />
-        <ellipse cx="24" cy="29.7" rx="2.1" ry="1.6" fill="currentColor" stroke="none" />
-        <circle cx="16.8" cy="29.7" r="1.2" fill="currentColor" stroke="none" />
-        <circle cx="31.2" cy="29.7" r="1.2" fill="currentColor" stroke="none" />
-        {/* ermine */}
+        <path fill="currentColor" stroke="none" d="M24 27.6L26 29.7L24 31.8L22 29.7Z" />
         <rect
           x="9.5"
           y="34"
@@ -208,11 +197,6 @@ export function DomeCrownIcon({ className }: { className?: string }) {
           strokeWidth="2.4"
           fill="currentColor"
           fillOpacity="0.28"
-        />
-        <path
-          fill="currentColor"
-          stroke="none"
-          d="M16 35.3L16.9 37.5H15.1Z M24 35.3L24.9 37.5H23.1Z M32 35.3L32.9 37.5H31.1Z"
         />
         <circle cx="24" cy="12.4" r="2.5" fill="currentColor" stroke="none" />
         <path strokeWidth="2" d="M24 9.8V4.8M21.6 7.2H26.4" />
