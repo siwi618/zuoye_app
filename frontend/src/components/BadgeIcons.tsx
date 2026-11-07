@@ -20,7 +20,7 @@ export function YuguoIcon({ className }: { className?: string }) {
 }
 
 // 「雷蜂」: a honeycomb of seven flat-topped hexagons sharing their walls (one in the middle, six
-// around it) with a lightning bolt in the middle cell. Every stage (雷蜂 → 靁蜂 → 靐蜂 → 䨻蜂)
+// around it) with a lightning bolt in the middle cell. Every stage (䨻蜂 → 靐蜂 → 靁蜂 → 雷蜂)
 // uses it; the medal's colour shows the stage.
 const COMB = [
   'M32.2 9.8L28.1 16.9L19.9 16.9L15.8 9.8L19.9 2.7L28.1 2.7Z',
