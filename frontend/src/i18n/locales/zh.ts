@@ -105,7 +105,7 @@ export const zh: Translations = {
     badgeAlreadyHave: '你已经有这枚勋章了，兑换码没有被使用。',
     badgeTooMany: '输错次数太多，请 15 分钟后再试。',
     badges: {
-      lead_reader: { name: '鱼果', cond: '凭兑换码兑换' },
+      lead_reader: { name: '鱼果' },
       bee_10: { name: '雷蜂', cond: '帮同学完成 10 个有效请求' },
       bee_25: { name: '靁蜂', cond: '帮同学完成 25 个有效请求' },
       bee_50: { name: '靐蜂', cond: '帮同学完成 50 个有效请求' },

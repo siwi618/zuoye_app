@@ -104,7 +104,7 @@ export const en = {
     badgeAlreadyHave: 'You already have this badge; the code was not used.',
     badgeTooMany: 'Too many wrong codes. Try again in 15 minutes.',
     badges: {
-      lead_reader: { name: 'Yuguo', cond: 'Redeemed with a code' },
+      lead_reader: { name: 'Yuguo' },
       bee_10: { name: 'Thunder Bee', cond: 'Help classmates complete 10 valid requests' },
       bee_25: { name: 'Storm Bee', cond: 'Help classmates complete 25 valid requests' },
       bee_50: { name: 'Tempest Bee', cond: 'Help classmates complete 50 valid requests' },

@@ -370,9 +370,12 @@ export function Badges() {
                     </span>
                     <div className="space-y-1">
                       <p className="text-lg font-semibold">{name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t(`profile.badges.${b.key}.cond`)}
-                      </p>
+                      {/* 鱼果 is hidden, given only by redemption code: it has no condition to show */}
+                      {b.key !== 'lead_reader' && (
+                        <p className="text-sm text-muted-foreground">
+                          {t(`profile.badges.${b.key}.cond`)}
+                        </p>
+                      )}
                       <BadgeDescription badge={b.key} />
                       <p className="text-xs text-muted-foreground/80">
                         {b.times && b.last_month
