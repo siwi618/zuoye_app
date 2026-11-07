@@ -88,16 +88,21 @@ async function runChampionSettle(env: Env): Promise<void> {
 }
 
 /**
- * Move 「史上最强」 to whoever is first on the all-time leaderboard (see migration 0031). Runs in
- * the database; does nothing when the first place hasn't changed.
+ * Move 「史上最强」 to whoever is first on the all-time leaderboard (see migration 0031), and
+ * 「现代最强」 to whoever has won 「月度冠军」 the most (see migration 0032). Runs in the database;
+ * does nothing when the holders haven't changed.
  */
 async function runCrownUpdate(env: Env): Promise<void> {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/update_all_time_top`, {
-    method: 'POST',
-    headers: { ...serviceHeaders(env), 'Content-Type': 'application/json' },
-    body: '{}',
-  })
-  if (!res.ok) console.error('crown update failed', res.status, await res.text())
+  await Promise.all(
+    ['update_all_time_top', 'update_modern_top'].map(async (fn) => {
+      const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+        method: 'POST',
+        headers: { ...serviceHeaders(env), 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      if (!res.ok) console.error(`crown update ${fn} failed`, res.status, await res.text())
+    }),
+  )
 }
 
 /**

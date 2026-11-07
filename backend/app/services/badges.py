@@ -13,6 +13,7 @@ ALREADY_HAVE = "badge_already_have"
 TOO_MANY_ATTEMPTS = "badge_too_many_attempts"
 BADGE_REQUIRED = "badge_required"
 MONTH_CHAMPION = "month_champion"  # migration 0030
+MODERN_TOP = "modern_top"  # migration 0032: shows how many months its holder has won
 
 # Wrong codes allowed per user in the window before redeeming is paused, against guessing.
 _MAX_FAILURES = 5
@@ -33,15 +34,16 @@ def list_badges(user_id: str) -> list[BadgeRead]:
     )
     rows.sort(key=lambda r: ((r.get("badges") or {}).get("sort_order", 0), r["granted_at"]))
     out = [BadgeRead(key=r["badge"], granted_at=r["granted_at"]) for r in rows]
-    for b in out:
-        if b.key == MONTH_CHAMPION:
-            months = (
-                get_supabase().table("monthly_champions").select("month")
-                .eq("user_id", user_id).order("month", desc=True).execute().data
-                or []
-            )
-            b.times = len(months)
-            b.last_month = months[0]["month"] if months else None
+    if any(b.key in (MONTH_CHAMPION, MODERN_TOP) for b in out):
+        months = (
+            get_supabase().table("monthly_champions").select("month")
+            .eq("user_id", user_id).order("month", desc=True).execute().data
+            or []
+        )
+        for b in out:
+            if b.key in (MONTH_CHAMPION, MODERN_TOP):
+                b.times = len(months)
+                b.last_month = months[0]["month"] if months else None
     return out
 
 
