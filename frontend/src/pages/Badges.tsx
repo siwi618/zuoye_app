@@ -361,9 +361,14 @@ export function Badges() {
                                 { year: 'numeric', month: 'long' },
                               ),
                             })
-                          : t('profile.badgeGranted', {
-                              date: new Date(b.granted_at).toLocaleDateString(i18n.language),
-                            })}
+                          : t(
+                              b.key === 'all_time_top'
+                                ? 'profile.badgeSince'
+                                : 'profile.badgeGranted',
+                              {
+                                date: new Date(b.granted_at).toLocaleDateString(i18n.language),
+                              },
+                            )}
                       </p>
                     </div>
                     {evo && (

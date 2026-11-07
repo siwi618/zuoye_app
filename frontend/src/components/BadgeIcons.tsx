@@ -146,3 +146,24 @@ export function LaurelIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// 「史上最强」: a crown with a gem, three points topped with pearls.
+export function CrownIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M10.5 33.5L7.5 16.5L17 24.5L24 11.5L31 24.5L40.5 16.5L37.5 33.5Z"
+        />
+        <path strokeWidth="2.4" d="M10 38.5H38" />
+        <circle cx="7.5" cy="14.8" r="2.1" fill="currentColor" stroke="none" />
+        <circle cx="24" cy="9.6" r="2.3" fill="currentColor" stroke="none" />
+        <circle cx="40.5" cy="14.8" r="2.1" fill="currentColor" stroke="none" />
+        <path fill="currentColor" stroke="none" d="M24 23.5L26.6 27.5L24 31.5L21.4 27.5Z" />
+      </g>
+    </svg>
+  )
+}

@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { BADGES, type BadgeKey, type BadgeProgress } from '@/api/profile'
-import { BeeIcon, LaurelIcon, WriterIcon, YuguoIcon } from '@/components/BadgeIcons'
+import { BeeIcon, CrownIcon, LaurelIcon, WriterIcon, YuguoIcon } from '@/components/BadgeIcons'
 
 // Rarity, each with its own colours: mythic deep crimson, legendary gold, epic purple, common the
 // site's green.
@@ -58,11 +58,13 @@ export const BADGE_META: Record<
   writer_30: { icon: WriterIcon, tier: 'legendary' },
   writer_50: { icon: WriterIcon, tier: 'mythic' },
   month_champion: { icon: LaurelIcon, tier: 'epic' },
+  all_time_top: { icon: CrownIcon, tier: 'mythic' },
 }
 
 // Badges anyone can earn that don't evolve: shown locked (「？？？」) until held, with how to earn
 // them. 「月度冠军」: first on a month's leaderboard, settled on the 1st (migration 0030).
-export const OPEN_BADGES: readonly BadgeKey[] = ['month_champion']
+// 「史上最强」: first on the all-time leaderboard, held only while first (migration 0031).
+export const OPEN_BADGES: readonly BadgeKey[] = ['all_time_top', 'month_champion']
 
 // Badges that evolve: each stage is its own badge, granted by the database as a count grows —
 // 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses

@@ -85,7 +85,9 @@ export const en = {
     badgeGranted: 'Earned {{date}}',
     badgeTimes: 'Won {{count}} times · latest: {{month}}',
     badgeTimes_one: 'Won once · {{month}}',
+    badgeSince: 'On top since {{date}}',
     badgeHow: {
+      all_time_top: 'Be first on the “All time” leaderboard; it passes to whoever overtakes you',
       month_champion: 'Top the “This month” leaderboard to earn it; settled on the 1st',
     },
     badgeWearHint: 'Tap a badge to wear it after your name; tap it again to take it off.',
@@ -115,6 +117,7 @@ export const en = {
       writer_30: { name: 'Bream Tree', desc: 'Wrote 30 well-liked literature analyses' },
       writer_50: { name: 'Brother Lu Xun', desc: 'Wrote 50 well-liked literature analyses' },
       month_champion: { name: 'Monthly Champion', desc: 'Topped the leaderboard for a month' },
+      all_time_top: { name: 'The Strongest', desc: 'You were all just born in a world without me.' },
     },
     tiers: { mythic: 'Mythic', legendary: 'Legendary', epic: 'Epic', common: 'Common' },
     evolution: {

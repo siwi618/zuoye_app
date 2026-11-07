@@ -52,6 +52,7 @@ export const BADGES = [
   'writer_30',
   'writer_50',
   'month_champion',
+  'all_time_top',
 ] as const
 export type BadgeKey = (typeof BADGES)[number]
 // 「鱼果」 (the key predates the name): may add works to the literature tool.
