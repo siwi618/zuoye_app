@@ -168,8 +168,8 @@ export function CrownIcon({ className }: { className?: string }) {
   )
 }
 
-// 「现代最强」: the dome crown to 「史上最强」's pointed one — arches meeting under a pearl, on a
-// jewelled band.
+// 「现代最强」: the dome crown to 「史上最强」's pointed one, after the Imperial State Crown — arches
+// set with pearls dipping under an orb and cross, a cross pattée on the jewelled band, an ermine rim.
 export function DomeCrownIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
@@ -178,18 +178,44 @@ export function DomeCrownIcon({ className }: { className?: string }) {
           strokeWidth="2.4"
           fill="currentColor"
           fillOpacity="0.28"
-          d="M11.5 26C11.5 18.5 17 13.8 24 13.8C31 13.8 36.5 18.5 36.5 26Z"
+          d="M11.5 27C11 20 13.6 14.7 18 14.1C21 13.7 23 15.1 24 16.9C25 15.1 27 13.7 30 14.1C34.4 14.7 37 20 36.5 27Z"
+        />
+        {/* pearls along the arches */}
+        <path strokeWidth="2" strokeDasharray="0 3.6" d="M15.6 25.2C15.7 21 16.9 18.2 19.3 17" />
+        <path strokeWidth="2" strokeDasharray="0 3.6" d="M32.4 25.2C32.3 21 31.1 18.2 28.7 17" />
+        <path strokeWidth="2" d="M24 16.9V20.5" />
+        <path
+          fill="currentColor"
+          stroke="none"
+          d="M23.25 22.15L22.5 20H25.5L24.75 22.15L26.9 21.4V24.4L24.75 23.65L25.5 25.8H22.5L23.25 23.65L21.1 24.4V21.4Z"
         />
         <path
-          strokeWidth="2"
-          d="M24 13.8V26M17.6 26C17.6 20 20.2 15.3 24 13.8M30.4 26C30.4 20 27.8 15.3 24 13.8"
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M10.5 27H37.5L36.8 32.4H11.2Z"
         />
-        <path strokeWidth="2.4" fill="currentColor" fillOpacity="0.28" d="M10 26H38L37 33.5H11Z" />
-        <path strokeWidth="2.4" d="M10 38.5H38" />
-        <circle cx="24" cy="10" r="2.3" fill="currentColor" stroke="none" />
-        <path fill="currentColor" stroke="none" d="M24 26.9L26.3 29.75L24 32.6L21.7 29.75Z" />
-        <circle cx="16.3" cy="29.75" r="1.5" fill="currentColor" stroke="none" />
-        <circle cx="31.7" cy="29.75" r="1.5" fill="currentColor" stroke="none" />
+        <ellipse cx="24" cy="29.7" rx="2.1" ry="1.6" fill="currentColor" stroke="none" />
+        <circle cx="16.8" cy="29.7" r="1.2" fill="currentColor" stroke="none" />
+        <circle cx="31.2" cy="29.7" r="1.2" fill="currentColor" stroke="none" />
+        {/* ermine */}
+        <rect
+          x="9.5"
+          y="34"
+          width="29"
+          height="4.8"
+          rx="2.4"
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+        />
+        <path
+          fill="currentColor"
+          stroke="none"
+          d="M16 35.3L16.9 37.5H15.1Z M24 35.3L24.9 37.5H23.1Z M32 35.3L32.9 37.5H31.1Z"
+        />
+        <circle cx="24" cy="12.4" r="2.5" fill="currentColor" stroke="none" />
+        <path strokeWidth="2" d="M24 9.8V4.8M21.6 7.2H26.4" />
       </g>
     </svg>
   )
