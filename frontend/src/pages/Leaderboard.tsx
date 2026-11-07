@@ -110,13 +110,7 @@ export function Leaderboard() {
             </div>
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            {me
-              ? t('leaderboard.howRanked', {
-                  weight: Number(me.prior_weight.toFixed(1)),
-                  mean: me.prior_mean.toFixed(2),
-                  min: me.min_reviews,
-                })
-              : t('leaderboard.howRankedShort')}
+            {t('leaderboard.howRanked', { min: me?.min_reviews ?? 3 })}
           </p>
         </CardHeader>
         <CardContent className="space-y-3 pt-2">

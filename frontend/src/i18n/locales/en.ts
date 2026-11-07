@@ -717,10 +717,7 @@ export const en = {
     score: 'Score',
     avgAndCount: 'Avg {{avg}} · {{count}} reviews',
     avgAndCount_one: 'Avg {{avg}} · 1 review',
-    howRanked:
-      'Ranked by score: everyone starts with {{weight}} imaginary reviews of {{mean}} stars (tuned automatically from all ratings), so more reviews bring it closer to your real average. {{min}} valid reviews needed to be ranked.',
-    howRankedShort:
-      'Ranked by score: higher ratings and more reviews rank higher. 3 valid reviews needed to be ranked.',
+    howRanked: 'Higher ratings rank higher. {{min}} valid reviews needed to be ranked.',
     you: 'You',
     youRank: 'Rank {{rank}}',
     youNeed: 'Not ranked yet: {{count}} more valid reviews to be ranked',

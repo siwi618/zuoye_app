@@ -710,9 +710,7 @@ export const zh: Translations = {
     score: '综合分',
     avgAndCount: '平均 {{avg}} · {{count}} 个评价',
     avgAndCount_one: '平均 {{avg}} · {{count}} 个评价',
-    howRanked:
-      '按综合分排名：每个人都先算上 {{weight}} 个 {{mean}} 分的「假想评价」（根据全站评分自动调整），评价越多越接近真实平均分。至少 {{min}} 个有效评价才上榜。',
-    howRankedShort: '按综合分排名：评分越高、评价越多越靠前。至少 3 个有效评价才上榜。',
+    howRanked: '评分越高，排名越高。至少 {{min}} 个有效评价才上榜。',
     you: '你',
     youRank: '第 {{rank}} 名',
     youNeed: '还没上榜：再拿 {{count}} 个有效评价就能上榜',
