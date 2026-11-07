@@ -706,11 +706,27 @@ export const en = {
   },
   leaderboard: {
     title: 'Leaderboard',
-    subtitle: 'Top helpers by average rating.',
+    subtitle: 'Top helpers by overall score.',
     avgRating: 'Avg rating',
     reviews: 'Reviews',
-    empty: 'No ratings yet — be the first to leave one.',
+    empty: 'Nobody is ranked yet — help classmates and get reviewed to be the first.',
+    emptyMonth: 'Nobody is ranked this month yet. Will you be first?',
     rank: 'Rank',
+    period_all: 'All time',
+    period_month: 'This month',
+    score: 'Score',
+    avgAndCount: 'Avg {{avg}} · {{count}} reviews',
+    avgAndCount_one: 'Avg {{avg}} · 1 review',
+    howRanked:
+      'Ranked by score: everyone starts with {{weight}} imaginary reviews of {{mean}} stars (tuned automatically from all ratings), so more reviews bring it closer to your real average. {{min}} valid reviews needed to be ranked.',
+    howRankedShort:
+      'Ranked by score: higher ratings and more reviews rank higher. 3 valid reviews needed to be ranked.',
+    you: 'You',
+    youRank: 'Rank {{rank}}',
+    youNeed: 'Not ranked yet: {{count}} more valid reviews to be ranked',
+    youNeed_one: 'Not ranked yet: 1 more valid review to be ranked',
+    validRule:
+      'Valid reviews: at least 15 minutes from accepting to completing; the requester’s account at least a day old; at most 2 per requester in any hour.',
   },
   status: {
     review: 'To review',

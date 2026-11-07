@@ -16,10 +16,28 @@ export interface FeedbackCreate {
   comment: string
 }
 
+// Ranked by `score`: the rating weighted with imaginary reviews learnt from all ratings
+// (migration 0029); `avg_rating` and `feedback_count` are the real average and valid reviews.
 export interface LeaderboardEntry {
   user: ProfileSummary
   avg_rating: number
   feedback_count: number
+  score: number
+  rank: number
+}
+
+export type LeaderboardPeriod = 'all' | 'month'
+
+export interface LeaderboardStanding {
+  rank: number | null // null while under min_reviews valid reviews
+  avg_rating: number | null
+  feedback_count: number
+  score: number | null
+  needed: number
+  // Every helper counts as also having prior_weight reviews of prior_mean stars.
+  prior_mean: number
+  prior_weight: number
+  min_reviews: number
 }
 
 export function listFeedbacks(requestId: string): Promise<FeedbackRead[]> {
@@ -36,6 +54,13 @@ export function createFeedback(
   })
 }
 
-export function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
-  return apiFetch<LeaderboardEntry[]>(`/leaderboard?limit=${limit}`)
+export function getLeaderboard(
+  limit = 10,
+  period: LeaderboardPeriod = 'all',
+): Promise<LeaderboardEntry[]> {
+  return apiFetch<LeaderboardEntry[]>(`/leaderboard?limit=${limit}&period=${period}`)
+}
+
+export function getMyStanding(period: LeaderboardPeriod = 'all'): Promise<LeaderboardStanding> {
+  return apiFetch<LeaderboardStanding>(`/leaderboard/me?period=${period}`)
 }

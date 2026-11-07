@@ -699,11 +699,26 @@ export const zh: Translations = {
   },
   leaderboard: {
     title: '排行榜',
-    subtitle: '按平均评分排名的助人榜。',
+    subtitle: '按综合分排名的助人榜。',
     avgRating: '平均评分',
     reviews: '评价数',
-    empty: '还没有评分数据 — 第一个来留下评价吧。',
+    empty: '还没有人上榜 — 帮同学完成请求、拿到评价就有机会。',
+    emptyMonth: '本月还没有人上榜，第一个就是你？',
     rank: '名次',
+    period_all: '总榜',
+    period_month: '本月',
+    score: '综合分',
+    avgAndCount: '平均 {{avg}} · {{count}} 个评价',
+    avgAndCount_one: '平均 {{avg}} · {{count}} 个评价',
+    howRanked:
+      '按综合分排名：每个人都先算上 {{weight}} 个 {{mean}} 分的「假想评价」（根据全站评分自动调整），评价越多越接近真实平均分。至少 {{min}} 个有效评价才上榜。',
+    howRankedShort: '按综合分排名：评分越高、评价越多越靠前。至少 3 个有效评价才上榜。',
+    you: '你',
+    youRank: '第 {{rank}} 名',
+    youNeed: '还没上榜：再拿 {{count}} 个有效评价就能上榜',
+    youNeed_one: '还没上榜：再拿 {{count}} 个有效评价就能上榜',
+    validRule:
+      '有效评价：接单到完成满 15 分钟；请求方注册满 1 天；同一位同学 1 小时内最多算 2 个。',
   },
   status: {
     review: '待评价',
