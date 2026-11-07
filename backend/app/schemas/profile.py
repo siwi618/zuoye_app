@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal, get_args
 
 from pydantic import BaseModel, StringConstraints
@@ -46,7 +46,10 @@ LEAD_READER = "lead_reader"  # may add works to the literature tool
 
 class BadgeRead(BaseModel):
     key: str
-    granted_at: datetime
+    granted_at: datetime  # for 「月度冠军」, the latest win
+    # 「月度冠军」 only: how many months won, and the latest one (its first day).
+    times: int | None = None
+    last_month: date | None = None
 
 
 class BadgeProgress(BaseModel):

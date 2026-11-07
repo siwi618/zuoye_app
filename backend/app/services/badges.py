@@ -12,6 +12,7 @@ INVALID_CODE = "invalid_badge_code"
 ALREADY_HAVE = "badge_already_have"
 TOO_MANY_ATTEMPTS = "badge_too_many_attempts"
 BADGE_REQUIRED = "badge_required"
+MONTH_CHAMPION = "month_champion"  # migration 0030
 
 # Wrong codes allowed per user in the window before redeeming is paused, against guessing.
 _MAX_FAILURES = 5
@@ -31,7 +32,17 @@ def list_badges(user_id: str) -> list[BadgeRead]:
         or []
     )
     rows.sort(key=lambda r: ((r.get("badges") or {}).get("sort_order", 0), r["granted_at"]))
-    return [BadgeRead(key=r["badge"], granted_at=r["granted_at"]) for r in rows]
+    out = [BadgeRead(key=r["badge"], granted_at=r["granted_at"]) for r in rows]
+    for b in out:
+        if b.key == MONTH_CHAMPION:
+            months = (
+                get_supabase().table("monthly_champions").select("month")
+                .eq("user_id", user_id).order("month", desc=True).execute().data
+                or []
+            )
+            b.times = len(months)
+            b.last_month = months[0]["month"] if months else None
+    return out
 
 
 def grant_due(user_id: str) -> None:

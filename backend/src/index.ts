@@ -41,8 +41,9 @@ function containerStub(env: Env) {
   return env.CONTAINER.get(env.CONTAINER.idFromName('primary'))
 }
 
-// Must match the weekly entry in wrangler.jsonc's triggers.crons.
+// Must match the entries in wrangler.jsonc's triggers.crons.
 const WEEKLY_CRON = '0 20 * * SUN'
+const DAILY_CRON = '5 16 * * *'
 
 function serviceHeaders(env: Env): Record<string, string> {
   const key = env.SUPABASE_SERVICE_ROLE_KEY
@@ -67,6 +68,23 @@ async function runTagCleanup(env: Env): Promise<void> {
     return
   }
   console.log('tag clean-up: deleted', await res.text())
+}
+
+/**
+ * Settle last month's 「月度冠军」 if it isn't yet (see migration 0030). Runs in the database;
+ * daily, so a missed run catches up the next day, and settling twice changes nothing.
+ */
+async function runChampionSettle(env: Env): Promise<void> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/settle_month_champion`, {
+    method: 'POST',
+    headers: { ...serviceHeaders(env), 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  if (!res.ok) {
+    console.error('month champion settle failed', res.status, await res.text())
+    return
+  }
+  console.log('month champion:', await res.text())
 }
 
 /**
@@ -104,6 +122,12 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(controller.cron === WEEKLY_CRON ? runTagCleanup(env) : runModerationSweep(env))
+    const job =
+      controller.cron === WEEKLY_CRON
+        ? runTagCleanup
+        : controller.cron === DAILY_CRON
+          ? runChampionSettle
+          : runModerationSweep
+    ctx.waitUntil(job(env))
   },
 }
