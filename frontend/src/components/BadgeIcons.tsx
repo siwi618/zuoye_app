@@ -83,33 +83,37 @@ export function WriterIcon({ className }: { className?: string }) {
   )
 }
 
-// 「月度冠军」: a laurel wreath, two branches tied at the bottom, each with a few leaves growing
-// out of the stem and a pair of berries on a short stalk inside.
+// 「月度冠军」: a laurel wreath, two branches tied at the bottom with a pair of berries where they
+// meet. The inner leaves set the rhythm, as close as they go without touching; the outer ones sit
+// in the gaps between them.
 const LAUREL_STEMS = [
   'M18.9 35.5A13.5 13.5 0 0 1 16.5 11.8',
   'M29.1 35.5A13.5 13.5 0 0 0 31.5 11.8',
 ]
-const LAUREL_STALKS = ['M10.5 23.9L12.9 23.8', 'M37.5 23.9L35.1 23.8']
 // Each leaf: centre x, centre y, angle.
 const LAUREL_LEAVES: [number, number, number][] = [
-  [12.1, 33.6, 180.0],
-  [8.1, 24.9, -145.0],
-  [9.9, 15.4, -110.0],
-  [14.8, 30.1, -104.0],
-  [15.2, 15.3, -25.0],
+  [15.8, 30.3, -94.0],
+  [13.5, 26.2, -69.0],
+  [13.1, 21.4, -44.0],
+  [14.8, 17.0, -19.0],
+  [10.4, 31.0, -165.5],
+  [8.3, 24.5, -140.5],
+  [9.1, 17.8, -115.5],
+  [12.7, 11.9, -90.5],
   [19.4, 9.8, -34.0],
-  [35.9, 33.6, 0.0],
-  [39.9, 24.9, 325.0],
-  [38.1, 15.4, 290.0],
-  [33.2, 30.1, 284.0],
-  [32.8, 15.3, 205.0],
+  [32.2, 30.3, 274.0],
+  [34.5, 26.2, 249.0],
+  [34.9, 21.4, 224.0],
+  [33.2, 17.0, 199.0],
+  [37.6, 31.0, 345.5],
+  [39.7, 24.5, 320.5],
+  [38.9, 17.8, 295.5],
+  [35.3, 11.9, 270.5],
   [28.6, 9.8, 214.0],
 ]
 const LAUREL_BERRIES: [number, number][] = [
-  [14.2, 25.1],
-  [14.0, 22.2],
-  [33.8, 25.1],
-  [34.0, 22.2],
+  [22.2, 35.3],
+  [25.8, 35.3],
 ]
 
 export function LaurelIcon({ className }: { className?: string }) {
@@ -118,9 +122,6 @@ export function LaurelIcon({ className }: { className?: string }) {
       <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         {LAUREL_STEMS.map((d) => (
           <path key={d} d={d} strokeWidth="2" />
-        ))}
-        {LAUREL_STALKS.map((d) => (
-          <path key={d} d={d} strokeWidth="1.4" />
         ))}
         {LAUREL_LEAVES.map(([x, y, a]) => (
           <ellipse
@@ -134,13 +135,13 @@ export function LaurelIcon({ className }: { className?: string }) {
             stroke="none"
           />
         ))}
-        {LAUREL_BERRIES.map(([x, y]) => (
-          <circle key={`${x},${y}`} cx={x} cy={y} r="1.45" fill="currentColor" stroke="none" />
-        ))}
         <path
           strokeWidth="2"
           d="M18.9 35.5Q24 40.5 29.1 35.5M21.5 38.6L19.5 42.5M26.5 38.6L28.5 42.5"
         />
+        {LAUREL_BERRIES.map(([x, y]) => (
+          <circle key={`${x},${y}`} cx={x} cy={y} r="1.5" fill="currentColor" stroke="none" />
+        ))}
       </g>
     </svg>
   )
