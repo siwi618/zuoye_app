@@ -16,6 +16,7 @@ import {
   useMyBadges,
   useMyProfile,
   wearBadge,
+  type Badge,
   type BadgeKey,
 } from '@/api/profile'
 import { RedDot } from '@/components/RedDot'
@@ -149,6 +150,25 @@ function LockedCard({
 
 // A held badge's description: shown once earned — an evolving badge's only at its last stage,
 // until then a locked line.
+// When a held badge was earned: 「月度冠军」 with its wins; a crown since its holder took it,
+// 「现代最强」 with their wins too; any other the day it was earned.
+function BadgeEarned({ badge: b }: { badge: Badge }) {
+  const { t, i18n } = useTranslation()
+  const date = new Date(b.granted_at).toLocaleDateString(i18n.language)
+  if (b.key === 'month_champion' && b.times && b.last_month)
+    return t('profile.badgeTimes', {
+      count: b.times,
+      month: new Date(`${b.last_month}T00:00:00`).toLocaleDateString(i18n.language, {
+        year: 'numeric',
+        month: 'long',
+      }),
+    })
+  if (b.key === 'modern_top' && b.times)
+    return t('profile.badgeSinceWins', { date, count: b.times })
+  if (b.key === 'all_time_top' || b.key === 'modern_top') return t('profile.badgeSince', { date })
+  return t('profile.badgeGranted', { date })
+}
+
 function BadgeDescription({ badge }: { badge: BadgeKey }) {
   const { t } = useTranslation()
   const evo = evolutionOf(badge)
@@ -174,7 +194,7 @@ function BadgeDescription({ badge }: { badge: BadgeKey }) {
 // its highest stage, with its progress; before the first stage it shows locked, so everyone sees
 // how to earn it.
 export function Badges() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const badges = useMyBadges()
   const profile = useMyProfile()
@@ -378,22 +398,7 @@ export function Badges() {
                       )}
                       <BadgeDescription badge={b.key} />
                       <p className="text-xs text-muted-foreground/80">
-                        {b.times && b.last_month
-                          ? t('profile.badgeTimes', {
-                              count: b.times,
-                              month: new Date(`${b.last_month}T00:00:00`).toLocaleDateString(
-                                i18n.language,
-                                { year: 'numeric', month: 'long' },
-                              ),
-                            })
-                          : t(
-                              b.key === 'all_time_top'
-                                ? 'profile.badgeSince'
-                                : 'profile.badgeGranted',
-                              {
-                                date: new Date(b.granted_at).toLocaleDateString(i18n.language),
-                              },
-                            )}
+                        <BadgeEarned badge={b} />
                       </p>
                     </div>
                     {evo && (

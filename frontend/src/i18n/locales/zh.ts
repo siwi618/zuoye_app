@@ -87,8 +87,11 @@ export const zh: Translations = {
     badgeTimes: '共 {{count}} 次 · 最近：{{month}}',
     badgeTimes_one: '共 {{count}} 次 · 最近：{{month}}',
     badgeSince: '{{date}} 登顶至今',
+    badgeSinceWins: '{{date}} 登顶至今 · 共 {{count}} 次月度冠军',
+    badgeSinceWins_one: '{{date}} 登顶至今 · 共 {{count}} 次月度冠军',
     badgeHow: {
       all_time_top: '成为排行榜「总榜」第一即可获得；被超过时会转给新的第一',
+      modern_top: '拿到「月度冠军」次数最多即可获得；次数相同时先达到的人保留，被超过时转给新的第一',
       month_champion: '拿下某个月排行榜「本月」的第一即可获得，每月 1 号结算',
     },
     badgeWearHint: '点一下勋章就能佩戴，它会显示在你的名字后面；再点一下取下。',
@@ -116,12 +119,14 @@ export const zh: Translations = {
       writer_50: { name: '鲈鲟哥儿', cond: '写 50 篇受欢迎的文学分析' },
       month_champion: { name: '月度冠军', cond: '拿下某个月排行榜「本月」的第一' },
       all_time_top: { name: '史上最强', cond: '现任排行榜「总榜」第一' },
+      modern_top: { name: '现代最强', cond: '现任「月度冠军」次数第一' },
     },
     // Unlocked once the badge is held; an evolving badge's at its last stage.
     badgeDesc: {
       lead_reader: '以此表彰你对文学分析的杰出贡献',
       month_champion: '最强？不再遥不可及',
       all_time_top: '只不过是生在没有我的凡夫罢了',
+      modern_top: '先说清楚，你才是挑战者',
     },
     descQuote: '「{{text}}」',
     descLocked: '进化到最高阶后解锁描述',

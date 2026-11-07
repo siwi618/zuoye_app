@@ -86,8 +86,12 @@ export const en = {
     badgeTimes: 'Won {{count}} times · latest: {{month}}',
     badgeTimes_one: 'Won once · {{month}}',
     badgeSince: 'On top since {{date}}',
+    badgeSinceWins: 'On top since {{date}} · {{count}} monthly wins',
+    badgeSinceWins_one: 'On top since {{date}} · 1 monthly win',
     badgeHow: {
       all_time_top: 'Be first on the “All time” leaderboard; it passes to whoever overtakes you',
+      modern_top:
+        'Win “Monthly Champion” the most times; on a tie whoever got there first keeps it, and it passes to whoever wins more',
       month_champion: 'Top the “This month” leaderboard to earn it; settled on the 1st',
     },
     badgeWearHint: 'Tap a badge to wear it after your name; tap it again to take it off.',
@@ -115,12 +119,14 @@ export const en = {
       writer_50: { name: 'Brother Lu Xun', cond: 'Write 50 well-liked literature analyses' },
       month_champion: { name: 'Monthly Champion', cond: 'Top the “This month” leaderboard' },
       all_time_top: { name: 'The Strongest', cond: 'First on the “All time” leaderboard, for now' },
+      modern_top: { name: 'Strongest of Today', cond: 'Most “Monthly Champion” wins, for now' },
     },
     // Unlocked once the badge is held; an evolving badge's at its last stage.
     badgeDesc: {
       lead_reader: 'In recognition of your outstanding contributions to literary analysis',
       month_champion: 'The strongest? No longer out of reach.',
       all_time_top: 'You were all just born in a world without me.',
+      modern_top: 'Let’s be clear: you’re the challenger.',
     },
     descQuote: '“{{text}}”',
     descLocked: 'Description unlocks at the final stage',

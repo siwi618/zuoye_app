@@ -1,6 +1,13 @@
 import type { ComponentType } from 'react'
 import { BADGES, type BadgeKey, type BadgeProgress } from '@/api/profile'
-import { BeeIcon, CrownIcon, LaurelIcon, WriterIcon, YuguoIcon } from '@/components/BadgeIcons'
+import {
+  BeeIcon,
+  CrownIcon,
+  DomeCrownIcon,
+  LaurelIcon,
+  WriterIcon,
+  YuguoIcon,
+} from '@/components/BadgeIcons'
 
 // Rarity, each with its own colours: mythic deep crimson, legendary gold, epic purple, common the
 // site's green.
@@ -59,16 +66,18 @@ export const BADGE_META: Record<
   writer_50: { icon: WriterIcon, tier: 'mythic' },
   month_champion: { icon: LaurelIcon, tier: 'epic' },
   all_time_top: { icon: CrownIcon, tier: 'mythic' },
+  modern_top: { icon: DomeCrownIcon, tier: 'mythic' },
 }
 
 // Badges anyone can earn that don't evolve: shown locked (「？？？」) until held, with how to earn
 // them. 「月度冠军」: first on a month's leaderboard, settled on the 1st (migration 0030).
 // 「史上最强」: first on the all-time leaderboard, held only while first (migration 0031).
-export const OPEN_BADGES: readonly BadgeKey[] = ['all_time_top', 'month_champion']
+// 「现代最强」: the most 「月度冠军」 wins, held only while no one has more (migration 0032).
+export const OPEN_BADGES: readonly BadgeKey[] = ['all_time_top', 'modern_top', 'month_champion']
 
 // Badges that don't evolve; each has its own description (profile.badgeDesc), while an evolving
 // badge's family shares one (profile.evolution.<family>.desc).
-export type OneTimeBadge = 'lead_reader' | 'month_champion' | 'all_time_top'
+export type OneTimeBadge = 'lead_reader' | 'month_champion' | 'all_time_top' | 'modern_top'
 
 // Badges that evolve: each stage is its own badge, granted by the database as a count grows —
 // 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses

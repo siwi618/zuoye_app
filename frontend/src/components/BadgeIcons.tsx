@@ -167,3 +167,30 @@ export function CrownIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// 「现代最强」: the dome crown to 「史上最强」's pointed one — arches meeting under a pearl, on a
+// jewelled band.
+export function DomeCrownIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M11.5 26C11.5 18.5 17 13.8 24 13.8C31 13.8 36.5 18.5 36.5 26Z"
+        />
+        <path
+          strokeWidth="2"
+          d="M24 13.8V26M17.6 26C17.6 20 20.2 15.3 24 13.8M30.4 26C30.4 20 27.8 15.3 24 13.8"
+        />
+        <path strokeWidth="2.4" fill="currentColor" fillOpacity="0.28" d="M10 26H38L37 33.5H11Z" />
+        <path strokeWidth="2.4" d="M10 38.5H38" />
+        <circle cx="24" cy="10" r="2.3" fill="currentColor" stroke="none" />
+        <path fill="currentColor" stroke="none" d="M24 26.9L26.3 29.75L24 32.6L21.7 29.75Z" />
+        <circle cx="16.3" cy="29.75" r="1.5" fill="currentColor" stroke="none" />
+        <circle cx="31.7" cy="29.75" r="1.5" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  )
+}
