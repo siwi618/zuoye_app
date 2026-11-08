@@ -528,7 +528,7 @@ def _quote_row(quote_id: str) -> dict:
 
 def create_quote(user_id: str, work_key: str, payload: QuoteCreate) -> QuoteRead:
     _ensure_work(work_key)
-    moderated = ensure_allowed(payload.body, payload.edition)
+    moderated = ensure_allowed(payload.body, payload.edition, lenient=True)
     inserted = (
         get_supabase()
         .table("lit_quotes")
@@ -575,7 +575,7 @@ def update_quote(user_id: str, quote_id: str, payload: QuoteCreate) -> None:
     current = latest()
     if all(current.get(k) == v for k, v in fields.items()):
         return
-    moderated = ensure_allowed(payload.body, payload.edition)
+    moderated = ensure_allowed(payload.body, payload.edition, lenient=True)
     # Two edits at once would take the same number; the loser retries with the next one.
     for attempt in range(3):
         try:

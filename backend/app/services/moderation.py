@@ -21,6 +21,13 @@ _MODEL = "omni-moderation-latest"
 # harassment/threatening, and gore trips violence/graphic.
 _IGNORED_CATEGORIES = {"violence"}
 
+# Quotes copied from published books (lit_quotes) are held to a higher bar for insults and hate:
+# characters mock each other, and the model can't tell dialogue from a user's own words. A
+# passage of 《棋王》 scored 0.402 for harassment and was refused. These categories flag a quote
+# only from this score; their threatening variants, and every other category, are unchanged.
+_LENIENT_CATEGORIES = {"harassment", "hate"}
+_LENIENT_MIN_SCORE = 0.8
+
 # Frames sampled from each video (the model takes one image per request).
 _VIDEO_FRAMES = 6
 
@@ -46,9 +53,24 @@ _SWEEP_TABLES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("lit_analysis_comments", ("body",)),
     ("lit_works", ("title", "author", "group_name")),
 )
+# Checked with lenient=True: quotes from books (see _LENIENT_CATEGORIES).
+_LENIENT_TABLES = {"lit_quotes"}
 
 
-def _moderate(inputs: list | str) -> bool | None:
+def _flagged(result: dict, lenient: bool) -> bool:
+    scores = result.get("category_scores", {})
+    for category, flagged in result.get("categories", {}).items():
+        if not flagged or category in _IGNORED_CATEGORIES:
+            continue
+        if lenient and category in _LENIENT_CATEGORIES:
+            if scores.get(category, 1.0) >= _LENIENT_MIN_SCORE:
+                return True
+            continue
+        return True
+    return False
+
+
+def _moderate(inputs: list | str, lenient: bool = False) -> bool | None:
     """One moderation call. True = clean, False = flagged, None = unavailable."""
     api_key = get_settings().openai_api_key
     if not api_key:
@@ -67,25 +89,22 @@ def _moderate(inputs: list | str) -> bool | None:
         logger.warning("Moderation check skipped: %s", exc)
         return None
 
-    return not any(
-        flagged and category not in _IGNORED_CATEGORIES
-        for r in results
-        for category, flagged in r.get("categories", {}).items()
-    )
+    return not any(_flagged(r, lenient) for r in results)
 
 
-def check(*texts: str | None) -> bool | None:
+def check(*texts: str | None, lenient: bool = False) -> bool | None:
     """Ask OpenAI's moderation model whether user-facing text is acceptable.
 
     Returns True (clean), False (flagged) or None (could not check: no
     OPENAI_API_KEY, or OpenAI unreachable). Uses the model's own per-category
     verdicts, except _IGNORED_CATEGORIES — lenient enough for normal student
     chat, but blocks overt harassment, hate, sexual, graphic or illicit content.
+    lenient: for quotes from books, see _LENIENT_CATEGORIES.
     """
     inputs = [t for t in texts if t and t.strip()]
     if not inputs:
         return True
-    return _moderate(inputs)
+    return _moderate(inputs, lenient)
 
 
 def _image_input(data: bytes, mime_type: str) -> dict:
@@ -148,13 +167,13 @@ def check_media(kind: str, mime_type: str, data: bytes) -> bool | None:
     return None if unavailable else True
 
 
-def ensure_allowed(*texts: str | None) -> bool:
+def ensure_allowed(*texts: str | None, lenient: bool = False) -> bool:
     """Raise 422 if the text is flagged; otherwise return whether it was checked.
 
     The return value is stored in the row's `moderated` column — False means
     moderation was unavailable and sweep() will re-check the row later.
     """
-    verdict = check(*texts)
+    verdict = check(*texts, lenient=lenient)
     if verdict is False:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -214,7 +233,7 @@ def sweep(batch_size: int = 50) -> dict[str, int]:
             continue
         rows = db.table(table).select(",".join(("id", *fields))).in_("id", ids).execute().data or []
         for row in rows:
-            verdict = check(*(row.get(f) for f in fields))
+            verdict = check(*(row.get(f) for f in fields), lenient=table in _LENIENT_TABLES)
             if verdict is None:
                 return stats
 
