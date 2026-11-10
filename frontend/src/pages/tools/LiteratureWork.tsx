@@ -37,7 +37,9 @@ import { useWorks, workByline } from '@/lib/literature/corpus'
 import { workQuery } from '@/lib/literature/queries'
 import {
   NOTE_CLOSE,
+  NOTE_MAX,
   NOTE_OPEN,
+  NOTE_SEP,
   TAG_SYMBOL,
   charLength,
   TAG_TONE,
@@ -160,11 +162,12 @@ function QuoteForm({
     if (valid) save.mutate()
   }
 
-  // 「加注释」: select the words in the body (「你」), say who or what they mean, and the note goes
-  // right after them as a grey chip: stored 「你〔王一生〕」.
+  // 「加注释」: select the words in the body (「你」) and say who or what they mean: the words get
+  // underlined with the note as a grey chip after them, stored 「〔你｜王一生〕」.
   const shortWord = (w: string) => (charLength(w) > 12 ? `${sliceChars(w, 0, 12)}…` : w)
   const noteText = note.trim()
-  const noteOk = noteText !== '' && !noteText.includes(NOTE_OPEN) && !noteText.includes(NOTE_CLOSE)
+  const noteOk =
+    noteText !== '' && ![NOTE_OPEN, NOTE_CLOSE, NOTE_SEP].some((c) => noteText.includes(c))
   const addNote = () => {
     if (noting === null || !noteOk) return
     editor.current?.insertNote(noteText)
@@ -213,7 +216,7 @@ function QuoteForm({
             <Input
               autoFocus
               value={note}
-              maxLength={40}
+              maxLength={NOTE_MAX}
               placeholder={t(`${K}.notePlaceholder`)}
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => {

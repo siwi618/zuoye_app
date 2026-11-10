@@ -3,13 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
   HIGHLIGHT_TONE,
+  NOTE_ANCHOR,
+  NOTE_CHIP,
   TAG_SYMBOL,
   TAG_TONE,
+  noteRuns,
   parseBody,
   quoteMarks,
   quoteToken,
   tagToken,
   type HighlightColor,
+  type NoteRole,
   type TagKind,
 } from '@/lib/literature/text'
 
@@ -20,7 +24,7 @@ export interface BodyEditorHandle {
   insertQuote: (n: number) => void
 }
 
-type Fragments = Map<number, { text: string; color?: HighlightColor }>
+type Fragments = Map<number, { text: string; color?: HighlightColor; roles?: NoteRole[] }>
 
 // 「#意象」 or 「@王一生」 just typed and ended by a space or punctuation mark: becomes a chip.
 const TYPED_TAG =
@@ -101,7 +105,15 @@ export function BodyEditor({
       near(el.previousSibling, 'previousSibling'),
       near(el.nextSibling, 'nextSibling'),
     )
-    el.append(sup, `${marks.open}${f.text}${marks.close}`)
+    // Its notes as on the published card: the words explained underlined, the note a grey chip.
+    const noted = noteRuns(f.text, f.roles).map((r) => {
+      if (r.role === 'text') return document.createTextNode(r.text)
+      const span = document.createElement('span')
+      span.className = r.role === 'mark' ? 'hidden' : r.role === 'anchor' ? NOTE_ANCHOR : NOTE_CHIP
+      span.textContent = r.text
+      return span
+    })
+    el.append(sup, marks.open, ...noted, marks.close)
   }
 
   const nodesFor = (text: string): Node[] =>

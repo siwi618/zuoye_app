@@ -9,7 +9,7 @@ import {
   HIGHLIGHT_TONE,
   TAG_SYMBOL,
   TAG_TONE,
-  sliceChars,
+  fragmentOf,
   type HighlightColor,
   type TagKind,
 } from '@/lib/literature/text'
@@ -63,9 +63,7 @@ export function AnalysisCard({
   const fragments = new Map(
     a.highlights.flatMap((h) => {
       const q = quoteOf.get(h.quote_id)
-      return q
-        ? [[h.number, { text: sliceChars(q.body, h.start, h.end), color: h.color }] as const]
-        : []
+      return q ? [[h.number, fragmentOf(q.body, h.start, h.end, h.color)] as const] : []
     }),
   )
   const pages = (q: { page_start: number; page_end: number }) =>

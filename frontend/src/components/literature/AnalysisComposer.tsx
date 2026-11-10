@@ -17,6 +17,8 @@ import {
   cleanTag,
   isValidTag,
   parseBody,
+  fragmentOf,
+  noteRoles,
   sliceChars,
   TAG_SYMBOL,
   TAG_TONE,
@@ -25,7 +27,7 @@ import {
   type TagKind,
 } from '@/lib/literature/text'
 import { cn } from '@/lib/utils'
-import { PageLabel, QuoteText } from './QuoteText'
+import { NotedText, PageLabel, QuoteText } from './QuoteText'
 import { BodyEditor, type BodyEditorHandle } from './BodyEditor'
 import { TagPicker } from './TagPicker'
 
@@ -239,9 +241,7 @@ export function AnalysisComposer({
   const fragments = new Map(
     highlights.flatMap((h) => {
       const q = quotes.find((x) => x.id === h.quote_id)
-      return q
-        ? [[h.number, { text: sliceChars(q.body, h.start, h.end), color: h.color }] as const]
-        : []
+      return q ? [[h.number, fragmentOf(q.body, h.start, h.end, h.color)] as const] : []
     }),
   )
   const byNumber = [...highlights].sort((a, b) => a.number - b.number)
@@ -303,7 +303,13 @@ export function AnalysisComposer({
                     {t(`${K}.quoteRef`, { n: h.number })}
                   </button>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    「{sliceChars(q.body, h.start, h.end)}」
+                    「
+                    <NotedText
+                      text={sliceChars(q.body, h.start, h.end)}
+                      roles={noteRoles(q.body)}
+                      at={h.start}
+                    />
+                    」
                   </span>
                   <ColorDots
                     value={h.color ?? 'amber'}

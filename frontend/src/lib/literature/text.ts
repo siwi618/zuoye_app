@@ -9,42 +9,68 @@ export const toCharOffset = (s: string, utf16: number) => charLength(s.slice(0, 
 export const sliceChars = (s: string, start: number, end?: number) =>
   Array.from(s).slice(start, end).join('')
 
-// Notes in a quote: 「你〔王一生〕」, words a student added in 〔〕 to say who or what a pronoun
-// means once the passage is cut out of the book. They are part of the quote's text (so fragment
-// offsets and versions work as before) and shown as grey chips, apart from the book's words.
+// Notes in a quote: 「〔你｜王一生〕」, words a student added to say who or what 「你」 means once the
+// passage is cut out of the book: the words explained, 「｜」, then the note (an older note, 「你〔王一生〕」,
+// has no words of its own). They are part of the quote's text, so fragment offsets and versions
+// work as before; the words explained are underlined, the note is a grey chip, and the brackets
+// and the bar stay in the text, hidden.
 export const NOTE_OPEN = '〔'
 export const NOTE_CLOSE = '〕'
-// A note as a grey chip, like a tag's (the brackets stay in the text, hidden).
+export const NOTE_SEP = '｜'
 export const NOTE_CHIP =
   'mx-0.5 inline-block cursor-default rounded-md bg-muted px-1.5 py-0.5 text-sm font-medium leading-5 text-muted-foreground'
+export const NOTE_ANCHOR =
+  'underline decoration-muted-foreground/70 decoration-dotted decoration-2 underline-offset-4'
+// The longest note, and the longest run of words one explains.
+export const NOTE_MAX = 40
+export const NOTE_ANCHOR_MAX = 20
 
-// For each character of `text`, whether it belongs to a note, brackets included. A run cut off
-// by the edge of a fragment still counts: after an unclosed 〔, or before a 〕 with no 〔 ahead
-// of it, is a note.
-export function noteMask(text: string): boolean[] {
+// The note in stored form.
+export const noteToken = (note: string, anchor?: string) =>
+  NOTE_OPEN + (anchor ? anchor + NOTE_SEP : '') + note + NOTE_CLOSE
+
+// What each character of a quote is: the book's words, words a note explains, the note, or a
+// hidden mark (〔 ｜ 〕).
+export type NoteRole = 'text' | 'anchor' | 'note' | 'mark'
+
+export function noteRoles(text: string): NoteRole[] {
   const chars = Array.from(text)
-  const firstClose = chars.indexOf(NOTE_CLOSE)
-  const firstOpen = chars.indexOf(NOTE_OPEN)
-  let inNote = firstClose >= 0 && (firstOpen < 0 || firstClose < firstOpen)
-  return chars.map((c) => {
-    if (c === NOTE_OPEN) inNote = true
-    const now = inNote
-    if (c === NOTE_CLOSE) inNote = false
-    return now
-  })
+  const roles: NoteRole[] = chars.map(() => 'text')
+  for (let i = 0; i < chars.length; i++) {
+    if (chars[i] !== NOTE_OPEN) continue
+    let close = -1
+    for (let j = i + 1; j < chars.length && chars[j] !== NOTE_OPEN; j++)
+      if (chars[j] === NOTE_CLOSE) {
+        close = j
+        break
+      }
+    if (close < 0) continue // a lone 〔 is just a character
+    const sep = chars.slice(i + 1, close).indexOf(NOTE_SEP) + i + 1
+    roles[i] = roles[close] = 'mark'
+    for (let k = i + 1; k < close; k++)
+      roles[k] = sep > i ? (k < sep ? 'anchor' : k === sep ? 'mark' : 'note') : 'note'
+    i = close
+  }
+  return roles
 }
 
-// `text` split into runs of the book's words and of notes; `mask` (from noteMask) may be that
-// of a longer text this one starts `at` characters into.
-export function noteRuns(text: string, mask = noteMask(text), at = 0) {
-  const runs: { text: string; note: boolean }[] = []
+// `text` split into runs by role; `roles` (from noteRoles) may be those of a longer text this one
+// starts `at` characters into, e.g. a fragment's within its quote.
+export function noteRuns(text: string, roles = noteRoles(text), at = 0) {
+  const runs: { text: string; role: NoteRole }[] = []
   Array.from(text).forEach((c, i) => {
-    const note = mask[at + i] ?? false
+    const role = roles[at + i] ?? 'text'
     const last = runs[runs.length - 1]
-    if (last && last.note === note) last.text += c
-    else runs.push({ text: c, note })
+    if (last && last.role === role) last.text += c
+    else runs.push({ text: c, role })
   })
   return runs
+}
+
+// A fragment of a quote: its words and colour, and the roles of its characters as they are in
+// the whole quote (a fragment may cut a note in two).
+export function fragmentOf(body: string, start: number, end: number, color?: HighlightColor) {
+  return { text: sliceChars(body, start, end), color, roles: noteRoles(body).slice(start, end) }
 }
 
 // Highlighter colours for fragments: yellow (the default), light blue, pink, light green. Class

@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
   HIGHLIGHT_TONE,
+  NOTE_ANCHOR,
   NOTE_CHIP,
-  NOTE_CLOSE,
-  NOTE_OPEN,
   TAG_SYMBOL,
   TAG_TONE,
-  noteMask,
+  noteRoles,
   noteRuns,
   parseBody,
+  type NoteRole,
   quoteMarks,
   type HighlightColor,
   segments,
@@ -39,24 +39,29 @@ export function PageLabel({
   )
 }
 
-// Text of a quote with its 〔notes〕 as grey chips: they are a student's words, not the book's.
-// The brackets stay in the text, hidden, so the text (and the offsets a selection maps to) is
-// the quote's own.
-function Noted({ text, mask, at }: { text: string; mask?: boolean[]; at?: number }) {
+// Text of a quote with its notes drawn: the words a note explains underlined, the note a grey
+// chip after them (a student's words, not the book's). The marks 〔 ｜ 〕 stay in the text, hidden,
+// so the text (and the offsets a selection maps to) is the quote's own. `roles` may be those of
+// the whole quote this text starts `at` characters into.
+export function NotedText({ text, roles, at }: { text: string; roles?: NoteRole[]; at?: number }) {
   const { t } = useTranslation()
-  return noteRuns(text, mask, at).map((r, i) => {
-    if (!r.note) return <Fragment key={i}>{r.text}</Fragment>
-    const open = r.text.startsWith(NOTE_OPEN)
-    const close = r.text.endsWith(NOTE_CLOSE)
-    const inner = r.text.slice(open ? 1 : 0, close ? -1 : undefined)
-    return (
-      <span key={i} title={t(`${K}.noteTitle`)} className={NOTE_CHIP}>
-        {open && <span className="hidden">{NOTE_OPEN}</span>}
-        {inner}
-        {close && <span className="hidden">{NOTE_CLOSE}</span>}
+  return noteRuns(text, roles, at).map((r, i) =>
+    r.role === 'text' ? (
+      <Fragment key={i}>{r.text}</Fragment>
+    ) : r.role === 'mark' ? (
+      <span key={i} className="hidden">
+        {r.text}
       </span>
-    )
-  })
+    ) : r.role === 'anchor' ? (
+      <span key={i} className={NOTE_ANCHOR}>
+        {r.text}
+      </span>
+    ) : (
+      <span key={i} title={t(`${K}.noteTitle`)} className={NOTE_CHIP}>
+        {r.text}
+      </span>
+    ),
+  )
 }
 
 // A quote with its highlighted fragments marked like a highlighter pen. Each fragment's number,
@@ -73,7 +78,7 @@ export function QuoteText({
   spans?: Span[]
   lit?: number | null // the fragment to emphasise, e.g. while its reference is hovered
 } & HTMLAttributes<HTMLParagraphElement>) {
-  const mask = noteMask(body)
+  const roles = noteRoles(body)
   const parts = segments(body, spans)
   // where each segment starts in the body, for its notes
   const starts = parts.map((_, i) =>
@@ -84,7 +89,7 @@ export function QuoteText({
       {parts.map((s, i) => {
         const from = starts[i]
         return s.number === undefined ? (
-          <Noted key={i} text={s.text} mask={mask} at={from} />
+          <NotedText key={i} text={s.text} roles={roles} at={from} />
         ) : (
           <mark
             key={i}
@@ -97,7 +102,7 @@ export function QuoteText({
               lit === s.number && ['ring-2', HIGHLIGHT_TONE[s.color ?? 'amber'].ring],
             )}
           >
-            <Noted text={s.text} mask={mask} at={from} />
+            <NotedText text={s.text} roles={roles} at={from} />
           </mark>
         )
       })}
@@ -116,7 +121,7 @@ export function AnalysisBody({
 }: {
   body: string
   // fragment number → its words and colour; other references stay as typed
-  fragments: Map<number, { text: string; color?: HighlightColor }>
+  fragments: Map<number, { text: string; color?: HighlightColor; roles?: NoteRole[] }>
   lit?: number | null
   onTag?: (name: string, kind: TagKind) => void
   onQuote?: (n: number | null) => void
@@ -170,7 +175,7 @@ export function AnalysisBody({
               {part.number}
             </sup>
             {marks.open}
-            <Noted text={fragment.text} />
+            <NotedText text={fragment.text} roles={fragment.roles} />
             {marks.close}
           </mark>
         )

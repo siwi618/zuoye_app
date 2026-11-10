@@ -420,7 +420,7 @@ export const zh: Translations = {
       noteFor: '「{{word}}」指的是',
       notePlaceholder: '如 王一生',
       noteConfirm: '确定',
-      noteHint: '节选后「你」「这个」指代不清时，先在原文里选中它，再点「加注释」写明指的是谁，注释会以灰色小标签跟在后面，和原文区分开；在标签后面按一下退格就整个删掉。也可以直接输入〔王一生〕。',
+      noteHint: '节选后「你」「这个」指代不清时，先在原文里选中它，再点「加注释」写明指的是谁，选中的字会加下划线，注释以灰色小标签跟在后面；在标签后面按一下退格，只删掉注释、留下原文。',
       noteTitle: '注释，不是原文',
       selectedCount: '已选 {{count}} 段引文',
       selectedCount_one: '已选 {{count}} 段引文',
