@@ -37,9 +37,10 @@ const podiumStyles: Record<number, { ring: string; bg: string; badge: string; ra
     },
   }
 
-// The weighted score, with the real average and count of valid reviews under it. On a phone
-// one star stands in for the five, which would squeeze the name.
-function Score({ entry }: { entry: Pick<LeaderboardEntry, 'score' | 'avg_rating'> }) {
+// The weighted score, its stars drawn from it too, with how many valid reviews it rests on. The
+// real average isn't shown: next to the score it read as a second, contradicting rating. On a
+// phone one star stands in for the five, which would squeeze the name.
+function Score({ entry }: { entry: Pick<LeaderboardEntry, 'score' | 'feedback_count'> }) {
   const { t } = useTranslation()
   return (
     <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -47,10 +48,15 @@ function Score({ entry }: { entry: Pick<LeaderboardEntry, 'score' | 'avg_rating'
         <Star className="size-3.5 fill-amber-400 text-amber-400 sm:hidden" />
         <span className="text-sm font-semibold tabular-nums">{entry.score.toFixed(2)}</span>
         <span className="hidden sm:inline-flex">
-          <StarRating value={entry.avg_rating} size="sm" />
+          <StarRating value={entry.score} size="sm" />
         </span>
       </span>
-      <span className="text-[11px] text-muted-foreground">{t('leaderboard.score')}</span>
+      {/* 「40 个评价 · 综合分」; on a phone the two parts stack, leaving the name its room. */}
+      <span className="flex flex-col items-end text-[11px] leading-tight whitespace-nowrap text-muted-foreground sm:flex-row sm:gap-1">
+        <span>{t('leaderboard.reviewCount', { count: entry.feedback_count })}</span>
+        <span className="hidden sm:inline">·</span>
+        <span>{t('leaderboard.score')}</span>
+      </span>
     </div>
   )
 }
@@ -170,12 +176,6 @@ export function Leaderboard() {
                         </span>
                         <BadgeTag badge={entry.user.worn_badge} />
                       </p>
-                      <p className="text-xs break-keep text-muted-foreground">
-                        {t('leaderboard.avgAndCount', {
-                          avg: entry.avg_rating.toFixed(2),
-                          count: entry.feedback_count,
-                        })}
-                      </p>
                     </div>
                     <Score entry={entry} />
                   </li>
@@ -187,20 +187,12 @@ export function Leaderboard() {
             // Where you stand when you're not in the top 10, or what it takes to be ranked.
             <div className="flex items-center gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-3 text-sm">
               <span className="shrink-0 font-semibold text-primary">{t('leaderboard.you')}</span>
-              {me.rank && me.score != null && me.avg_rating != null ? (
+              {me.rank && me.score != null ? (
                 <>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-medium">
-                      {t('leaderboard.youRank', { rank: me.rank })}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {t('leaderboard.avgAndCount', {
-                        avg: me.avg_rating.toFixed(2),
-                        count: me.feedback_count,
-                      })}
-                    </span>
+                  <span className="min-w-0 flex-1 font-medium">
+                    {t('leaderboard.youRank', { rank: me.rank })}
                   </span>
-                  <Score entry={{ score: me.score, avg_rating: me.avg_rating }} />
+                  <Score entry={{ score: me.score, feedback_count: me.feedback_count }} />
                 </>
               ) : (
                 <span className="min-w-0 flex-1 text-muted-foreground">
