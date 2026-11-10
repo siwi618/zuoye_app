@@ -108,6 +108,7 @@ export const HIGHLIGHT_TONE: Record<
     chip: string // a page label while its quote is unfolded
     hover: string // a page label under the pointer
     bar: string // the unfolded quote's side bar
+    selection: string // text being selected with this pen, before it is marked
   }
 > = {
   amber: {
@@ -120,6 +121,7 @@ export const HIGHLIGHT_TONE: Record<
     chip: 'border-amber-400 bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100',
     hover: 'hover:border-amber-400',
     bar: 'border-amber-300',
+    selection: 'selection:bg-amber-300/60',
   },
   sky: {
     mark: 'bg-sky-200/70 dark:bg-sky-400/25',
@@ -131,6 +133,7 @@ export const HIGHLIGHT_TONE: Record<
     chip: 'border-sky-400 bg-sky-100 text-sky-900 dark:bg-sky-400/20 dark:text-sky-100',
     hover: 'hover:border-sky-400',
     bar: 'border-sky-300',
+    selection: 'selection:bg-sky-300/60',
   },
   pink: {
     mark: 'bg-pink-200/70 dark:bg-pink-400/25',
@@ -142,6 +145,7 @@ export const HIGHLIGHT_TONE: Record<
     chip: 'border-pink-400 bg-pink-100 text-pink-900 dark:bg-pink-400/20 dark:text-pink-100',
     hover: 'hover:border-pink-400',
     bar: 'border-pink-300',
+    selection: 'selection:bg-pink-300/60',
   },
   lime: {
     mark: 'bg-lime-200/80 dark:bg-lime-400/25',
@@ -153,6 +157,7 @@ export const HIGHLIGHT_TONE: Record<
     chip: 'border-lime-500 bg-lime-100 text-lime-900 dark:bg-lime-400/20 dark:text-lime-100',
     hover: 'hover:border-lime-500',
     bar: 'border-lime-400',
+    selection: 'selection:bg-lime-300/70',
   },
 }
 

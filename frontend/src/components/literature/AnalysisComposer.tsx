@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -116,6 +116,17 @@ export function AnalysisComposer({
   const [body, setBody] = useState(initial?.body ?? '')
   const [pending, setPending] = useState<Pending | null>(null)
   const [pen, setPen] = useState<HighlightColor>(lastPen)
+  const bar = useRef<HTMLDivElement>(null)
+
+  // The pen's bar sits over the selection, but kept inside the composer: next to its edge it
+  // would stick out, and the work page's side box clips what does.
+  useLayoutEffect(() => {
+    const el = bar.current
+    const host = box.current
+    if (!pending || !el || !host) return
+    const half = el.offsetWidth / 2 + 4 // and a little clear of the border
+    el.style.left = `${Math.min(Math.max(pending.x, half), host.clientWidth - half)}px`
+  })
   const [error, setError] = useState<string | null>(null)
 
   // Fragments of quotes that were unpicked meanwhile no longer count.
@@ -280,7 +291,8 @@ export function AnalysisComposer({
               data-quote-id={q.id}
               body={q.body}
               spans={highlights.filter((h) => h.quote_id === q.id)}
-              className="selection:bg-amber-300/60"
+              // What is being selected shows in the pen's colour, as it will once marked.
+              className={HIGHLIGHT_TONE[pen].selection}
             />
           </div>
         ))}
@@ -419,6 +431,7 @@ export function AnalysisComposer({
 
       {pending && (
         <div
+          ref={bar}
           className="absolute z-30 -translate-x-1/2 -translate-y-full pb-2"
           style={{ left: pending.x, top: pending.y }}
         >
