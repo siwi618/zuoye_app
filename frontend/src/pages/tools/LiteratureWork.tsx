@@ -179,26 +179,29 @@ function QuoteForm({
       <div className="space-y-1.5">
         <div className="flex items-end justify-between gap-2">
           <span className="text-sm font-medium">{t(`${K}.quoteBody`)}</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!selected}
-            // Keeps the editor's selection: a click on the button would otherwise clear it.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setNoting(selected)
-              setNote('')
-            }}
-            title={
-              selected
-                ? t(`${K}.addNoteFor`, { word: shortWord(selected) })
-                : t(`${K}.addNoteSelectFirst`)
-            }
-          >
-            <Brackets className="size-3.5" />
-            {t(`${K}.addNote`)}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!selected}
+              // Keeps the editor's selection: a click on the button would otherwise clear it.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setNoting(selected)
+                setNote('')
+              }}
+              title={
+                selected
+                  ? t(`${K}.addNoteFor`, { word: shortWord(selected) })
+                  : t(`${K}.addNoteSelectFirst`)
+              }
+            >
+              <Brackets className="size-3.5" />
+              {t(`${K}.addNote`)}
+            </Button>
+            <span className="text-xs text-muted-foreground">{t(`${K}.addNoteHint`)}</span>
+          </div>
         </div>
         <QuoteBodyEditor
           ref={editor}
@@ -245,9 +248,9 @@ function QuoteForm({
             >
               {t(`${K}.cancel`)}
             </Button>
+            <p className="basis-full text-xs text-muted-foreground">{t(`${K}.noteHint`)}</p>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">{t(`${K}.noteHint`)}</p>
       </div>
       <div className="flex flex-wrap items-start gap-3">
         <label className="space-y-1.5">
