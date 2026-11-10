@@ -113,6 +113,10 @@ function QuoteForm({
   const editionList = useId()
   const [body, setBody] = useState(initial?.body ?? '')
   const bodyAt = useRef<HTMLTextAreaElement>(null)
+  // The words selected in the body, and while a note is being written for them, the note.
+  const [sel, setSel] = useState({ start: 0, end: 0 })
+  const [noting, setNoting] = useState<{ start: number; end: number } | null>(null)
+  const [note, setNote] = useState('')
   const [start, setStart] = useState(initial ? String(initial.page_start) : '')
   const [end, setEnd] = useState(
     initial && initial.page_end !== initial.page_start ? String(initial.page_end) : '',
@@ -147,17 +151,27 @@ function QuoteForm({
     if (valid) save.mutate()
   }
 
-  // 「加注释」: an empty 〔〕 right after the selected words (or the cursor), the cursor inside it.
+  // 「加注释」: select the words in the body (「你」), say who or what they mean, and the note goes
+  // right after them: 「你〔王一生〕」.
+  const selected = body.slice(sel.start, sel.end).trim()
+  const shortWord = (w: string) => ([...w].length > 12 ? `${sliceChars(w, 0, 12)}…` : w)
+  const notedWord = noting ? body.slice(noting.start, noting.end).trim() : ''
+  const noteText = note.trim()
+  const noteOk =
+    noteText !== '' &&
+    !noteText.includes(NOTE_OPEN) &&
+    !noteText.includes(NOTE_CLOSE) &&
+    body.length + noteText.length + 2 <= 2000
   const addNote = () => {
+    if (!noting || !noteOk) return
+    const at = noting.end
+    const inserted = NOTE_OPEN + noteText + NOTE_CLOSE
+    setBody(body.slice(0, at) + inserted + body.slice(at))
+    setNoting(null)
     const el = bodyAt.current
-    if (!el) return
-    const at = el.selectionEnd ?? body.length
-    const next = body.slice(0, at) + NOTE_OPEN + NOTE_CLOSE + body.slice(at)
-    if (next.length > 2000) return
-    setBody(next)
     requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(at + 1, at + 1)
+      el?.focus()
+      el?.setSelectionRange(at + inserted.length, at + inserted.length)
     })
   }
 
@@ -172,8 +186,16 @@ function QuoteForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={addNote}
-            title={t(`${K}.addNoteTitle`)}
+            disabled={!selected}
+            onClick={() => {
+              setNoting(sel)
+              setNote('')
+            }}
+            title={
+              selected
+                ? t(`${K}.addNoteFor`, { word: shortWord(selected) })
+                : t(`${K}.addNoteSelectFirst`)
+            }
           >
             <Brackets className="size-3.5" />
             {t(`${K}.addNote`)}
@@ -185,10 +207,44 @@ function QuoteForm({
           autoFocus
           value={body}
           maxLength={2000}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            setBody(e.target.value)
+            setNoting(null)
+          }}
+          onSelect={(e) =>
+            setSel({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })
+          }
           placeholder={t(`${K}.quotePlaceholder`)}
           className="min-h-28"
         />
+        {noting && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/40 p-2">
+            <span className="text-sm">{t(`${K}.noteFor`, { word: shortWord(notedWord) })}</span>
+            <Input
+              autoFocus
+              value={note}
+              maxLength={40}
+              placeholder={t(`${K}.notePlaceholder`)}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault() // not the form's submit
+                  addNote()
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setNoting(null)
+                }
+              }}
+              className="h-8 w-40 flex-1"
+            />
+            <Button type="button" size="sm" disabled={!noteOk} onClick={addNote}>
+              {t(`${K}.noteConfirm`)}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setNoting(null)}>
+              {t(`${K}.cancel`)}
+            </Button>
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">{t(`${K}.noteHint`)}</p>
         {body.includes(NOTE_OPEN) && (
           <div className="rounded-xl bg-secondary/60 px-3 py-2">
