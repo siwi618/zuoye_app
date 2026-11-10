@@ -494,7 +494,7 @@ export function LiteratureWork() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 pb-24 lg:max-w-6xl">
+    <div className="mx-auto max-w-3xl space-y-10 pb-24 lg:max-w-6xl lg:pb-0">
       <div className="space-y-4 lg:max-w-3xl">
         <Link
           to="/tools/literature"
@@ -521,7 +521,7 @@ export function LiteratureWork() {
 
       <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-6">
         {/* Quotes */}
-        <section className="min-w-0 space-y-4">
+        <section className="min-w-0 space-y-4 lg:pb-24">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold">
@@ -613,11 +613,14 @@ export function LiteratureWork() {
           )}
         </section>
 
-        {/* Clips the box while it gives at either end. */}
+        {/* Sticks under the header (5.5rem) and ends at the page's bottom margin (2.5rem), its
+            border included; the room for the picked-quotes bar is inside the quotes column, so the
+            page ends with the box still whole instead of pushing it up under the header. Clips the
+            box while it gives at either end. */}
         <div className="min-w-0 lg:sticky lg:top-22 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border lg:bg-card">
           <div
             ref={side}
-            className="space-y-10 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-5 lg:pb-20"
+            className="space-y-10 lg:max-h-[calc(100dvh-8rem-2px)] lg:overflow-y-auto lg:overscroll-contain lg:p-5 lg:pb-20"
           >
             {/* Related tags: #devices and @characters */}
             <section className="space-y-3">
