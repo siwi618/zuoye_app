@@ -5,6 +5,8 @@ import {
   HIGHLIGHT_TONE,
   TAG_SYMBOL,
   TAG_TONE,
+  noteMask,
+  noteRuns,
   parseBody,
   quoteMarks,
   type HighlightColor,
@@ -34,6 +36,20 @@ export function PageLabel({
   )
 }
 
+// Text of a quote with its 〔notes〕 greyed: they are a student's words, not the book's.
+function Noted({ text, mask, at }: { text: string; mask?: boolean[]; at?: number }) {
+  const { t } = useTranslation()
+  return noteRuns(text, mask, at).map((r, i) =>
+    r.note ? (
+      <span key={i} title={t(`${K}.noteTitle`)} className="text-muted-foreground">
+        {r.text}
+      </span>
+    ) : (
+      <Fragment key={i}>{r.text}</Fragment>
+    ),
+  )
+}
+
 // A quote with its highlighted fragments marked like a highlighter pen. Each fragment's number,
 // in front of it as in the analysis text, is drawn by a pseudo-element, so it is not part of the
 // text a reader selects (the composer maps a selection back to character offsets).
@@ -48,11 +64,18 @@ export function QuoteText({
   spans?: Span[]
   lit?: number | null // the fragment to emphasise, e.g. while its reference is hovered
 } & HTMLAttributes<HTMLParagraphElement>) {
+  const mask = noteMask(body)
+  const parts = segments(body, spans)
+  // where each segment starts in the body, for its notes
+  const starts = parts.map((_, i) =>
+    parts.slice(0, i).reduce((n, p) => n + Array.from(p.text).length, 0),
+  )
   return (
     <p className={cn('whitespace-pre-wrap text-[15px] leading-7', className)} {...props}>
-      {segments(body, spans).map((s, i) =>
-        s.number === undefined ? (
-          <Fragment key={i}>{s.text}</Fragment>
+      {parts.map((s, i) => {
+        const from = starts[i]
+        return s.number === undefined ? (
+          <Noted key={i} text={s.text} mask={mask} at={from} />
         ) : (
           <mark
             key={i}
@@ -65,10 +88,10 @@ export function QuoteText({
               lit === s.number && ['ring-2', HIGHLIGHT_TONE[s.color ?? 'amber'].ring],
             )}
           >
-            {s.text}
+            <Noted text={s.text} mask={mask} at={from} />
           </mark>
-        ),
-      )}
+        )
+      })}
     </p>
   )
 }
@@ -138,7 +161,7 @@ export function AnalysisBody({
               {part.number}
             </sup>
             {marks.open}
-            {fragment.text}
+            <Noted text={fragment.text} />
             {marks.close}
           </mark>
         )

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
+  Brackets,
   Check,
   ListChecks,
   PenLine,
@@ -35,7 +36,14 @@ import {
 } from '@/api/literature'
 import { useWorks, workByline } from '@/lib/literature/corpus'
 import { workQuery } from '@/lib/literature/queries'
-import { TAG_SYMBOL, TAG_TONE, sliceChars, type TagKind } from '@/lib/literature/text'
+import {
+  NOTE_CLOSE,
+  NOTE_OPEN,
+  TAG_SYMBOL,
+  TAG_TONE,
+  sliceChars,
+  type TagKind,
+} from '@/lib/literature/text'
 import { PageLabel, QuoteText } from '@/components/literature/QuoteText'
 import { AnalysisList } from '@/components/literature/AnalysisList'
 import { useAnalysisList } from '@/lib/literature/analysisList'
@@ -104,6 +112,7 @@ function QuoteForm({
   const queryClient = useQueryClient()
   const editionList = useId()
   const [body, setBody] = useState(initial?.body ?? '')
+  const bodyAt = useRef<HTMLTextAreaElement>(null)
   const [start, setStart] = useState(initial ? String(initial.page_start) : '')
   const [end, setEnd] = useState(
     initial && initial.page_end !== initial.page_start ? String(initial.page_end) : '',
@@ -138,11 +147,41 @@ function QuoteForm({
     if (valid) save.mutate()
   }
 
+  // 「加注释」: an empty 〔〕 right after the selected words (or the cursor), the cursor inside it.
+  const addNote = () => {
+    const el = bodyAt.current
+    if (!el) return
+    const at = el.selectionEnd ?? body.length
+    const next = body.slice(0, at) + NOTE_OPEN + NOTE_CLOSE + body.slice(at)
+    if (next.length > 2000) return
+    setBody(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(at + 1, at + 1)
+    })
+  }
+
   return (
     <form onSubmit={submit} className="space-y-3 rounded-2xl border border-primary/40 bg-card p-4">
-      <label className="block space-y-1.5">
-        <span className="block text-sm font-medium">{t(`${K}.quoteBody`)}</span>
+      <div className="space-y-1.5">
+        <div className="flex items-end justify-between gap-2">
+          <label htmlFor={`${editionList}-body`} className="text-sm font-medium">
+            {t(`${K}.quoteBody`)}
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addNote}
+            title={t(`${K}.addNoteTitle`)}
+          >
+            <Brackets className="size-3.5" />
+            {t(`${K}.addNote`)}
+          </Button>
+        </div>
         <Textarea
+          id={`${editionList}-body`}
+          ref={bodyAt}
           autoFocus
           value={body}
           maxLength={2000}
@@ -150,7 +189,14 @@ function QuoteForm({
           placeholder={t(`${K}.quotePlaceholder`)}
           className="min-h-28"
         />
-      </label>
+        <p className="text-xs text-muted-foreground">{t(`${K}.noteHint`)}</p>
+        {body.includes(NOTE_OPEN) && (
+          <div className="rounded-xl bg-secondary/60 px-3 py-2">
+            <div className="text-xs font-medium text-muted-foreground">{t(`${K}.notePreview`)}</div>
+            <QuoteText body={body.trim()} />
+          </div>
+        )}
+      </div>
       <div className="flex flex-wrap items-start gap-3">
         <label className="space-y-1.5">
           <span className="block text-sm leading-5 font-medium">{t(`${K}.pageStart`)}</span>

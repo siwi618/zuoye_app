@@ -9,6 +9,41 @@ export const toCharOffset = (s: string, utf16: number) => charLength(s.slice(0, 
 export const sliceChars = (s: string, start: number, end?: number) =>
   Array.from(s).slice(start, end).join('')
 
+// Notes in a quote: 「你〔王一生〕」, words a student added in 〔〕 to say who or what a pronoun
+// means once the passage is cut out of the book. They are part of the quote's text (so fragment
+// offsets and versions work as before) and shown greyed, apart from the book's words.
+export const NOTE_OPEN = '〔'
+export const NOTE_CLOSE = '〕'
+
+// For each character of `text`, whether it belongs to a note, brackets included. A run cut off
+// by the edge of a fragment still counts: after an unclosed 〔, or before a 〕 with no 〔 ahead
+// of it, is a note.
+export function noteMask(text: string): boolean[] {
+  const chars = Array.from(text)
+  const firstClose = chars.indexOf(NOTE_CLOSE)
+  const firstOpen = chars.indexOf(NOTE_OPEN)
+  let inNote = firstClose >= 0 && (firstOpen < 0 || firstClose < firstOpen)
+  return chars.map((c) => {
+    if (c === NOTE_OPEN) inNote = true
+    const now = inNote
+    if (c === NOTE_CLOSE) inNote = false
+    return now
+  })
+}
+
+// `text` split into runs of the book's words and of notes; `mask` (from noteMask) may be that
+// of a longer text this one starts `at` characters into.
+export function noteRuns(text: string, mask = noteMask(text), at = 0) {
+  const runs: { text: string; note: boolean }[] = []
+  Array.from(text).forEach((c, i) => {
+    const note = mask[at + i] ?? false
+    const last = runs[runs.length - 1]
+    if (last && last.note === note) last.text += c
+    else runs.push({ text: c, note })
+  })
+  return runs
+}
+
 // Highlighter colours for fragments: yellow (the default), light blue, pink, light green. Class
 // names are spelled out in full so Tailwind finds them.
 export type HighlightColor = 'amber' | 'sky' | 'pink' | 'lime'
