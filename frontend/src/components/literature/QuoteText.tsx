@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
   HIGHLIGHT_TONE,
+  NOTE_CHIP,
+  NOTE_CLOSE,
+  NOTE_OPEN,
   TAG_SYMBOL,
   TAG_TONE,
   noteMask,
@@ -36,18 +39,24 @@ export function PageLabel({
   )
 }
 
-// Text of a quote with its 〔notes〕 greyed: they are a student's words, not the book's.
+// Text of a quote with its 〔notes〕 as grey chips: they are a student's words, not the book's.
+// The brackets stay in the text, hidden, so the text (and the offsets a selection maps to) is
+// the quote's own.
 function Noted({ text, mask, at }: { text: string; mask?: boolean[]; at?: number }) {
   const { t } = useTranslation()
-  return noteRuns(text, mask, at).map((r, i) =>
-    r.note ? (
-      <span key={i} title={t(`${K}.noteTitle`)} className="text-muted-foreground">
-        {r.text}
+  return noteRuns(text, mask, at).map((r, i) => {
+    if (!r.note) return <Fragment key={i}>{r.text}</Fragment>
+    const open = r.text.startsWith(NOTE_OPEN)
+    const close = r.text.endsWith(NOTE_CLOSE)
+    const inner = r.text.slice(open ? 1 : 0, close ? -1 : undefined)
+    return (
+      <span key={i} title={t(`${K}.noteTitle`)} className={NOTE_CHIP}>
+        {open && <span className="hidden">{NOTE_OPEN}</span>}
+        {inner}
+        {close && <span className="hidden">{NOTE_CLOSE}</span>}
       </span>
-    ) : (
-      <Fragment key={i}>{r.text}</Fragment>
-    ),
-  )
+    )
+  })
 }
 
 // A quote with its highlighted fragments marked like a highlighter pen. Each fragment's number,

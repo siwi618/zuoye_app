@@ -11,9 +11,12 @@ export const sliceChars = (s: string, start: number, end?: number) =>
 
 // Notes in a quote: 「你〔王一生〕」, words a student added in 〔〕 to say who or what a pronoun
 // means once the passage is cut out of the book. They are part of the quote's text (so fragment
-// offsets and versions work as before) and shown greyed, apart from the book's words.
+// offsets and versions work as before) and shown as grey chips, apart from the book's words.
 export const NOTE_OPEN = '〔'
 export const NOTE_CLOSE = '〕'
+// A note as a grey chip, like a tag's (the brackets stay in the text, hidden).
+export const NOTE_CHIP =
+  'mx-0.5 inline-block cursor-default rounded-md bg-muted px-1.5 py-0.5 text-sm font-medium leading-5 text-muted-foreground'
 
 // For each character of `text`, whether it belongs to a note, brackets included. A run cut off
 // by the edge of a fragment still counts: after an unclosed 〔, or before a 〕 with no 〔 ahead

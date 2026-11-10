@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import {
@@ -40,6 +39,7 @@ import {
   NOTE_CLOSE,
   NOTE_OPEN,
   TAG_SYMBOL,
+  charLength,
   TAG_TONE,
   sliceChars,
   type TagKind,
@@ -50,6 +50,10 @@ import { useAnalysisList } from '@/lib/literature/analysisList'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
 import { AnalysisFilter } from '@/components/literature/AnalysisFilter'
 import { IntroBlock } from '@/components/literature/IntroBlock'
+import {
+  QuoteBodyEditor,
+  type QuoteBodyEditorHandle,
+} from '@/components/literature/QuoteBodyEditor'
 import { useRubberBand } from '@/lib/rubberBand'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 
@@ -112,10 +116,10 @@ function QuoteForm({
   const queryClient = useQueryClient()
   const editionList = useId()
   const [body, setBody] = useState(initial?.body ?? '')
-  const bodyAt = useRef<HTMLTextAreaElement>(null)
-  // The words selected in the body, and while a note is being written for them, the note.
-  const [sel, setSel] = useState({ start: 0, end: 0 })
-  const [noting, setNoting] = useState<{ start: number; end: number } | null>(null)
+  const editor = useRef<QuoteBodyEditorHandle>(null)
+  // The words selected in the body, and while a note is being written for them, those words.
+  const [selected, setSelected] = useState('')
+  const [noting, setNoting] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const [start, setStart] = useState(initial ? String(initial.page_start) : '')
   const [end, setEnd] = useState(
@@ -125,7 +129,12 @@ function QuoteForm({
   const from = Number(start)
   const to = end ? Number(end) : from
   const valid =
-    body.trim() !== '' && Number.isInteger(from) && from >= 1 && Number.isInteger(to) && to >= from
+    body.trim() !== '' &&
+    charLength(body.trim()) <= 2000 &&
+    Number.isInteger(from) &&
+    from >= 1 &&
+    Number.isInteger(to) &&
+    to >= from
 
   const save = useMutation({
     mutationFn: async () => {
@@ -152,43 +161,30 @@ function QuoteForm({
   }
 
   // 「加注释」: select the words in the body (「你」), say who or what they mean, and the note goes
-  // right after them: 「你〔王一生〕」.
-  const selected = body.slice(sel.start, sel.end).trim()
-  const shortWord = (w: string) => ([...w].length > 12 ? `${sliceChars(w, 0, 12)}…` : w)
-  const notedWord = noting ? body.slice(noting.start, noting.end).trim() : ''
+  // right after them as a grey chip: stored 「你〔王一生〕」.
+  const shortWord = (w: string) => (charLength(w) > 12 ? `${sliceChars(w, 0, 12)}…` : w)
   const noteText = note.trim()
-  const noteOk =
-    noteText !== '' &&
-    !noteText.includes(NOTE_OPEN) &&
-    !noteText.includes(NOTE_CLOSE) &&
-    body.length + noteText.length + 2 <= 2000
+  const noteOk = noteText !== '' && !noteText.includes(NOTE_OPEN) && !noteText.includes(NOTE_CLOSE)
   const addNote = () => {
-    if (!noting || !noteOk) return
-    const at = noting.end
-    const inserted = NOTE_OPEN + noteText + NOTE_CLOSE
-    setBody(body.slice(0, at) + inserted + body.slice(at))
+    if (noting === null || !noteOk) return
+    editor.current?.insertNote(noteText)
     setNoting(null)
-    const el = bodyAt.current
-    requestAnimationFrame(() => {
-      el?.focus()
-      el?.setSelectionRange(at + inserted.length, at + inserted.length)
-    })
   }
 
   return (
     <form onSubmit={submit} className="space-y-3 rounded-2xl border border-primary/40 bg-card p-4">
       <div className="space-y-1.5">
         <div className="flex items-end justify-between gap-2">
-          <label htmlFor={`${editionList}-body`} className="text-sm font-medium">
-            {t(`${K}.quoteBody`)}
-          </label>
+          <span className="text-sm font-medium">{t(`${K}.quoteBody`)}</span>
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={!selected}
+            // Keeps the editor's selection: a click on the button would otherwise clear it.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              setNoting(sel)
+              setNoting(selected)
               setNote('')
             }}
             title={
@@ -201,25 +197,19 @@ function QuoteForm({
             {t(`${K}.addNote`)}
           </Button>
         </div>
-        <Textarea
-          id={`${editionList}-body`}
-          ref={bodyAt}
-          autoFocus
-          value={body}
-          maxLength={2000}
-          onChange={(e) => {
-            setBody(e.target.value)
+        <QuoteBodyEditor
+          ref={editor}
+          initial={initial?.body ?? ''}
+          placeholder={t(`${K}.quotePlaceholder`)}
+          onChange={(v) => {
+            setBody(v)
             setNoting(null)
           }}
-          onSelect={(e) =>
-            setSel({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })
-          }
-          placeholder={t(`${K}.quotePlaceholder`)}
-          className="min-h-28"
+          onSelect={setSelected}
         />
-        {noting && (
+        {noting !== null && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/40 p-2">
-            <span className="text-sm">{t(`${K}.noteFor`, { word: shortWord(notedWord) })}</span>
+            <span className="text-sm">{t(`${K}.noteFor`, { word: shortWord(noting) })}</span>
             <Input
               autoFocus
               value={note}
@@ -233,6 +223,7 @@ function QuoteForm({
                 } else if (e.key === 'Escape') {
                   e.preventDefault()
                   setNoting(null)
+                  editor.current?.focus()
                 }
               }}
               className="h-8 w-40 flex-1"
@@ -240,18 +231,20 @@ function QuoteForm({
             <Button type="button" size="sm" disabled={!noteOk} onClick={addNote}>
               {t(`${K}.noteConfirm`)}
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setNoting(null)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setNoting(null)
+                editor.current?.focus()
+              }}
+            >
               {t(`${K}.cancel`)}
             </Button>
           </div>
         )}
         <p className="text-xs text-muted-foreground">{t(`${K}.noteHint`)}</p>
-        {body.includes(NOTE_OPEN) && (
-          <div className="rounded-xl bg-secondary/60 px-3 py-2">
-            <div className="text-xs font-medium text-muted-foreground">{t(`${K}.notePreview`)}</div>
-            <QuoteText body={body.trim()} />
-          </div>
-        )}
       </div>
       <div className="flex flex-wrap items-start gap-3">
         <label className="space-y-1.5">
