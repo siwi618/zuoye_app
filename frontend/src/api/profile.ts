@@ -51,6 +51,10 @@ export const BADGES = [
   'writer_15',
   'writer_30',
   'writer_50',
+  'quoter_3',
+  'quoter_10',
+  'quoter_25',
+  'quoter_50',
   'month_champion',
   'all_time_top',
   'modern_top',
@@ -87,11 +91,12 @@ export function wearBadge(badge: BadgeKey | null): Promise<MyProfile> {
   })
 }
 
-// Counts behind the evolving badges: 「雷蜂」 (requests helped complete) and 「鲷苗人」 (literature
-// analyses that count).
+// Counts behind the evolving badges: 「雷蜂」 (requests helped complete), 「鲷苗人」 (literature
+// analyses that count) and 「钳书童」 (literature quotes that count).
 export interface BadgeProgress {
   helped_requests: number
   counted_analyses: number
+  counted_quotes: number
 }
 
 export function getBadgeProgress(): Promise<BadgeProgress> {

@@ -5,6 +5,7 @@ import {
   CrownIcon,
   DomeCrownIcon,
   LaurelIcon,
+  QuoterIcon,
   WriterIcon,
   YuguoIcon,
 } from '@/components/BadgeIcons'
@@ -64,6 +65,10 @@ export const BADGE_META: Record<
   writer_15: { icon: WriterIcon, tier: 'epic' },
   writer_30: { icon: WriterIcon, tier: 'legendary' },
   writer_50: { icon: WriterIcon, tier: 'mythic' },
+  quoter_3: { icon: QuoterIcon, tier: 'common' },
+  quoter_10: { icon: QuoterIcon, tier: 'epic' },
+  quoter_25: { icon: QuoterIcon, tier: 'legendary' },
+  quoter_50: { icon: QuoterIcon, tier: 'mythic' },
   month_champion: { icon: LaurelIcon, tier: 'epic' },
   all_time_top: { icon: CrownIcon, tier: 'mythic' },
   modern_top: { icon: DomeCrownIcon, tier: 'mythic' },
@@ -81,8 +86,9 @@ export type OneTimeBadge = 'lead_reader' | 'month_champion' | 'all_time_top' | '
 
 // Badges that evolve: each stage is its own badge, granted by the database as a count grows —
 // 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses
-// (migration 0028). The badge wall shows only the highest stage held, with its progress.
-export type EvolutionFamily = 'bee' | 'writer'
+// (migration 0028), 「钳书童」 with literature quotes cited by others (migration 0033). The badge
+// wall shows only the highest stage held, with its progress.
+export type EvolutionFamily = 'bee' | 'writer' | 'quoter'
 export interface Evolution {
   family: EvolutionFamily
   count: keyof BadgeProgress
@@ -108,6 +114,16 @@ export const EVOLUTIONS: readonly Evolution[] = [
       { key: 'writer_15', need: 15 },
       { key: 'writer_30', need: 30 },
       { key: 'writer_50', need: 50 },
+    ],
+  },
+  {
+    family: 'quoter',
+    count: 'counted_quotes',
+    stages: [
+      { key: 'quoter_3', need: 3 },
+      { key: 'quoter_10', need: 10 },
+      { key: 'quoter_25', need: 25 },
+      { key: 'quoter_50', need: 50 },
     ],
   },
 ]

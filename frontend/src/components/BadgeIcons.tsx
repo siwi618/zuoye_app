@@ -83,6 +83,28 @@ export function WriterIcon({ className }: { className?: string }) {
   )
 }
 
+// 「钳书童」: a crab's claw from the side, its two fingers pinching a pair of 「」 quote marks (钳
+// sounds like 钱, of 钱钟书). Every stage (钳书童 → 钳书生 → 钳书痴 → 钳钟书) uses it; the medal's
+// colour shows the stage.
+export function QuoterIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path
+          strokeWidth="2.4"
+          fill="currentColor"
+          fillOpacity="0.28"
+          d="M10 35.5C7 30 8.5 21 15 17.5C21 9.5 31 7.5 37 12.5C37.6 13.1 37.2 14 36.4 13.9C31.5 13.4 27 15.5 25 21C29 24 33 27.6 37 27.8C39 27.9 40.8 27 42.4 25.6C43.1 25 43.8 25.6 43.4 26.4C40.4 32.6 26 39 13 40Z"
+        />
+        <path strokeWidth="2.4" d="M10 35.5L4 39.5M13 40L7.5 44.5" />
+        <path strokeWidth="2" d="M15 17.5C17.5 19.5 19 22 19.5 25" />
+        <path strokeWidth="2.4" d="M38.2 16.4H33.8V20.6" />
+        <path strokeWidth="2.4" d="M36.6 23.8H41V19.6" />
+      </g>
+    </svg>
+  )
+}
+
 // 「月度冠军」: a laurel wreath, two branches tied at the bottom with a pair of berries where they
 // meet. The inner leaves set the rhythm, as close as they go without touching; the outer ones sit
 // in the gaps between them.
