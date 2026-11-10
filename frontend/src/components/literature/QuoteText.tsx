@@ -1,4 +1,4 @@
-import { Fragment, type HTMLAttributes } from 'react'
+import { Fragment, useState, type HTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
@@ -7,9 +7,9 @@ import {
   NOTE_CHIP,
   TAG_SYMBOL,
   TAG_TONE,
-  noteRoles,
   noteRuns,
   parseBody,
+  scanNotes,
   type NoteRole,
   quoteMarks,
   type HighlightColor,
@@ -40,28 +40,92 @@ export function PageLabel({
 }
 
 // Text of a quote with its notes drawn: the words a note explains underlined, the note a grey
-// chip after them (a student's words, not the book's). The marks 〔 ｜ 〕 stay in the text, hidden,
-// so the text (and the offsets a selection maps to) is the quote's own. `roles` may be those of
-// the whole quote this text starts `at` characters into.
-export function NotedText({ text, roles, at }: { text: string; roles?: NoteRole[]; at?: number }) {
+// chip after them (a student's words, not the book's). A click on the words folds the note away
+// and another brings it back. The marks 〔 ｜ 〕, and a folded note, stay in the text, hidden, so
+// the text (and the offsets a selection maps to) is the quote's own. `roles` and `groups` may be
+// those of the whole quote this text starts `at` characters into; `folded` and `onFold` share
+// the folding with the rest of it (otherwise this text keeps its own).
+export function NotedText({
+  text,
+  roles,
+  groups,
+  at,
+  folded,
+  onFold,
+}: {
+  text: string
+  roles?: NoteRole[]
+  groups?: number[]
+  at?: number
+  folded?: ReadonlySet<number>
+  onFold?: (group: number) => void
+}) {
   const { t } = useTranslation()
-  return noteRuns(text, roles, at).map((r, i) =>
-    r.role === 'text' ? (
-      <Fragment key={i}>{r.text}</Fragment>
-    ) : r.role === 'mark' ? (
-      <span key={i} className="hidden">
+  const [own, setOwn] = useState<ReadonlySet<number>>(new Set())
+  const shut = folded ?? own
+  const fold =
+    onFold ??
+    ((g: number) =>
+      setOwn((s) => {
+        const next = new Set(s)
+        if (!next.delete(g)) next.add(g)
+        return next
+      }))
+  const runs = noteRuns(text, roles, at, groups)
+  // Only words whose note is there to fold can be clicked.
+  const withNote = new Set(runs.filter((r) => r.role === 'note').map((r) => r.group))
+  return runs.map((r, i) => {
+    if (r.role === 'text') return <Fragment key={i}>{r.text}</Fragment>
+    if (r.role === 'mark')
+      return (
+        <span key={i} className="hidden">
+          {r.text}
+        </span>
+      )
+    if (r.role === 'note')
+      return (
+        <span
+          key={i}
+          title={t(`${K}.noteTitle`)}
+          className={cn(NOTE_CHIP, shut.has(r.group) && 'hidden')}
+        >
+          {r.text}
+        </span>
+      )
+    if (!withNote.has(r.group))
+      return (
+        <span key={i} className={NOTE_ANCHOR}>
+          {r.text}
+        </span>
+      )
+    const open = !shut.has(r.group)
+    const toggle = (e: React.SyntheticEvent) => {
+      e.stopPropagation() // not the quote card's pick
+      if (document.getSelection()?.toString()) return // selecting text, not clicking
+      fold(r.group)
+    }
+    return (
+      <span
+        key={i}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        title={t(open ? `${K}.noteFold` : `${K}.noteUnfold`)}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return
+          e.preventDefault()
+          toggle(e)
+        }}
+        className={cn(
+          NOTE_ANCHOR,
+          'cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        )}
+      >
         {r.text}
       </span>
-    ) : r.role === 'anchor' ? (
-      <span key={i} className={NOTE_ANCHOR}>
-        {r.text}
-      </span>
-    ) : (
-      <span key={i} title={t(`${K}.noteTitle`)} className={NOTE_CHIP}>
-        {r.text}
-      </span>
-    ),
-  )
+    )
+  })
 }
 
 // A quote with its highlighted fragments marked like a highlighter pen. Each fragment's number,
@@ -78,7 +142,15 @@ export function QuoteText({
   spans?: Span[]
   lit?: number | null // the fragment to emphasise, e.g. while its reference is hovered
 } & HTMLAttributes<HTMLParagraphElement>) {
-  const roles = noteRoles(body)
+  const { roles, groups } = scanNotes(body)
+  // Notes folded away, by where they start: shared by the pieces the fragments cut the quote into.
+  const [folded, setFolded] = useState<ReadonlySet<number>>(new Set())
+  const onFold = (g: number) =>
+    setFolded((s) => {
+      const next = new Set(s)
+      if (!next.delete(g)) next.add(g)
+      return next
+    })
   const parts = segments(body, spans)
   // where each segment starts in the body, for its notes
   const starts = parts.map((_, i) =>
@@ -89,7 +161,15 @@ export function QuoteText({
       {parts.map((s, i) => {
         const from = starts[i]
         return s.number === undefined ? (
-          <NotedText key={i} text={s.text} roles={roles} at={from} />
+          <NotedText
+            key={i}
+            text={s.text}
+            roles={roles}
+            groups={groups}
+            at={from}
+            folded={folded}
+            onFold={onFold}
+          />
         ) : (
           <mark
             key={i}
@@ -102,7 +182,14 @@ export function QuoteText({
               lit === s.number && ['ring-2', HIGHLIGHT_TONE[s.color ?? 'amber'].ring],
             )}
           >
-            <NotedText text={s.text} roles={roles} at={from} />
+            <NotedText
+              text={s.text}
+              roles={roles}
+              groups={groups}
+              at={from}
+              folded={folded}
+              onFold={onFold}
+            />
           </mark>
         )
       })}
@@ -121,7 +208,10 @@ export function AnalysisBody({
 }: {
   body: string
   // fragment number → its words and colour; other references stay as typed
-  fragments: Map<number, { text: string; color?: HighlightColor; roles?: NoteRole[] }>
+  fragments: Map<
+    number,
+    { text: string; color?: HighlightColor; roles?: NoteRole[]; groups?: number[] }
+  >
   lit?: number | null
   onTag?: (name: string, kind: TagKind) => void
   onQuote?: (n: number | null) => void
@@ -175,7 +265,7 @@ export function AnalysisBody({
               {part.number}
             </sup>
             {marks.open}
-            <NotedText text={fragment.text} roles={fragment.roles} />
+            <NotedText text={fragment.text} roles={fragment.roles} groups={fragment.groups} />
             {marks.close}
           </mark>
         )

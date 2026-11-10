@@ -24,7 +24,10 @@ export interface BodyEditorHandle {
   insertQuote: (n: number) => void
 }
 
-type Fragments = Map<number, { text: string; color?: HighlightColor; roles?: NoteRole[] }>
+type Fragments = Map<
+  number,
+  { text: string; color?: HighlightColor; roles?: NoteRole[]; groups?: number[] }
+>
 
 // 「#意象」 or 「@王一生」 just typed and ended by a space or punctuation mark: becomes a chip.
 const TYPED_TAG =
@@ -106,7 +109,7 @@ export function BodyEditor({
       near(el.nextSibling, 'nextSibling'),
     )
     // Its notes as on the published card: the words explained underlined, the note a grey chip.
-    const noted = noteRuns(f.text, f.roles).map((r) => {
+    const noted = noteRuns(f.text, f.roles, 0, f.groups).map((r) => {
       if (r.role === 'text') return document.createTextNode(r.text)
       const span = document.createElement('span')
       span.className = r.role === 'mark' ? 'hidden' : r.role === 'anchor' ? NOTE_ANCHOR : NOTE_CHIP

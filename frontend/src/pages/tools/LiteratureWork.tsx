@@ -344,7 +344,7 @@ function QuoteRow({
   }
   // A click anywhere on the card picks it, except on its own buttons or while selecting text.
   const pickFromCard = (e: React.MouseEvent) => {
-    if ((e.target as Element).closest('button, a')) return
+    if ((e.target as Element).closest('button, a, [role="button"]')) return
     if (document.getSelection()?.toString()) return
     if (picked || canPick) onToggle()
   }

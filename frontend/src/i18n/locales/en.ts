@@ -423,6 +423,8 @@ export const en = {
       noteConfirm: 'OK',
       noteHint: 'When a “you” or “this” is unclear out of context, select it in the text, click “Add note” and say who it means; the words get underlined with the note after them as a grey chip; one Backspace after it takes the note off and leaves the words.',
       noteTitle: 'A note, not the book’s words',
+      noteFold: 'Click to fold the note away',
+      noteUnfold: 'Click to show the note',
       selectedCount: '{{count}} quotes picked',
       selectedCount_one: '{{count}} quote picked',
       clear: 'Clear',

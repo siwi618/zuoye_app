@@ -422,6 +422,8 @@ export const zh: Translations = {
       noteConfirm: '确定',
       noteHint: '节选后「你」「这个」指代不清时，先在原文里选中它，再点「加注释」写明指的是谁，选中的字会加下划线，注释以灰色小标签跟在后面；在标签后面按一下退格，只删掉注释、留下原文。',
       noteTitle: '注释，不是原文',
+      noteFold: '点一下收起注释',
+      noteUnfold: '点一下展开注释',
       selectedCount: '已选 {{count}} 段引文',
       selectedCount_one: '已选 {{count}} 段引文',
       clear: '清空',

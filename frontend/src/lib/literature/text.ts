@@ -33,9 +33,11 @@ export const noteToken = (note: string, anchor?: string) =>
 // hidden mark (〔 ｜ 〕).
 export type NoteRole = 'text' | 'anchor' | 'note' | 'mark'
 
-export function noteRoles(text: string): NoteRole[] {
+// Each character's role, and the note it belongs to (where its 〔 is; -1 for the book's words).
+export function scanNotes(text: string) {
   const chars = Array.from(text)
   const roles: NoteRole[] = chars.map(() => 'text')
+  const groups: number[] = chars.map(() => -1)
   for (let i = 0; i < chars.length; i++) {
     if (chars[i] !== NOTE_OPEN) continue
     let close = -1
@@ -49,20 +51,31 @@ export function noteRoles(text: string): NoteRole[] {
     roles[i] = roles[close] = 'mark'
     for (let k = i + 1; k < close; k++)
       roles[k] = sep > i ? (k < sep ? 'anchor' : k === sep ? 'mark' : 'note') : 'note'
+    for (let k = i; k <= close; k++) groups[k] = i
     i = close
   }
-  return roles
+  return { roles, groups }
 }
+
+export const noteRoles = (text: string) => scanNotes(text).roles
+export const noteGroups = (text: string) => scanNotes(text).groups
 
 // `text` split into runs by role; `roles` (from noteRoles) may be those of a longer text this one
 // starts `at` characters into, e.g. a fragment's within its quote.
-export function noteRuns(text: string, roles = noteRoles(text), at = 0) {
-  const runs: { text: string; role: NoteRole }[] = []
+// `groups` (from noteGroups) says which note each run belongs to.
+export function noteRuns(
+  text: string,
+  roles = noteRoles(text),
+  at = 0,
+  groups: number[] = noteGroups(text),
+) {
+  const runs: { text: string; role: NoteRole; group: number }[] = []
   Array.from(text).forEach((c, i) => {
     const role = roles[at + i] ?? 'text'
+    const group = groups[at + i] ?? -1
     const last = runs[runs.length - 1]
-    if (last && last.role === role) last.text += c
-    else runs.push({ text: c, role })
+    if (last && last.role === role && last.group === group) last.text += c
+    else runs.push({ text: c, role, group })
   })
   return runs
 }
@@ -70,7 +83,13 @@ export function noteRuns(text: string, roles = noteRoles(text), at = 0) {
 // A fragment of a quote: its words and colour, and the roles of its characters as they are in
 // the whole quote (a fragment may cut a note in two).
 export function fragmentOf(body: string, start: number, end: number, color?: HighlightColor) {
-  return { text: sliceChars(body, start, end), color, roles: noteRoles(body).slice(start, end) }
+  const { roles, groups } = scanNotes(body)
+  return {
+    text: sliceChars(body, start, end),
+    color,
+    roles: roles.slice(start, end),
+    groups: groups.slice(start, end),
+  }
 }
 
 // Highlighter colours for fragments: yellow (the default), light blue, pink, light green. Class

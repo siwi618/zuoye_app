@@ -18,6 +18,7 @@ import {
   isValidTag,
   parseBody,
   fragmentOf,
+  noteGroups,
   noteRoles,
   sliceChars,
   TAG_SYMBOL,
@@ -307,6 +308,7 @@ export function AnalysisComposer({
                     <NotedText
                       text={sliceChars(q.body, h.start, h.end)}
                       roles={noteRoles(q.body)}
+                      groups={noteGroups(q.body)}
                       at={h.start}
                     />
                     」
