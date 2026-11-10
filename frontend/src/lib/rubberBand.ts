@@ -14,11 +14,12 @@ const NEW_SWIPE_MIN = 12 // px, so a jitter at the very end of the coasting does
 
 // A scroll box pushed past its top or bottom (wheel, trackpad or finger) gives a little, harder
 // the further it goes, then springs back when let go. The whole box moves, not its content
-// (moving the content would change how far it can scroll), so its parent must clip it.
-export function useRubberBand(ref: RefObject<HTMLElement | null>) {
+// (moving the content would change how far it can scroll), so its parent must clip it. Off while
+// `enabled` is false, e.g. at widths where the box doesn't scroll on its own.
+export function useRubberBand(ref: RefObject<HTMLElement | null>, enabled = true) {
   useEffect(() => {
     const el = ref.current
-    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!el || !enabled || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let pull = 0 // how far past an end it has been pushed: + past the top, - past the bottom
     let timer = 0
     let since = 0 // when the current wheel pull began
@@ -117,5 +118,5 @@ export function useRubberBand(ref: RefObject<HTMLElement | null>) {
       el.style.transition = ''
       el.style.transform = ''
     }
-  }, [ref])
+  }, [ref, enabled])
 }

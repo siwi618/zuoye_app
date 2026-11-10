@@ -414,6 +414,7 @@ export const en = {
       analyses: 'Student analyses',
       share: 'Share my own analysis',
       pickFirst: 'First tick the quotes you want to analyse above.',
+      pickFirstSide: 'First tick the quotes you want to analyse on the left.',
       selectedCount: '{{count}} quotes picked',
       selectedCount_one: '{{count}} quote picked',
       clear: 'Clear',

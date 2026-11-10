@@ -42,6 +42,8 @@ import { useAnalysisList } from '@/lib/literature/analysisList'
 import { AnalysisComposer } from '@/components/literature/AnalysisComposer'
 import { AnalysisFilter } from '@/components/literature/AnalysisFilter'
 import { IntroBlock } from '@/components/literature/IntroBlock'
+import { useRubberBand } from '@/lib/rubberBand'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 const K = 'tools.literature'
 // Quotes shown before「显示全部」.
@@ -398,6 +400,11 @@ export function LiteratureWork() {
   const [flash, setFlash] = useState<string[]>([]) // quotes just jumped to, outlined for a moment
   const [composing, setComposing] = useState(false)
   const composerAt = useRef<HTMLDivElement>(null)
+  // On a wide screen the tags and analyses sit beside the quotes in a box that scrolls on its own
+  // (the quotes scroll with the page); on a phone everything stacks and scrolls with the page.
+  const wide = useMediaQuery('(min-width: 64rem)')
+  const side = useRef<HTMLDivElement>(null)
+  useRubberBand(side, wide && !!work) // the box is there once the work is
 
   const data = useQuery({ ...workQuery(key ?? ''), enabled: !!loadKey })
   const quotes = useMemo(() => data.data?.quotes ?? [], [data.data])
@@ -487,8 +494,8 @@ export function LiteratureWork() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 pb-24">
-      <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-10 pb-24 lg:max-w-6xl">
+      <div className="space-y-4 lg:max-w-3xl">
         <Link
           to="/tools/literature"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -512,307 +519,323 @@ export function LiteratureWork() {
         </p>
       )}
 
-      {/* Quotes */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">
-              {t(`${K}.quotes`)}
-              <span className="ml-2 text-base font-normal text-muted-foreground">
-                {quotes.length}
-              </span>
-            </h2>
-            <p className="text-sm text-muted-foreground">{t(`${K}.quotesHint`)}</p>
-          </div>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {quotes.length > 0 && <PageJump onJump={jumpTo} />}
-            {quotes.length > 0 && (
-              <Button
-                variant={onlyPicked ? 'default' : 'outline'}
-                aria-pressed={onlyPicked}
-                disabled={!pickedQuotes.length}
-                title={pickedQuotes.length ? undefined : t(`${K}.myPicksNone`)}
-                onClick={() => setPickedOnly(!onlyPicked)}
-              >
-                <ListChecks className="size-4" />
-                {t(`${K}.myPicks`)}
-                {pickedQuotes.length > 0 && (
-                  <span className="text-xs opacity-80">{pickedQuotes.length}</span>
-                )}
-              </Button>
-            )}
-            {!adding && (
-              <Button variant="outline" onClick={() => setAdding(true)}>
-                <Plus className="size-4" />
-                {t(`${K}.addQuote`)}
-              </Button>
-            )}
-          </div>
-        </div>
-        {onlyPicked && (
-          <p className="text-sm text-muted-foreground">
-            {t(`${K}.myPicksShowing`, { count: pickedQuotes.length })}
-            <button
-              type="button"
-              onClick={() => setPickedOnly(false)}
-              className="ml-2 text-primary hover:underline"
-            >
-              {t(`${K}.myPicksAll`)}
-            </button>
-          </p>
-        )}
-        {adding && (
-          <QuoteForm workKey={work.key} editions={editions} onClose={() => setAdding(false)} />
-        )}
-        {data.isLoading ? (
-          <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-        ) : quotes.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            {t(`${K}.noQuotes`)}
-          </p>
-        ) : (
-          <>
-            <ul className="space-y-2">
-              {shown.map((q) => (
-                <QuoteRow
-                  key={q.id}
-                  quote={q}
-                  editions={editions}
-                  picked={picked.includes(q.id)}
-                  canPick={picked.length < MAX_PICKED}
-                  mine={q.author.id === userId}
-                  flash={flash.includes(q.id)}
-                  onToggle={() => toggle(q.id)}
-                  onDelete={() => {
-                    setPicked((p) => p.filter((x) => x !== q.id))
-                    removeQuote.mutate(q.id)
-                  }}
-                  onShowAnalyses={() => showAnalysesOf(q.id)}
-                />
-              ))}
-            </ul>
-            {!onlyPicked && quotes.length > SHOWN_QUOTES && (
-              <Button variant="ghost" className="w-full" onClick={() => setShowAll(!showAll)}>
-                {showAll ? t(`${K}.collapse`) : t(`${K}.showAll`, { count: quotes.length })}
-              </Button>
-            )}
-            {picked.length >= MAX_PICKED && (
-              <p className="text-xs text-muted-foreground">
-                {t(`${K}.maxQuotes`, { count: MAX_PICKED })}
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* Related tags: #devices and @characters */}
-      <section className="space-y-3">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">{t(`${K}.relatedTags`)}</h2>
-          <p className="text-sm text-muted-foreground">{t(`${K}.relatedHint`)}</p>
-        </div>
-        {/* Labels in a column as wide as the longest one (「Characters」 in English). */}
-        <div className="grid grid-cols-[max-content_1fr] items-start gap-x-3 gap-y-2">
-          {(['device', 'character'] as const).map((kind) => {
-            const list = (data.data?.tags ?? []).filter((x) => x.kind === kind)
-            const active = kind === 'device' ? tagFilter : whoFilter
-            return (
-              <Fragment key={kind}>
-                <span className="flex h-7.5 items-center text-xs font-medium text-muted-foreground">
-                  {t(kind === 'device' ? `${K}.kindDeviceShort` : `${K}.kindCharacter`)}
+      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-6">
+        {/* Quotes */}
+        <section className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">
+                {t(`${K}.quotes`)}
+                <span className="ml-2 text-base font-normal text-muted-foreground">
+                  {quotes.length}
                 </span>
-                <div className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-2">
-                  {list.length === 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      {t(kind === 'device' ? `${K}.noRelated` : `${K}.noCharacters`)}
-                    </span>
+              </h2>
+              <p className="text-sm text-muted-foreground">{t(`${K}.quotesHint`)}</p>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {quotes.length > 0 && <PageJump onJump={jumpTo} />}
+              {quotes.length > 0 && (
+                <Button
+                  variant={onlyPicked ? 'default' : 'outline'}
+                  aria-pressed={onlyPicked}
+                  disabled={!pickedQuotes.length}
+                  title={pickedQuotes.length ? undefined : t(`${K}.myPicksNone`)}
+                  onClick={() => setPickedOnly(!onlyPicked)}
+                >
+                  <ListChecks className="size-4" />
+                  {t(`${K}.myPicks`)}
+                  {pickedQuotes.length > 0 && (
+                    <span className="text-xs opacity-80">{pickedQuotes.length}</span>
                   )}
-                  {list.map((tag) => {
-                    const on = active?.toLowerCase() === tag.name.toLowerCase()
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => filterBy(on ? null : tag.name, kind)}
-                        className={cn(
-                          'rounded-full border px-3 py-1 text-sm transition-colors',
-                          on
-                            ? kind === 'device'
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-violet-600 bg-violet-600 text-white'
-                            : kind === 'device'
-                              ? 'border-border/70 hover:border-primary/60 hover:text-primary'
-                              : 'border-border/70 hover:border-violet-400 hover:text-violet-700 dark:hover:text-violet-200',
-                        )}
-                      >
-                        {TAG_SYMBOL[kind]}
-                        {tag.name}
-                        <span
-                          className={cn(
-                            'ml-1.5 text-xs',
-                            on ? 'opacity-80' : 'text-muted-foreground',
-                          )}
-                        >
-                          {tag.count}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </Fragment>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Analyses */}
-      <section ref={analysesAt} className="scroll-mt-24 space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">
-              {t(`${K}.analyses`)}
-              <span className="ml-2 text-base font-normal text-muted-foreground">{total}</span>
-            </h2>
-            {!composing && (
-              <p className="text-sm text-muted-foreground">
-                {picked.length
-                  ? t(`${K}.selectedCount`, { count: picked.length })
-                  : t(`${K}.pickFirst`)}
-              </p>
-            )}
+                </Button>
+              )}
+              {!adding && (
+                <Button variant="outline" onClick={() => setAdding(true)}>
+                  <Plus className="size-4" />
+                  {t(`${K}.addQuote`)}
+                </Button>
+              )}
+            </div>
           </div>
-          {!composing && (
-            <Button className="ml-auto" disabled={!picked.length} onClick={compose}>
-              <PenLine className="size-4" />
-              {t(`${K}.share`)}
-            </Button>
-          )}
-        </div>
-
-        <div ref={composerAt} className="scroll-mt-24">
-          {composing && pickedQuotes.length > 0 && (
-            <AnalysisComposer
-              workKey={work.key}
-              quotes={pickedQuotes}
-              onUnpick={toggle}
-              onCancel={() => setComposing(false)}
-              onDone={() => {
-                setComposing(false)
-                setPicked([])
-              }}
-            />
-          )}
-        </div>
-
-        {total > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={sort} onValueChange={(v) => setParam('sort', v === 'hot' ? null : v)}>
-              <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-auto min-w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORTS.map((x) => (
-                  <SelectItem key={x} value={x}>
-                    {t(`${K}.sort_${x}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <AnalysisFilter
-              quotes={citedQuotes}
-              tags={data.data?.tags ?? []}
-              onQuote={(id) => setParam('quote', id)}
-              onTag={(name, kind) => filterBy(name, kind)}
-            />
-          </div>
-        )}
-        {total > 0 && filtering && (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            {activeQuote && (
-              <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 py-1 pr-1 pl-3 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100">
-                <span className="truncate">
-                  {pageText(activeQuote)} · {sliceChars(activeQuote.body, 0, 12)}
-                  {[...activeQuote.body].length > 12 && '…'}
-                </span>
-                <button
-                  type="button"
-                  aria-label={t(`${K}.removeFilter`)}
-                  onClick={() => setParam('quote', null)}
-                  className="grid size-5 shrink-0 place-items-center rounded-full hover:bg-amber-200/70 dark:hover:bg-amber-400/30"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            )}
-            {tagFilter && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 py-1 pr-1 pl-3 font-medium text-primary">
-                #{tagFilter}
-                <button
-                  type="button"
-                  aria-label={t(`${K}.removeFilter`)}
-                  onClick={() => filterBy(null)}
-                  className="grid size-5 place-items-center rounded-full hover:bg-primary/15"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            )}
-            {whoFilter && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-3 font-medium',
-                  TAG_TONE.character,
-                )}
-              >
-                @{whoFilter}
-                <button
-                  type="button"
-                  aria-label={t(`${K}.removeFilter`)}
-                  onClick={() => filterBy(null, 'character')}
-                  className="grid size-5 place-items-center rounded-full hover:bg-black/10 dark:hover:bg-white/15"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            )}
-            <span className="flex items-center gap-2 text-muted-foreground">
-              {t(`${K}.matchCount`, { count: matching })}
+          {onlyPicked && (
+            <p className="text-sm text-muted-foreground">
+              {t(`${K}.myPicksShowing`, { count: pickedQuotes.length })}
               <button
                 type="button"
-                onClick={() =>
-                  setParams(
-                    (p) => {
-                      const next = new URLSearchParams(p)
-                      next.delete('tag')
-                      next.delete('who')
-                      next.delete('quote')
-                      return next
-                    },
-                    { replace: true },
-                  )
-                }
-                className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                onClick={() => setPickedOnly(false)}
+                className="ml-2 text-primary hover:underline"
               >
-                <X className="size-3.5" />
-                {t(`${K}.clearFilters`)}
+                {t(`${K}.myPicksAll`)}
               </button>
-            </span>
+            </p>
+          )}
+          {adding && (
+            <QuoteForm workKey={work.key} editions={editions} onClose={() => setAdding(false)} />
+          )}
+          {data.isLoading ? (
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          ) : quotes.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              {t(`${K}.noQuotes`)}
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {shown.map((q) => (
+                  <QuoteRow
+                    key={q.id}
+                    quote={q}
+                    editions={editions}
+                    picked={picked.includes(q.id)}
+                    canPick={picked.length < MAX_PICKED}
+                    mine={q.author.id === userId}
+                    flash={flash.includes(q.id)}
+                    onToggle={() => toggle(q.id)}
+                    onDelete={() => {
+                      setPicked((p) => p.filter((x) => x !== q.id))
+                      removeQuote.mutate(q.id)
+                    }}
+                    onShowAnalyses={() => showAnalysesOf(q.id)}
+                  />
+                ))}
+              </ul>
+              {!onlyPicked && quotes.length > SHOWN_QUOTES && (
+                <Button variant="ghost" className="w-full" onClick={() => setShowAll(!showAll)}>
+                  {showAll ? t(`${K}.collapse`) : t(`${K}.showAll`, { count: quotes.length })}
+                </Button>
+              )}
+              {picked.length >= MAX_PICKED && (
+                <p className="text-xs text-muted-foreground">
+                  {t(`${K}.maxQuotes`, { count: MAX_PICKED })}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Clips the box while it gives at either end. */}
+        <div className="min-w-0 lg:sticky lg:top-22 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border lg:bg-card">
+          <div
+            ref={side}
+            className="space-y-10 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:p-5 lg:pb-20"
+          >
+            {/* Related tags: #devices and @characters */}
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold">{t(`${K}.relatedTags`)}</h2>
+                <p className="text-sm text-muted-foreground">{t(`${K}.relatedHint`)}</p>
+              </div>
+              {/* Labels in a column as wide as the longest one (「Characters」 in English). */}
+              <div className="grid grid-cols-[max-content_1fr] items-start gap-x-3 gap-y-2">
+                {(['device', 'character'] as const).map((kind) => {
+                  const list = (data.data?.tags ?? []).filter((x) => x.kind === kind)
+                  const active = kind === 'device' ? tagFilter : whoFilter
+                  return (
+                    <Fragment key={kind}>
+                      <span className="flex h-7.5 items-center text-xs font-medium text-muted-foreground">
+                        {t(kind === 'device' ? `${K}.kindDeviceShort` : `${K}.kindCharacter`)}
+                      </span>
+                      <div className="flex min-h-7.5 min-w-0 flex-wrap items-center gap-2">
+                        {list.length === 0 && (
+                          <span className="text-sm text-muted-foreground">
+                            {t(kind === 'device' ? `${K}.noRelated` : `${K}.noCharacters`)}
+                          </span>
+                        )}
+                        {list.map((tag) => {
+                          const on = active?.toLowerCase() === tag.name.toLowerCase()
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() => filterBy(on ? null : tag.name, kind)}
+                              className={cn(
+                                'rounded-full border px-3 py-1 text-sm transition-colors',
+                                on
+                                  ? kind === 'device'
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-violet-600 bg-violet-600 text-white'
+                                  : kind === 'device'
+                                    ? 'border-border/70 hover:border-primary/60 hover:text-primary'
+                                    : 'border-border/70 hover:border-violet-400 hover:text-violet-700 dark:hover:text-violet-200',
+                              )}
+                            >
+                              {TAG_SYMBOL[kind]}
+                              {tag.name}
+                              <span
+                                className={cn(
+                                  'ml-1.5 text-xs',
+                                  on ? 'opacity-80' : 'text-muted-foreground',
+                                )}
+                              >
+                                {tag.count}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </Fragment>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* Analyses */}
+            <section ref={analysesAt} className="scroll-mt-24 space-y-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold">
+                    {t(`${K}.analyses`)}
+                    <span className="ml-2 text-base font-normal text-muted-foreground">
+                      {total}
+                    </span>
+                  </h2>
+                  {!composing && (
+                    <p className="text-sm text-muted-foreground">
+                      {picked.length
+                        ? t(`${K}.selectedCount`, { count: picked.length })
+                        : t(wide ? `${K}.pickFirstSide` : `${K}.pickFirst`)}
+                    </p>
+                  )}
+                </div>
+                {!composing && (
+                  <Button className="ml-auto" disabled={!picked.length} onClick={compose}>
+                    <PenLine className="size-4" />
+                    {t(`${K}.share`)}
+                  </Button>
+                )}
+              </div>
+
+              <div ref={composerAt} className="scroll-mt-24">
+                {composing && pickedQuotes.length > 0 && (
+                  <AnalysisComposer
+                    workKey={work.key}
+                    quotes={pickedQuotes}
+                    onUnpick={toggle}
+                    onCancel={() => setComposing(false)}
+                    onDone={() => {
+                      setComposing(false)
+                      setPicked([])
+                    }}
+                  />
+                )}
+              </div>
+
+              {total > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={sort}
+                    onValueChange={(v) => setParam('sort', v === 'hot' ? null : v)}
+                  >
+                    <SelectTrigger aria-label={t(`${K}.sortLabel`)} className="w-auto min-w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORTS.map((x) => (
+                        <SelectItem key={x} value={x}>
+                          {t(`${K}.sort_${x}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <AnalysisFilter
+                    quotes={citedQuotes}
+                    tags={data.data?.tags ?? []}
+                    onQuote={(id) => setParam('quote', id)}
+                    onTag={(name, kind) => filterBy(name, kind)}
+                  />
+                </div>
+              )}
+              {total > 0 && filtering && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {activeQuote && (
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 py-1 pr-1 pl-3 text-amber-900 dark:bg-amber-400/20 dark:text-amber-100">
+                      <span className="truncate">
+                        {pageText(activeQuote)} · {sliceChars(activeQuote.body, 0, 12)}
+                        {[...activeQuote.body].length > 12 && '…'}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t(`${K}.removeFilter`)}
+                        onClick={() => setParam('quote', null)}
+                        className="grid size-5 shrink-0 place-items-center rounded-full hover:bg-amber-200/70 dark:hover:bg-amber-400/30"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  )}
+                  {tagFilter && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 py-1 pr-1 pl-3 font-medium text-primary">
+                      #{tagFilter}
+                      <button
+                        type="button"
+                        aria-label={t(`${K}.removeFilter`)}
+                        onClick={() => filterBy(null)}
+                        className="grid size-5 place-items-center rounded-full hover:bg-primary/15"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  )}
+                  {whoFilter && (
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-3 font-medium',
+                        TAG_TONE.character,
+                      )}
+                    >
+                      @{whoFilter}
+                      <button
+                        type="button"
+                        aria-label={t(`${K}.removeFilter`)}
+                        onClick={() => filterBy(null, 'character')}
+                        className="grid size-5 place-items-center rounded-full hover:bg-black/10 dark:hover:bg-white/15"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  )}
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    {t(`${K}.matchCount`, { count: matching })}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setParams(
+                          (p) => {
+                            const next = new URLSearchParams(p)
+                            next.delete('tag')
+                            next.delete('who')
+                            next.delete('quote')
+                            return next
+                          },
+                          { replace: true },
+                        )
+                      }
+                      className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                    >
+                      <X className="size-3.5" />
+                      {t(`${K}.clearFilters`)}
+                    </button>
+                  </span>
+                </div>
+              )}
+              {total > 0 && (
+                <AnalysisList
+                  state={analysisList}
+                  scroller={wide ? side : undefined}
+                  empty={filtering ? t(`${K}.noMatch`) : t(`${K}.noAnalyses`)}
+                  onTag={(name, kind) => filterBy(name, kind)}
+                />
+              )}
+              {total === 0 && data.data && (
+                <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  {t(`${K}.noAnalyses`)}
+                </p>
+              )}
+            </section>
           </div>
-        )}
-        {total > 0 && (
-          <AnalysisList
-            state={analysisList}
-            empty={filtering ? t(`${K}.noMatch`) : t(`${K}.noAnalyses`)}
-            onTag={(name, kind) => filterBy(name, kind)}
-          />
-        )}
-        {total === 0 && data.data && (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            {t(`${K}.noAnalyses`)}
-          </p>
-        )}
-      </section>
+        </div>
+      </div>
 
       {/* Picked quotes, always in reach while scrolling */}
       {picked.length > 0 && !composing && (

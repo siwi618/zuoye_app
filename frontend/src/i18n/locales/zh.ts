@@ -413,6 +413,7 @@ export const zh: Translations = {
       analyses: '学生分析',
       share: '分享我自己的分析',
       pickFirst: '先在上面的引文里勾选要分析的段落。',
+      pickFirstSide: '先在左边的引文里勾选要分析的段落。',
       selectedCount: '已选 {{count}} 段引文',
       selectedCount_one: '已选 {{count}} 段引文',
       clear: '清空',
