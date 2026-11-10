@@ -153,10 +153,13 @@ function WorkCard({
   useRubberBand(scroller)
   const work: Work | undefined = useWorks().find(workKey)
   if (!work) return null
+  // On a wide screen the whole card, its title included, fits between the header and the page's
+  // bottom margin (border-box, so the border counts), and nothing follows the cards: the page
+  // stops with both cards whole just under the header.
   return (
     <section
       data-work-card={workKey}
-      className="flex min-w-0 animate-in flex-col rounded-2xl border border-border bg-card duration-300 fade-in-0 slide-in-from-bottom-2"
+      className="flex min-w-0 animate-in flex-col rounded-2xl border border-border bg-card duration-300 fade-in-0 slide-in-from-bottom-2 lg:max-h-[calc(100dvh-8rem)]"
     >
       <header className="flex items-center gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0">
@@ -187,10 +190,10 @@ function WorkCard({
         </button>
       </header>
       {/* Clips the list while it gives at either end. */}
-      <div className="overflow-hidden rounded-b-2xl">
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-b-2xl">
         <div
           ref={scroller}
-          className="max-h-[70vh] overflow-y-auto overscroll-contain p-4 lg:max-h-[calc(100dvh-8rem)]"
+          className="max-h-[70vh] overflow-y-auto overscroll-contain p-4 lg:max-h-none lg:min-h-0"
         >
           <AnalysisList
             state={state}
@@ -270,7 +273,7 @@ export function LiteratureDevice() {
   const title = device.data?.name ?? name
   const data: DeviceRead | undefined = device.data
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-8 pb-16 lg:pb-0">
       <div className="space-y-4">
         <Link
           to="/tools/literature"
