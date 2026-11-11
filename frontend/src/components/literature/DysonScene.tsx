@@ -61,6 +61,49 @@ const INTRO_MS = 1300
 const INTRO_FROM = 0.12
 const INTRO_TURN = Math.PI
 const easeOut = (k: number) => 1 - (1 - k) ** 3
+// A computer is too slow to animate the scene when animating it takes more than this share of the
+// main thread for two half seconds running (one alone can be the labels appearing); then the
+// opening is cut short and the idle spin stays off (dragging still turns it).
+const SLOW_LOAD = 0.5
+const LOAD_WINDOW_MS = 500
+const SLOW_WINDOWS = 2
+
+// Measures how much of the main thread animating the scene takes. Each sample runs from a frame's
+// callback to a task queued just after React's own for it (React schedules its render from a
+// microtask, so ours is queued from one too): React's render and commit, plus the browser's style,
+// layout and paint of the frame before. `onSlow` is called once the load proves too heavy.
+function frameMeter(onSlow: () => void) {
+  const ch = new MessageChannel()
+  let start = 0
+  let prev = 0
+  let busy = 0
+  let span = 0
+  let heavy = 0 // heavy windows in a row
+  ch.port1.onmessage = () => (busy += performance.now() - start)
+  return {
+    // Call in a frame's callback, after changing the state that redraws the scene.
+    sample() {
+      const now = performance.now()
+      // A pause (the tab hidden, a skipped frame) starts a fresh window.
+      if (prev && now - prev < 1000) span += now - prev
+      else busy = span = 0
+      prev = start = now
+      queueMicrotask(() => ch.port2.postMessage(0))
+      if (span >= LOAD_WINDOW_MS) {
+        heavy = busy / span > SLOW_LOAD ? heavy + 1 : 0
+        if (heavy === SLOW_WINDOWS) onSlow()
+        busy = span = 0
+      }
+    },
+    // The scene was not animated this frame: the next sample starts a fresh window.
+    skip() {
+      prev = 0
+    },
+    stop() {
+      ch.port1.close()
+    },
+  }
+}
 const VIEW_W = 2.4 // viewBox width in scene units
 // Mesh line opacity: faint by default, brighter on the layer whose node is under the pointer.
 const MESH = {
@@ -293,10 +336,22 @@ export function DysonScene({
     window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0,
   )
   const introSkip = useRef(false)
+  // Set once the computer has proved too slow to animate the scene (see SLOW_LOAD).
+  const slow = useRef(false)
+  const [still, setStill] = useState(false)
+  const tooSlow = () => {
+    slow.current = true
+    introSkip.current = true
+    setStill(true)
+  }
   // The text fades in once, as the opening ends; after that the fade is dropped. A node is
   // remounted whenever it passes between the far and near side, and a fade on every remount
   // makes its label flash as the sphere turns.
   const [textFade, setTextFade] = useState(intro < 1)
+  const textFading = useRef(textFade)
+  useEffect(() => {
+    textFading.current = textFade
+  }, [textFade])
   useEffect(() => {
     if (intro >= 1) return
     // Time is added frame by frame with each step capped, so the busy first frames while the page
@@ -305,11 +360,15 @@ export function DysonScene({
     let fadeTimer = 0
     let last = 0
     let elapsed = 0
+    let frames = 0
+    const meter = frameMeter(tooSlow)
     const step = (now: number) => {
       elapsed += last ? Math.min(now - last, 40) : 0
       last = now
       const k = introSkip.current ? 1 : Math.min(1, elapsed / INTRO_MS)
       setIntro(k)
+      // The first frames also carry the page mounting: not counted.
+      if (++frames > 3) meter.sample()
       if (k < 1) frame = requestAnimationFrame(step)
       else fadeTimer = window.setTimeout(() => setTextFade(false), 600)
     }
@@ -317,6 +376,7 @@ export function DysonScene({
     return () => {
       cancelAnimationFrame(frame)
       window.clearTimeout(fadeTimer)
+      meter.stop()
     }
     // Runs once, on opening.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -484,14 +544,18 @@ export function DysonScene({
     return () => io.disconnect()
   }, [])
 
-  // Idle spin about the screen's vertical axis, unless the visitor prefers reduced motion.
+  // Idle spin about the screen's vertical axis, unless the visitor prefers reduced motion or the
+  // computer is too slow: each turn redraws the whole scene, and on a slow one that takes up the
+  // whole main thread and the page stops responding.
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let frame = 0
     let last = performance.now()
+    const meter = frameMeter(tooSlow)
     const tick = (now: number) => {
       const dt = Math.min(now - last, 64) / 1000
       last = now
+      if (slow.current) return
       if (
         onScreen.current &&
         !document.hidden &&
@@ -502,11 +566,17 @@ export function DysonScene({
         ztNow.current === 0
       ) {
         setView((v) => orthonormalize(mul(aroundY(SPIN * dt), v)))
-      }
+        // Not while the labels fade in: that costs more, and only once.
+        if (textFading.current) meter.skip()
+        else meter.sample()
+      } else meter.skip()
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      meter.stop()
+    }
   }, [])
 
   // Drag anywhere on the scene to turn it. Listeners on window so a node still gets its click.
@@ -879,6 +949,7 @@ export function DysonScene({
       onPointerLeave={() => setHover(null)}
       role="group"
       aria-label={t('tools.literature.sceneLabel')}
+      data-still={still ? 'slow' : undefined}
     >
       <defs>
         <radialGradient id="lit-glow">
