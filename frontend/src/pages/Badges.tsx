@@ -29,9 +29,12 @@ import {
   TIER_STYLE,
   type Evolution,
   type OneTimeBadge,
+  HIDDEN_BADGES,
+  heldBadgeName,
   type Tier,
 } from '@/lib/badges'
 import { cn } from '@/lib/utils'
+import { CouncilCodes } from '@/components/CouncilCodes'
 
 // An evolving badge's progress under its card: a bar towards the next stage and the four stages,
 // the ones reached in their colours. Stages not reached yet keep their names hidden (？？？) to
@@ -166,6 +169,10 @@ function BadgeEarned({ badge: b }: { badge: Badge }) {
   if (b.key === 'modern_top' && b.times)
     return t('profile.badgeSinceWins', { date, count: b.times })
   if (b.key === 'all_time_top' || b.key === 'modern_top') return t('profile.badgeSince', { date })
+  // Members stay across terms, so their badge shows no term.
+  const current = ['council_president', 'council_vice']
+  if (current.includes(b.key) && b.terms?.length)
+    return t('profile.badgeCouncilSince', { term: b.terms[b.terms.length - 1], date })
   return t('profile.badgeGranted', { date })
 }
 
@@ -222,6 +229,8 @@ export function Badges() {
       const before = new Set((badges.data ?? []).map((b) => b.key))
       const added = all.find((b) => !before.has(b.key))
       queryClient.setQueryData(MY_BADGES_KEY, all)
+      // A student council code changes who may edit 「活动指南」.
+      void queryClient.invalidateQueries({ queryKey: ['guide-council'] })
       markSeen()
       setRedeeming(false)
       setCode('')
@@ -337,10 +346,10 @@ export function Badges() {
               const { icon: Icon, tier } = BADGE_META[b.key]
               const style = TIER_STYLE[tier]
               const isWorn = worn === b.key
-              const name = t(`profile.badges.${b.key}.name`)
+              const name = heldBadgeName(t, b)
               const evo = evolutionOf(b.key)
               return (
-                <li key={b.key}>
+                <li key={b.key} className="relative">
                   <button
                     type="button"
                     disabled={wear.isPending}
@@ -353,6 +362,8 @@ export function Badges() {
                       isWorn &&
                         cn('shadow-md ring-2 ring-offset-2 ring-offset-background', style.ring),
                       fresh === b.key && 'animate-in duration-500 fade-in zoom-in-90',
+                      // Room for the president's code buttons (CouncilCodes), laid over the card.
+                      b.key === 'council_president' && 'pb-20',
                     )}
                   >
                     {isWorn && (
@@ -390,8 +401,8 @@ export function Badges() {
                     </span>
                     <div className="space-y-1">
                       <p className="text-lg font-semibold">{name}</p>
-                      {/* 鱼果 is hidden, given only by redemption code: it has no condition to show */}
-                      {b.key !== 'lead_reader' && (
+                      {/* Hidden badges are given only by redemption code: no condition to show */}
+                      {!HIDDEN_BADGES.includes(b.key) && (
                         <p className="text-sm text-muted-foreground">
                           {t(`profile.badges.${b.key}.cond`)}
                         </p>
@@ -409,6 +420,7 @@ export function Badges() {
                       />
                     )}
                   </button>
+                  {b.key === 'council_president' && <CouncilCodes />}
                 </li>
               )
             })}

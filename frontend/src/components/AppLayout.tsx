@@ -16,6 +16,7 @@ import { GradeReminder } from '@/components/GradeReminder'
 import { ModerationAlert } from '@/components/ModerationAlert'
 import { ReviewReminder } from '@/components/ReviewReminder'
 import { useHasNewBadges } from '@/api/profile'
+import { useCouncil } from '@/api/guide'
 import { RedDot } from '@/components/RedDot'
 import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
@@ -36,6 +37,8 @@ export function AppLayout() {
   }
 
   const newBadges = useHasNewBadges()
+  // 「学生会」 shows after 排行榜 only for the student council (migration 0034).
+  const onCouncil = !!useCouncil(!!user).data?.role
   const initials = (user?.user_metadata?.display_name ?? user?.email ?? '?')
     .toString()
     .trim()
@@ -59,6 +62,7 @@ export function AppLayout() {
               { to: '/forum', label: t('nav.forum') },
               { to: '/tools', label: t('nav.tools') },
               { to: '/leaderboard', label: t('nav.leaderboard') },
+              ...(onCouncil ? [{ to: '/council', label: t('nav.council') }] : []),
             ].map((item) => (
               <NavLink
                 key={item.to}
@@ -153,6 +157,7 @@ export function AppLayout() {
             { to: '/forum', label: t('nav.forum') },
             { to: '/tools', label: t('nav.tools') },
             { to: '/leaderboard', label: t('nav.leaderboard') },
+            ...(onCouncil ? [{ to: '/council', label: t('nav.council') }] : []),
           ].map((item) => (
             <NavLink
               key={item.to}

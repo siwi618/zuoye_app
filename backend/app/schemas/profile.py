@@ -42,6 +42,15 @@ class NameUpdate(BaseModel):
 
 # Keep in sync with the badges table (migration 0023) and the frontend's profile.badges.*.
 LEAD_READER = "lead_reader"  # may add works to the literature tool
+# Student council (migration 0034): the current president and vice president run 「活动指南」;
+# the past badges stay with those whose term ended.
+COUNCIL_BADGES = (
+    "council_president",
+    "council_vice",
+    "council_president_past",
+    "council_vice_past",
+    "council_member",
+)
 
 
 class BadgeRead(BaseModel):
@@ -50,6 +59,8 @@ class BadgeRead(BaseModel):
     # 「月度冠军」 only: how many months won, and the latest one (its first day).
     times: int | None = None
     last_month: date | None = None
+    # Student council badges only: the term (第 N 届) of the current office, or the terms served.
+    terms: list[int] | None = None
 
 
 class BadgeProgress(BaseModel):

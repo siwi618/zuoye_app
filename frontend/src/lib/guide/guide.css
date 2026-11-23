@@ -1,0 +1,32 @@
+/* 「活动指南」 map: the labels and callouts the scene draws over its canvas (src/lib/guide/scene.ts).
+   Colours follow the draft for now; the Coral Study look comes in a later pass. */
+.gd-stage { position: relative; overflow: hidden; background: #f3f1ec; touch-action: none; }
+.gd-stage canvas { display: block; }
+.gd-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gd-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gd-lbl { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; transition: opacity .15s; }
+.gd-lbl.gd-room { font-size: 11px; color: #585c64; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff; }
+.gd-lbl.gd-room.gd-wc { color: #4f6b80; }
+.gd-lbl.gd-mark { font-size: 10px; color: #9a958b; letter-spacing: .1em; }
+.gd-lbl.gd-floor { font-size: 22px; font-weight: 700; color: #3a3d44; line-height: 1.1; text-align: right; }
+.gd-lbl.gd-floor small { display: block; font-size: 11px; font-weight: 400; color: #6b6f78; }
+.gd-lbl.gd-pin { font-size: 12px; font-weight: 600; color: #fff; background: #22252b; padding: 3px 8px; border-radius: 999px; box-shadow: 0 4px 18px rgba(40, 35, 25, .12); }
+.gd-lbl.gd-pin.gd-sign { background: #e0782b; }
+.gd-callout { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; background: #fff; border-radius: 9px;
+  box-shadow: 0 4px 18px rgba(40, 35, 25, .12); padding: 6px 10px 6px 7px; display: flex; gap: 7px; align-items: flex-start;
+  white-space: nowrap; will-change: transform; color: #22252b; }
+.gd-badges { display: flex; flex-direction: column; gap: 4px; }
+.gd-badge { width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 700; display: flex;
+  align-items: center; justify-content: center; flex: none; }
+.gd-rows { display: flex; flex-direction: column; gap: 4px; }
+.gd-nm { font-size: 13px; font-weight: 700; line-height: 20px; }
+.gd-mt { font-size: 11px; color: #6b6f78; margin-top: -3px; }
+.gd-callout.gd-pulse { animation: gd-pulse 1.2s ease 2; }
+@keyframes gd-pulse { 50% { box-shadow: 0 0 0 6px rgba(47, 111, 222, .25); } }
+/* While a starting point is being picked, clicks go through the callouts to the map. */
+.gd-picking .gd-callout { pointer-events: none; opacity: .55; }
+@media (max-width: 720px) {
+  .gd-lbl.gd-room { font-size: 9px; }
+  .gd-lbl.gd-mark { display: none; }
+  .gd-lbl.gd-floor { font-size: 16px; }
+}

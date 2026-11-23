@@ -32,6 +32,11 @@ const Literature = lazy(() =>
 const LiteratureDevice = lazy(() =>
   import('@/pages/tools/LiteratureDevice').then((m) => ({ default: m.LiteratureDevice })),
 )
+const Council = lazy(() => import('@/pages/Council').then((m) => ({ default: m.Council })))
+const Guide = lazy(() => import('@/pages/tools/Guide').then((m) => ({ default: m.Guide })))
+const GuideEvent = lazy(() =>
+  import('@/pages/tools/GuideEvent').then((m) => ({ default: m.GuideEvent })),
+)
 const LiteratureWork = lazy(() =>
   import('@/pages/tools/LiteratureWork').then((m) => ({ default: m.LiteratureWork })),
 )
@@ -74,7 +79,10 @@ export default function App() {
             <Route path="/tools/literature" element={later(<Literature />)} />
             <Route path="/tools/literature/works/:key" element={later(<LiteratureWork />)} />
             <Route path="/tools/literature/devices/:name" element={later(<LiteratureDevice />)} />
+            <Route path="/tools/guide" element={later(<Guide />)} />
+            <Route path="/tools/guide/:id" element={later(<GuideEvent />)} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/council" element={later(<Council />)} />
           </Route>
         </Route>
 

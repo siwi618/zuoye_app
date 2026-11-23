@@ -43,6 +43,11 @@ export function useMyProfile() {
 // Keep in sync with the badges table (migration 0023) and profile.badges.* in the translations.
 export const BADGES = [
   'lead_reader',
+  'council_president',
+  'council_vice',
+  'council_president_past',
+  'council_vice_past',
+  'council_member',
   'bee_10',
   'bee_25',
   'bee_50',
@@ -69,6 +74,8 @@ export interface Badge {
   // 「月度冠军」 only: months won, and the latest one (its first day, YYYY-MM-DD).
   times?: number | null
   last_month?: string | null
+  // Student council badges only: the current office's term (第 N 届), or the terms served.
+  terms?: number[] | null
 }
 
 export function listMyBadges(): Promise<Badge[]> {

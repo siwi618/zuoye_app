@@ -4,7 +4,7 @@ import time
 
 from fastapi import HTTPException, status
 
-from app.schemas.profile import BadgeProgress, BadgeRead
+from app.schemas.profile import COUNCIL_BADGES, BadgeProgress, BadgeRead
 from app.supabase_client import get_supabase
 
 # Sent as error details so the frontend can show a translated message.
@@ -44,6 +44,21 @@ def list_badges(user_id: str) -> list[BadgeRead]:
             if b.key in (MONTH_CHAMPION, MODERN_TOP):
                 b.times = len(months)
                 b.last_month = months[0]["month"] if months else None
+    if any(b.key in COUNCIL_BADGES for b in out):
+        terms = (
+            get_supabase().table("council_terms").select("term,role,ended_at")
+            .eq("user_id", user_id).order("term").execute().data
+            or []
+        )
+        for b in out:
+            if b.key in COUNCIL_BADGES:
+                role = b.key.removeprefix("council_").removesuffix("_past")
+                past = b.key.endswith("_past")
+                b.terms = sorted({
+                    t["term"]
+                    for t in terms
+                    if t["role"] == role and (t["ended_at"] is not None) == past
+                })
     return out
 
 
@@ -119,6 +134,16 @@ def redeem(user_id: str, code: str) -> list[BadgeRead]:
             or []
         )
         result = rows[0]["status"] if rows else "invalid"
+        if result == "invalid":
+            # Not a badge code: perhaps a student council 传承码 or 副会长码 (migration 0034).
+            rows = (
+                get_supabase()
+                .rpc("council_redeem", {"p_user": user_id, "p_code": normalized})
+                .execute()
+                .data
+                or []
+            )
+            result = rows[0]["status"] if rows else "invalid"
 
     if result == "invalid":
         with _failures_lock:

@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 // 「鱼果」: a line-drawn apple whose bottom notch turns inward and up into a fish head that is
 // also the apple's pip (鱼果 sounds like 雨果, and the fish fits the sea).
 export function YuguoIcon({ className }: { className?: string }) {
@@ -222,6 +224,44 @@ export function DomeCrownIcon({ className }: { className?: string }) {
         />
         <circle cx="24" cy="12.4" r="2.5" fill="currentColor" stroke="none" />
         <path strokeWidth="2" d="M24 9.8V4.8M21.6 7.2H26.4" />
+      </g>
+    </svg>
+  )
+}
+
+// Student council (「鲦行知」 ≈ 陶行知): a fish in the thinking pose — one eyebrow up, mouth
+// pressed flat, a pectoral fin raised like a hand with one "finger" on its chin. The fin sits in
+// front: a mask cuts a gap in the face where it overlaps. Every council badge uses it; the medal's
+// colour tells president, vice, member and past apart.
+const THINKING_FIN =
+  'M25 37.5C23.5 41.5 17.5 43 13 40.5C11 39.4 10.6 37.4 11.8 36.2L11 30C10.9 28.7 12.6 28.3 13.1 29.5L15.4 35.2C18.8 34.6 22.5 35.4 25 37.5Z'
+export function CouncilIcon({ className }: { className?: string }) {
+  // Each drawing needs its own mask id: a mask inside a hidden copy would not apply to the others.
+  const mask = `council-${useId().replace(/[^a-zA-Z0-9-]/g, '')}`
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <defs>
+        <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
+          <rect width="48" height="48" fill="#fff" />
+          <path d={THINKING_FIN} fill="#000" stroke="#000" strokeWidth="5" strokeLinejoin="round" />
+        </mask>
+      </defs>
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <g mask={`url(#${mask})`}>
+          <path
+            strokeWidth="2.4"
+            fill="currentColor"
+            fillOpacity="0.2"
+            d="M6 21C6 12.5 13 7 22 7C30 7 36 12 37 18.5L44 13V30L37 25C35.5 32 29.5 37 21.5 37C12.5 37 6 30 6 21Z"
+          />
+          <circle cx="14.5" cy="18.5" r="2.1" fill="currentColor" stroke="none" />
+          <circle cx="23.5" cy="18" r="2.1" fill="currentColor" stroke="none" />
+          <path strokeWidth="2.2" d="M10.8 13.6C12.6 11.6 15.6 11.4 17.6 13" />
+          <path strokeWidth="2.2" d="M21 14.4L26 14.8" />
+          <path strokeWidth="2.2" d="M15.5 27.2C18 26.4 21 26.4 23.5 27" />
+        </g>
+        <path strokeWidth="2.4" fill="currentColor" fillOpacity="0.35" d={THINKING_FIN} />
+        <path strokeWidth="1.6" d="M17.5 38.6L16.6 41M21 38.4L20.4 41" opacity="0.7" />
       </g>
     </svg>
   )

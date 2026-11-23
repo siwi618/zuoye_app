@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import type { TFunction } from 'i18next'
 import { BADGES, type BadgeKey, type BadgeProgress } from '@/api/profile'
 import {
   BeeIcon,
@@ -8,6 +9,7 @@ import {
   QuoterIcon,
   WriterIcon,
   YuguoIcon,
+  CouncilIcon,
 } from '@/components/BadgeIcons'
 
 // Rarity, each with its own colours: mythic deep crimson, legendary gold, epic purple, common the
@@ -57,6 +59,11 @@ export const BADGE_META: Record<
   { icon: ComponentType<{ className?: string }>; tier: Tier }
 > = {
   lead_reader: { icon: YuguoIcon, tier: 'legendary' },
+  council_president: { icon: CouncilIcon, tier: 'mythic' },
+  council_vice: { icon: CouncilIcon, tier: 'legendary' },
+  council_president_past: { icon: CouncilIcon, tier: 'legendary' },
+  council_vice_past: { icon: CouncilIcon, tier: 'epic' },
+  council_member: { icon: CouncilIcon, tier: 'common' },
   bee_10: { icon: BeeIcon, tier: 'common' },
   bee_25: { icon: BeeIcon, tier: 'epic' },
   bee_50: { icon: BeeIcon, tier: 'legendary' },
@@ -82,7 +89,42 @@ export const OPEN_BADGES: readonly BadgeKey[] = ['all_time_top', 'modern_top', '
 
 // Badges that don't evolve; each has its own description (profile.badgeDesc), while an evolving
 // badge's family shares one (profile.evolution.<family>.desc).
-export type OneTimeBadge = 'lead_reader' | 'month_champion' | 'all_time_top' | 'modern_top'
+export type OneTimeBadge =
+  | 'lead_reader'
+  | 'council_president'
+  | 'council_vice'
+  | 'council_president_past'
+  | 'council_vice_past'
+  | 'council_member'
+  | 'month_champion'
+  | 'all_time_top'
+  | 'modern_top'
+
+// Given only by redemption code: no condition is shown for them on the badge wall.
+export const HIDDEN_BADGES: readonly BadgeKey[] = [
+  'lead_reader',
+  'council_president',
+  'council_vice',
+  'council_president_past',
+  'council_vice_past',
+  'council_member',
+]
+
+// Student council (migration 0034): 「现任鲦行知」 (president, one on the whole site), 「现任副鲦行知」
+// and the members (「小鲦」) run 「活动指南」; a president or vice whose term ended keeps
+// 「第 N 届鲦行知」 / 「第 N 届副鲦行知」. On the badge wall a past badge is named with its terms;
+// worn after a name (no term to hand) it is 前任….
+export const PAST_COUNCIL_BADGES: readonly BadgeKey[] = [
+  'council_president_past',
+  'council_vice_past',
+]
+
+// A held badge's name on the badge wall: a past council badge with its terms (第 5、7 届鲦行知).
+export function heldBadgeName(t: TFunction, b: { key: BadgeKey; terms?: number[] | null }) {
+  if (PAST_COUNCIL_BADGES.includes(b.key) && b.terms?.length)
+    return t(`profile.badges.${b.key}.full`, { terms: b.terms.join(t('profile.termSep')) })
+  return t(`profile.badges.${b.key}.name`)
+}
 
 // Badges that evolve: each stage is its own badge, granted by the database as a count grows —
 // 「雷蜂」 with requests helped complete (migration 0026), 「鲷苗人」 with literature analyses
