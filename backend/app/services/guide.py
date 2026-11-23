@@ -75,10 +75,14 @@ def _display(code: str) -> str:
 
 
 def _people(ids: list[str]) -> dict[str, CouncilPerson]:
+    """Names for council seats. Soft-deleted accounts (profiles.is_deleted) are left out, so they
+    drop off the member list; their seat stays in council_terms, harmless since they can't sign in
+    (a new 副会长码 replaces a deleted vice)."""
     if not ids:
         return {}
     rows = (
         get_supabase().table("profiles").select("id,display_name,grade").in_("id", ids)
+        .eq("is_deleted", False)
         .execute().data
         or []
     )
@@ -170,7 +174,8 @@ def search_users(user_id: str, query: str) -> list[CouncilPerson]:
     pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
     rows = (
         get_supabase().table("profiles").select("id,display_name,grade")
-        .ilike("display_name", pattern).order("display_name").limit(_SEARCH_LIMIT)
+        .ilike("display_name", pattern).eq("is_deleted", False)
+        .order("display_name").limit(_SEARCH_LIMIT)
         .execute().data
         or []
     )
@@ -181,7 +186,13 @@ def search_users(user_id: str, query: str) -> list[CouncilPerson]:
 
 
 def add_member(user_id: str, member_id: str) -> CouncilStatus:
-    """The president adds a member (who gets 「小鲦」)."""
+    """The president adds a member (who gets 「小鲦」). A soft-deleted account counts as unknown."""
+    deleted = (
+        get_supabase().table("profiles").select("id").eq("id", member_id).eq("is_deleted", True)
+        .execute().data
+    )
+    if deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     result = (
         get_supabase().rpc("council_add_member", {"p_user": user_id, "p_member": member_id})
         .execute().data
