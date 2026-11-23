@@ -22,6 +22,7 @@ import {
   type GuideGroup,
   type GuideHooks,
   type GuideScene,
+  type LabelMode,
 } from '@/lib/guide/scene'
 import { ENTRIES, PALETTE, PLACES, PLAN } from '@/lib/guide/plan'
 import '@/lib/guide/guide.css'
@@ -41,6 +42,7 @@ const toDraft = (ev: GuideEventData): Draft => ({
     start: ev.config.start ?? null,
     sign: ev.config.sign ?? '',
     activities: ev.config.activities ?? [],
+    labels: ev.config.labels ?? {},
   },
   open_from: ev.open_from,
   open_to: ev.open_to,
@@ -53,6 +55,9 @@ const FLOOR_BUTTONS: { mode: FloorMode; label?: string }[] = [
   { mode: 2, label: '2F' },
   { mode: 1, label: '1F' },
 ]
+
+// Label density, under the floors: every room name (as before), only the activities, or none.
+const LABEL_MODES: LabelMode[] = ['all', 'acts', 'none']
 
 const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50'
@@ -79,6 +84,7 @@ export function GuideEvent() {
   const editing = canEdit && params.get('edit') === '1'
   const [groups, setGroups] = useState<GuideGroup[]>([])
   const [floorMode, setFloorModeState] = useState<FloorMode>('auto')
+  const [labelMode, setLabelMode] = useState<LabelMode>('all')
   const [exportOpen, setExportOpen] = useState(false)
   const [listOpen, setListOpen] = useState(true)
   const [pickRequested, setPicking] = useState(false)
@@ -101,8 +107,20 @@ export function GuideEvent() {
   const handlers = useRef<{
     roomClick: NonNullable<GuideHooks['onRoomClick']>
     pickStart: NonNullable<GuideHooks['onPickStart']>
-  }>({ roomClick: () => {}, pickStart: () => {} })
+    labelMove: NonNullable<GuideHooks['onLabelMove']>
+  }>({ roomClick: () => {}, pickStart: () => {}, labelMove: () => {} })
   useLayoutEffect(() => {
+    // A label dragged while editing goes into the draft (saved with the event); positions left over
+    // from rooms no longer used are dropped on the way.
+    handlers.current.labelMove = (key, offset) =>
+      change((d) => {
+        const used = new Set(['@start', '@sign', ...d.config.activities.map((a) => a.place)])
+        const labels = Object.fromEntries(
+          Object.entries(d.config.labels ?? {}).filter(([k]) => k !== key && used.has(k)),
+        )
+        if (offset) labels[key] = offset
+        return { ...d, config: { ...d.config, labels } }
+      })
     handlers.current.roomClick = (room) => {
       if (room.editing) {
         if (!room.selectable) return void toast(t('tools.guide.notSelectable', { name: room.name }))
@@ -160,6 +178,7 @@ export function GuideEvent() {
       onRoomClick: (room) => handlers.current.roomClick(room),
       onPickStart: (pick) => handlers.current.pickStart(pick),
       onPickMiss: () => toast(t('tools.guide.pickMiss')),
+      onLabelMove: (key, offset) => handlers.current.labelMove(key, offset),
     })
     sceneRef.current = scene
     const ro = new ResizeObserver(() => setNarrow(stage.clientWidth <= 720))
@@ -181,6 +200,10 @@ export function GuideEvent() {
   useEffect(() => {
     sceneRef.current?.setEditMode(editing)
   }, [editing])
+
+  useEffect(() => {
+    sceneRef.current?.setLabelMode(labelMode)
+  }, [labelMode])
 
   useEffect(() => {
     sceneRef.current?.setPicking(picking)
@@ -529,6 +552,25 @@ export function GuideEvent() {
     </div>
   )
 
+  const labelButtons = (
+    <>
+      <span className="px-1 text-center text-[11px] text-neutral-400">{t('tools.guide.labels.title')}</span>
+      {LABEL_MODES.map((m) => (
+        <button
+          key={m}
+          aria-pressed={labelMode === m}
+          className={cn(
+            'rounded-lg px-2.5 py-1.5 text-sm font-semibold text-neutral-700',
+            labelMode === m ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100',
+          )}
+          onClick={() => setLabelMode(m)}
+        >
+          {t(`tools.guide.labels.${m}`)}
+        </button>
+      ))}
+    </>
+  )
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -571,7 +613,20 @@ export function GuideEvent() {
               {b.label ?? t(`tools.guide.floors.${b.mode}`)}
             </button>
           ))}
+          {!narrow && (
+            <>
+              <div className="mx-1 my-1 border-t border-neutral-200" />
+              {labelButtons}
+            </>
+          )}
         </div>
+
+        {/* On a phone the floor column is already tall: the label choice sits in a row at the bottom. */}
+        {narrow && (
+          <div className="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-xl bg-white/90 p-1.5 shadow-sm backdrop-blur">
+            {labelButtons}
+          </div>
+        )}
 
         {/* Tools */}
         <div className="absolute top-3 right-3 z-20 flex gap-1.5">

@@ -14,6 +14,9 @@ GuideSubtitleStr = Annotated[str, StringConstraints(strip_whitespace=True, max_l
 ColorStr = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 
 MAX_ACTIVITIES = 30
+MAX_LABELS = 40
+LabelKey = Annotated[str, StringConstraints(min_length=1, max_length=24)]
+LabelOffset = Annotated[float, Field(ge=-200, le=200)]
 
 
 class CustomStart(BaseModel):
@@ -37,6 +40,13 @@ class GuideConfig(BaseModel):
     # An entrance or room name, "起点" for the same spot as the start, or "" for none.
     sign: PlaceStr = ""
     activities: Annotated[list[GuideActivity], Field(max_length=MAX_ACTIVITIES)] = []
+    # Where an editor dragged a label: a room's activity card (keyed by the room's name) or the
+    # start / sign-in tag ("@start", "@sign"), as an offset from the spot it points at, in the
+    # map's own units across and down the screen (so it holds when the map is zoomed or turned).
+    labels: Annotated[
+        dict[LabelKey, Annotated[list[LabelOffset], Field(min_length=2, max_length=2)]],
+        Field(max_length=MAX_LABELS),
+    ] = {}
 
 
 MAX_OPEN_DAYS = 31

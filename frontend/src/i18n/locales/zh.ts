@@ -660,6 +660,7 @@ export const zh: Translations = {
       exportKinds: { phone: '手机竖版', a4: 'A4 横版', screen: '16:9 横版' },
       exportHints: { phone: '发微信群', a4: '打印张贴', screen: '大屏幕 / 投影' },
       exportName: { phone: '手机', a4: 'A4', screen: '大屏' },
+      labels: { title: '标签', all: '全部', acts: '仅活动', none: '隐藏' },
       floors: { auto: '活动', all: '全部' },
       autoHint: '只显示有活动或路线经过的楼层',
       activities: '活动（{{count}}）',
@@ -667,7 +668,7 @@ export const zh: Translations = {
       expand: '展开',
       noActivities: '还没有活动。',
       noActivitiesPlanner: '还没有活动，点「编辑活动」添加。',
-      hint: '在楼上拖动 = 旋转 · 在空白处拖动 = 平移 · 滚轮缩放 · 点房间看名字',
+      hint: '在楼上拖动 = 旋转 · 在空白处拖动 = 平移 · 滚轮缩放 · 点房间看名字 · 标注可拖开，点 ↺ 放回原位',
       fields: {
         title: '标题',
         subtitle: '副标题（日期 / 时间）',

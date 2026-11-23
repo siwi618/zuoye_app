@@ -661,6 +661,7 @@ export const en = {
       exportKinds: { phone: 'Phone (portrait)', a4: 'A4 (landscape)', screen: '16:9' },
       exportHints: { phone: 'for group chats', a4: 'to print', screen: 'big screen' },
       exportName: { phone: 'phone', a4: 'A4', screen: 'screen' },
+      labels: { title: 'Labels', all: 'All', acts: 'Events', none: 'None' },
       floors: { auto: 'Event', all: 'All' },
       autoHint: 'Only floors with activities or on a route',
       activities: 'Activities ({{count}})',
@@ -668,7 +669,7 @@ export const en = {
       expand: 'Show',
       noActivities: 'No activities yet.',
       noActivitiesPlanner: 'No activities yet. Click “Edit event” to add some.',
-      hint: 'Drag the building to rotate · drag empty space to pan · scroll to zoom · click a room for its name',
+      hint: 'Drag the building to rotate · drag empty space to pan · scroll to zoom · click a room for its name · drag a label aside, ↺ puts it back',
       fields: {
         title: 'Title',
         subtitle: 'Subtitle (date / time)',

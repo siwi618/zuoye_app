@@ -20,8 +20,14 @@ export interface GuideConfig {
   start: string | CustomStart | null
   sign: string
   activities: GuideActivity[]
+  // Dragged labels: an activity card by its room's name, the start / sign-in tag as '@start' /
+  // '@sign'; the offset from the spot it points at, in map units across and down the screen.
+  labels?: Record<string, [number, number]>
 }
 export type FloorMode = 'auto' | 'all' | 1 | 2 | 3
+// Which labels the map shows: every room and place name plus the activity callouts ('all'), only
+// the activity callouts ('acts'), or neither ('none'). Floor tags and the start / sign-in pins stay.
+export type LabelMode = 'all' | 'acts' | 'none'
 export interface GuideGroup { place: string; floor: number; acts: { i: number; name: string; time: string; color: string }[] }
 export interface GuideHooks {
   // Pixels at each edge of the container covered by the page's own panels: the fit keeps clear of them.
@@ -31,6 +37,8 @@ export interface GuideHooks {
   onRoomClick?: (room: { name: string; floor: number; selectable: boolean; editing: boolean; activities: string[] }) => void
   onPickStart?: (pick: { floor: number; pos: Pt; autoName: string }) => void
   onPickMiss?: () => void
+  // An editor dragged a label (or double-clicked it back to its automatic place: null).
+  onLabelMove?: (key: string, offset: [number, number] | null) => void
 }
 export type GuideScene = ReturnType<typeof createGuideScene>
 
@@ -272,6 +280,83 @@ let routeSegs = [];     // 箭头动画用
 let pins = [];
 let usedFloors = new Set();
 let floorMode = 'auto'; // 'auto' | 'all' | 1 | 2 | 3
+let labelMode: LabelMode = 'all';
+// 房间名、地点标记只在「全部」时显示；活动标注在「隐藏」时不显示。楼层名和起点 / 签到点一直显示。
+const nameShown = (it: any) => (it.kind !== 'room' && it.kind !== 'mark') || labelMode === 'all';
+// 房间跟着标签走：标签被藏起来的房间变半透明（「仅活动」= 没活动的房间，「隐藏」= 所有房间）。
+// 楼梯（没有标签）和本来就半透明的屋面不动。
+const FADED_OPACITY = 0.3;
+// 拖动过的标注。偏移量用地图单位（沿屏幕横 / 竖方向），按当前镜头换算成像素，所以缩放、
+// 旋转地图后标注还跟着它指的房间走。编辑时拖动会写进配置（保存后所有人看到同样的布局）；
+// 不在编辑时拖动只在这次打开里有效。null = 双击复原到自动位置。
+type Off = [number, number];
+let localOffsets: Record<string, Off | null> = {};
+const offsetOf = (key: string): Off | null => (key in localOffsets ? localOffsets[key] : cfg.labels?.[key] ?? null);
+function pxPerUnit(cam, pos, W, H) {
+  cam.updateMatrixWorld();
+  const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize();
+  const a = projectTo(cam, pos, W, H), b = projectTo(cam, pos.clone().add(right), W, H);
+  return Math.hypot(b.x - a.x, b.y - a.y) || 1;
+}
+// 引线从锚点连到卡片 / 牌子上离它最近的一点；锚点落在卡片里面就不画线。
+function leaderEnd(ax, ay, r) {
+  const x = Math.min(Math.max(ax, r.x), r.x + r.w), y = Math.min(Math.max(ay, r.y), r.y + r.h);
+  return x === ax && y === ay ? null : [x, y];
+}
+// 让一个标注能拖：ref() 给出它当前的锚点（屏幕坐标）、每地图单位多少像素、参考点（卡片底边中点 /
+// 牌子中心）。拖过就吞掉随后的 click（单击卡片 = 把镜头转到教室）。
+function makeDraggable(el: HTMLElement, key: string, ref: () => any) {
+  let start = null, moved = false;
+  el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0 || pickingStart) return;
+    const r = ref(); if (!r) return;
+    start = {x: e.clientX, y: e.clientY, rx: r.rx, ry: r.ry}; moved = false;
+    el.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  });
+  el.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!moved && Math.hypot(dx, dy) < 4) return;
+    moved = true; el.classList.add('gd-dragging');
+    const r = ref(); if (!r) return;
+    const round = (v: number) => Math.round(Math.max(-200, Math.min(200, v)) * 100) / 100;
+    localOffsets[key] = [round((start.rx + dx - r.ax) / r.u), round((start.ry + dy - r.ay) / r.u)];
+  });
+  const end = () => {
+    if (!start) return;
+    start = null; el.classList.remove('gd-dragging');
+    if (!moved) return;
+    el.addEventListener('click', (ev) => ev.stopImmediatePropagation(), {capture: true, once: true});
+    if (editMode) hooks.onLabelMove?.(key, localOffsets[key]);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+// 拖过的标注右上角有个「↺」：只把它放回自动位置，不触发单击（不转镜头）。只在拖过时显示（gd-moved）。
+function addResetButton(el: HTMLElement, key: string) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'gd-reset'; b.textContent = '↺'; b.title = '放回原位';
+  b.addEventListener('pointerdown', (e) => e.stopPropagation());
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    localOffsets[key] = null;
+    if (editMode) hooks.onLabelMove?.(key, null);
+  });
+  el.appendChild(b);
+}
+
+function applyRoomFade() {
+  rooms.forEach((r: any) => {
+    if (!r.label || r.type === 'roof') return;
+    const faded = labelMode === 'none' || (labelMode === 'acts' && !r.label.hiddenByEvent);
+    const m = r.mesh.material;
+    if (m.transparent === faded) return;
+    m.transparent = faded; m.opacity = faded ? FADED_OPACITY : 1; m.depthWrite = !faded; m.needsUpdate = true;
+    r.edges.material = faded ? lineMatGhost : lineMat;
+  });
+}
 
 const ribbonMat = new THREE.MeshBasicMaterial({color: ROUTE_COLOR, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2});
 // 被房间挡住的路线：第二遍只和楼板比深度，半透明画出来（图层 2）
@@ -326,7 +411,10 @@ function addPin(entry, text, cls) {
   const pos = W3(entry.f, entry.p, 0);
   g.position.copy(pos);
   floors[entry.f].routeGroup.add(g);
-  const label = addLabel(text, 'pin ' + cls, pos.clone().add(new THREE.Vector3(0, 3.9, 0)), entry.f, {always: true, pinCls: cls});
+  const key = cls === 'sign' ? '@sign' : '@start';
+  const label = addLabel(text, 'pin ' + cls, pos.clone().add(new THREE.Vector3(0, 3.9, 0)), entry.f,
+    {always: true, pinCls: cls, key, anchor: pos.clone().add(new THREE.Vector3(0, 2.7, 0))});
+  makeDraggable(label.el, key, () => label.ref);
   pins.push({mesh: g, label});
 }
 
@@ -388,9 +476,10 @@ function applyConfig() {
       usedFloors.add(sign.f);
     }
   }
-  pins.forEach(p => p.label.text = p.label.el.textContent);
+  pins.forEach(p => { p.label.text = p.label.el.textContent; addResetButton(p.label.el, p.label.key); });
   if (!usedFloors.size) [2, 3].forEach(f => usedFloors.add(f));
 
+  applyRoomFade();
   hooks.onChange?.(groups.map((g: any) => ({place: g.room.name, floor: g.room.floor, acts: g.acts})), missing);
   setFloorMode(floorMode, false);
 }
@@ -402,6 +491,8 @@ function makeCalloutEl(g) {
   el.innerHTML = `<div class="gd-badges">${g.acts.map(a => `<span class="gd-badge" style="background:${a.color}">${a.i}</span>`).join('')}</div>
     <div class="gd-rows">${g.acts.map((a, j) => `<div><div class="gd-nm">${esc(a.name)}</div><div class="gd-mt">${esc(metaLine(j === 0 ? r.name : '', a.time))}</div></div>`).join('')}</div>`;
   el.addEventListener('click', () => focusRoom(r));
+  makeDraggable(el, r.name, () => g.ref);
+  addResetButton(el, r.name);
   return el;
 }
 const metaLine = (...parts) => parts.filter(Boolean).join(' · ');
@@ -542,8 +633,8 @@ function isOccluded(cam, pos) {
 // 标注避让：卡片默认在锚点正上方，与已放置的卡片重叠就往上挪
 function layoutCallouts(items, gap, fixed) {
   const placed = (fixed || []).slice();   // 起点 / 签到牌子等，标注卡要避开
-  items.sort((a, b) => b.ay - a.ay);
-  items.forEach(it => {
+  items.forEach(it => { if (it.fixed) placed.push(it); });   // 拖过的卡片位置不动，其余的避开它们
+  items.filter(it => !it.fixed).sort((a, b) => b.ay - a.ay).forEach(it => {
     let x = it.ax - it.w / 2, y = it.ay - gap - it.h;
     for (let k = 0; k < 40; k++) {
       const hit = placed.find(p => x < p.x + p.w + 4 && x + it.w + 4 > p.x && y < p.y + p.h + 4 && y + it.h + 4 > p.y);
@@ -561,12 +652,24 @@ function updateLabels() {
   const vis = visibleFloors();
   const checkOcc = occDirty || (occFrame++ % 6 === 0);
   labelItems.forEach(it => {
-    const show = vis.includes(it.floor) && !it.hiddenByEvent;
+    const show = vis.includes(it.floor) && !it.hiddenByEvent && nameShown(it);
     if (!show) { it.el.style.display = 'none'; return; }
     const p = projectTo(camera, it.pos, W, H);
     if (p.behind) { it.el.style.display = 'none'; return; }
     it.el.style.display = '';
     if (it.kind === 'floor') it.el.style.transform = `translate(${p.x}px,${p.y}px) translate(-100%,-50%)`;
+    else if (it.kind === 'pin') {
+      // 牌子默认在针头正上方；拖过就放在锚点（针头）加偏移处，画引线回针头。
+      const a = projectTo(camera, it.anchor, W, H), u = pxPerUnit(camera, it.anchor, W, H);
+      const off = offsetOf(it.key);
+      const cx = off ? a.x + off[0] * u : p.x, cy = off ? a.y + off[1] * u : p.y;
+      const w = it.el.offsetWidth, h = it.el.offsetHeight;
+      it.el.style.transform = `translate(${cx}px,${cy}px) translate(-50%,-50%)`;
+      it.ref = {ax: a.x, ay: a.y, u, rx: cx, ry: cy};
+      it.rect = {x: cx - w / 2, y: cy - h / 2, w, h};
+      it.leader = off ? {ax: a.x, ay: a.y} : null;
+      it.el.classList.toggle('gd-moved', !!off);
+    }
     else it.el.style.transform = `translate(${p.x}px,${p.y}px) translate(-50%,-50%)`;
     if (checkOcc) it.occ = !it.always && it.kind !== 'floor' && isOccluded(camera, it.pos);
     it.el.style.opacity = it.occ ? 0 : 1;
@@ -575,21 +678,32 @@ function updateLabels() {
   // 标注
   const items = [];
   groups.forEach(g => {
-    if (!vis.includes(g.room.floor)) { g.el.style.display = 'none'; return; }
+    if (!vis.includes(g.room.floor) || labelMode === 'none') { g.el.style.display = 'none'; return; }
     g.el.style.display = '';
     const p = projectTo(camera, g.pos, W, H);
     if (!g.size || g.sizeDirty !== false) { g.size = [g.el.offsetWidth, g.el.offsetHeight]; g.sizeDirty = false; }
-    items.push({g, ax: p.x, ay: p.y, w: g.size[0], h: g.size[1]});
+    const it: any = {g, ax: p.x, ay: p.y, w: g.size[0], h: g.size[1]};
+    it.u = pxPerUnit(camera, g.pos, W, H);
+    const off = offsetOf(g.room.name);
+    if (off) { it.fixed = true; it.x = p.x + off[0] * it.u - it.w / 2; it.y = p.y + off[1] * it.u - it.h; }
+    g.el.classList.toggle('gd-moved', !!off);
+    items.push(it);
   });
-  const pinRects = pins.filter(p => vis.includes(p.label.floor) && p.label.el.style.display !== 'none').map(p => {
-    const b = p.label.el.getBoundingClientRect(); return {x: b.left, y: b.top, w: b.width, h: b.height};
-  });
-  layoutCallouts(items, 22, pinRects);
+  // 牌子的位置在上面已经算好（相对舞台），标注卡避开它们。
+  const shownPins = pins.filter(p => vis.includes(p.label.floor) && p.label.el.style.display !== 'none' && p.label.rect);
+  layoutCallouts(items, 22, shownPins.map(p => p.label.rect));
   let svg = '';
+  shownPins.forEach(p => {
+    const l = p.label; if (!l.leader) return;
+    const e = leaderEnd(l.leader.ax, l.leader.ay, l.rect); if (!e) return;
+    svg += `<line x1="${l.leader.ax}" y1="${l.leader.ay}" x2="${e[0]}" y2="${e[1]}" stroke="${l.pinCls === 'sign' ? '#e0782b' : '#22252b'}" stroke-width="1.5"/>`;
+  });
   items.forEach(it => {
     it.g.el.style.transform = `translate(${it.x}px,${it.y}px)`;
-    const col = it.g.acts[0].color;
-    svg += `<line x1="${it.ax}" y1="${it.ay}" x2="${it.x + it.w / 2}" y2="${it.y + it.h}" stroke="${col}" stroke-width="1.5"/><circle cx="${it.ax}" cy="${it.ay}" r="3.5" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+    it.g.ref = {ax: it.ax, ay: it.ay, u: it.u, rx: it.x + it.w / 2, ry: it.y + it.h};
+    const col = it.g.acts[0].color, e = leaderEnd(it.ax, it.ay, it);
+    if (e) svg += `<line x1="${it.ax}" y1="${it.ay}" x2="${e[0]}" y2="${e[1]}" stroke="${col}" stroke-width="1.5"/>`;
+    svg += `<circle cx="${it.ax}" cy="${it.ay}" r="3.5" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
   });
   leadersEl.innerHTML = svg;
 }
@@ -702,7 +816,7 @@ function exportImage(kind: 'phone' | 'a4' | 'screen'): Promise<Blob | null> {
   ctx.textBaseline = 'middle';
   // 房间名 / 标记 / 楼层
   labelItems.forEach(it => {
-    if (!vis.includes(it.floor) || it.hiddenByEvent || it.kind === 'pin') return;
+    if (!vis.includes(it.floor) || it.hiddenByEvent || it.kind === 'pin' || !nameShown(it)) return;
     if (it.kind !== 'floor' && isOccluded(cam, it.pos)) return;
     const p = P(it.pos);
     if (it.kind === 'floor') {
@@ -719,36 +833,42 @@ function exportImage(kind: 'phone' | 'a4' | 'screen'): Promise<Blob | null> {
     ctx.fillText(it.text, p.x, p.y);
   });
   // 起点 / 签到点
+  // 拖过的牌子放在针头加偏移处，先画引线再画牌子。
+  const pinRects = [];
   pins.forEach(pn => {
     const it = pn.label; if (!vis.includes(it.floor)) return;
-    const p = P(it.pos);
+    const off = offsetOf(it.key), a = P(it.anchor), u = pxPerUnit(cam, it.anchor, L.map.w, L.map.h);
+    const p = off ? {x: a.x + off[0] * u, y: a.y + off[1] * u} : P(it.pos);
     ctx.font = `600 ${12 * k}px ${FONT}`; const w = ctx.measureText(it.text).width + 16 * k, h = 22 * k;
-    ctx.fillStyle = it.pinCls === 'sign' ? '#e0782b' : '#22252b';
-    roundRect(ctx, p.x - w / 2, p.y - h / 2, w, h, h / 2); ctx.fill();
+    const rect = {x: p.x - w / 2, y: p.y - h / 2, w, h};
+    pinRects.push(rect);
+    const col = it.pinCls === 'sign' ? '#e0782b' : '#22252b';
+    const e = off && leaderEnd(a.x, a.y, rect);
+    if (e) { ctx.strokeStyle = col; ctx.lineWidth = 1.5 * k; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
+    ctx.fillStyle = col;
+    roundRect(ctx, rect.x, rect.y, w, h, h / 2); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(it.text, p.x, p.y);
   });
   // 活动标注
-  const pinRects = pins.filter(pn => vis.includes(pn.label.floor)).map(pn => {
-    const p = P(pn.label.pos); ctx.font = `600 ${12 * k}px ${FONT}`;
-    const w = ctx.measureText(pn.label.el.textContent).width + 16 * k, h = 22 * k;
-    return {x: p.x - w / 2, y: p.y - h / 2, w, h};
-  });
   const items = [];
   groups.forEach(g => {
-    if (!vis.includes(g.room.floor)) return;
+    if (!vis.includes(g.room.floor) || labelMode === 'none') return;
     const p = P(g.pos);
     let w = 0;
     g.acts.forEach((a, j) => {
       ctx.font = `700 ${13 * k}px ${FONT}`; w = Math.max(w, ctx.measureText(a.name).width);
       ctx.font = `${11 * k}px ${FONT}`; w = Math.max(w, ctx.measureText(metaLine(j === 0 ? g.room.name : '', a.time)).width);
     });
-    items.push({g, ax: p.x, ay: p.y, w: w + 44 * k, h: g.acts.length * 38 * k + 10 * k});
+    const it: any = {g, ax: p.x, ay: p.y, w: w + 44 * k, h: g.acts.length * 38 * k + 10 * k};
+    const off = offsetOf(g.room.name);
+    if (off) { const u = pxPerUnit(cam, g.pos, L.map.w, L.map.h); it.fixed = true; it.x = p.x + off[0] * u - it.w / 2; it.y = p.y + off[1] * u - it.h; }
+    items.push(it);
   });
   layoutCallouts(items, 22 * k, pinRects);
   items.forEach(it => {
-    const col = it.g.acts[0].color;
+    const col = it.g.acts[0].color, e = leaderEnd(it.ax, it.ay, it);
     ctx.strokeStyle = col; ctx.lineWidth = 1.5 * k;
-    ctx.beginPath(); ctx.moveTo(it.ax, it.ay); ctx.lineTo(it.x + it.w / 2, it.y + it.h); ctx.stroke();
+    if (e) { ctx.beginPath(); ctx.moveTo(it.ax, it.ay); ctx.lineTo(e[0], e[1]); ctx.stroke(); }
     ctx.fillStyle = col; ctx.beginPath(); ctx.arc(it.ax, it.ay, 3.5 * k, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.stroke();
     ctx.save(); ctx.shadowColor = 'rgba(40,35,25,.18)'; ctx.shadowBlur = 14 * k; ctx.shadowOffsetY = 3 * k;
@@ -835,11 +955,13 @@ function animate(now: number) {
 raf = requestAnimationFrame(animate);
 
 return {
-  setConfig(next: GuideConfig) { cfg = next; applyConfig(); },
+  // 编辑时拖动都经配置回来，本地的临时位置就不用留了。
+  setConfig(next: GuideConfig) { cfg = next; if (editMode) localOffsets = {}; applyConfig(); },
   setFloorMode(mode: FloorMode) { setFloorMode(mode); },
   getFloorMode: () => floorMode,
+  setLabelMode(mode: LabelMode) { labelMode = mode; applyRoomFade(); occDirty = true; },
   focusRoom(name: string) { focusRoom(roomByName[name]); },
-  setEditMode(on: boolean) { editMode = on; if (!on) setPicking(false); },
+  setEditMode(on: boolean) { editMode = on; if (on) localOffsets = {}; if (!on) setPicking(false); },
   setPicking,
   refit() { fitView(true); },
   exportImage,

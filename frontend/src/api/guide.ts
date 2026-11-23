@@ -7,6 +7,8 @@ export interface GuideEventConfig {
   start: string | CustomStart | null
   sign: string
   activities: GuideActivity[]
+  // Labels an editor dragged into place (see GuideConfig.labels in lib/guide/scene).
+  labels?: Record<string, [number, number]>
 }
 
 export interface GuideEventSummary {
