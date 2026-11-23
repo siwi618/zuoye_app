@@ -336,9 +336,10 @@ function applyConfig() {
   usedFloors = new Set();
   const missing = [];
 
-  // 活动分组
-  const acts = (cfg.activities || []).filter((a: any) => a && a.place);
-  acts.forEach((a, i) => {
+  // 活动分组。编号和颜色按活动在整张列表里的位置（i），和编辑面板一致：还没选地点的活动不上图，
+  // 但仍占着自己的编号，后面的活动不往前挤。
+  (cfg.activities || []).forEach((a: any, i) => {
+    if (!a || !a.place) return;
     const room = roomByName[a.place];
     if (!room) { missing.push(a.place); return; }
     const color = a.color || PALETTE[i % PALETTE.length];
