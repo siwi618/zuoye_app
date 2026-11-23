@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useCouncil, useGuideEvents } from '@/api/guide'
+import { beijingToday, useCouncil, useGuideEvents } from '@/api/guide'
 import type { Subject, Tool } from '@/components/toolbox/types'
 import { GrowthScene } from '@/components/toolbox/GrowthScene'
 import '@/components/toolbox/toolbox.css'
@@ -29,8 +29,8 @@ const CATEGORIES: Subject[] = [
 ]
 
 // 「活动指南」 isn't one of the coral's own tools: it comes and goes with the student council's
-// events, so a green octopus hiding in a rock on the seabed holds it out on a tentacle. Shown only
-// to the council, and to everyone on days an event is open.
+// events, so an octopus hiding in a rock on the seabed holds it out on a tentacle. Shown only to
+// the council, and to everyone on days an event is open; on those days it dresses up for the party.
 const GUIDE: Tool = { key: 'guide', status: 'live', icon: '/tools/guide.svg', to: '/tools/guide' }
 
 export function Toolbox() {
@@ -38,6 +38,11 @@ export function Toolbox() {
   const council = useCouncil()
   const open = useGuideEvents()
   const showGuide = !!council.data?.role || (open.data?.length ?? 0) > 0
+  // The council's list has every event; anyone else only gets the ones open today.
+  const today = beijingToday()
+  const festive = (open.data ?? []).some(
+    (e) => !!e.open_from && !!e.open_to && e.open_from <= today && today <= e.open_to,
+  )
 
   return (
     <div className="tbx space-y-6">
@@ -45,7 +50,7 @@ export function Toolbox() {
         <h1 className="text-3xl font-bold tracking-tight">{t('tools.title')}</h1>
         <p className="text-muted-foreground">{t('tools.subtitle')}</p>
       </header>
-      <GrowthScene subjects={CATEGORIES} held={showGuide ? GUIDE : undefined} />
+      <GrowthScene subjects={CATEGORIES} held={showGuide ? GUIDE : undefined} festive={festive} />
     </div>
   )
 }

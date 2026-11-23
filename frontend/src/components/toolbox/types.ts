@@ -15,4 +15,7 @@ export type SceneProps = {
   subjects: Subject[]
   // A tool held out by the octopus on the seabed rather than grown on the coral (活动指南).
   held?: Tool
+  // An event is open today: the octopus turns purple, its suckers light up like party bulbs, and it
+  // wears a party hat and blows a party horn when tapped.
+  festive?: boolean
 }

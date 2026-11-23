@@ -879,6 +879,20 @@ body {
 .tbx {
   --tbx-octo: color-mix(in oklab, var(--tbx-coral) 60%, var(--tbx-sea-1));
   --tbx-octo-deep: var(--tbx-coral-deep);
+  --tbx-octo-soft: var(--tbx-coral-soft);
+  --tbx-octo-line: var(--tbx-coral);
+}
+
+/* Event days: the same octopus in purple. Each colour keeps its lightness and chroma and only turns
+ * to a purple hue (the resting arm is the coral mix above, worked out: oklch 0.78 0.095 175.5). */
+.tbx-grow--party {
+  --tbx-octo: oklch(0.78 0.095 305);
+  --tbx-octo-deep: oklch(0.5 0.1 305);
+  --tbx-octo-soft: oklch(0.82 0.08 305);
+  --tbx-octo-line: oklch(0.68 0.13 305);
+  --tbx-party-red: oklch(0.66 0.2 25);
+  --tbx-party-blue: oklch(0.62 0.17 255);
+  --tbx-party-gold: oklch(0.86 0.15 88);
 }
 
 /* The arm's tip on the icon is stroked in container units (see Grip). */
@@ -892,7 +906,16 @@ body {
 
 /* The head is the octopus's trunk: deep like the colony's, so it stands out from the pale rock. */
 .tbx-octo__head .tbx-octo__skin {
-  fill: var(--tbx-coral-deep);
+  fill: var(--tbx-octo-deep);
+}
+
+/* The polyps on the side arm and twig, and the twig itself, take the octopus's colours. */
+.tbx-octo .tbx-grow__polyp {
+  stroke: var(--tbx-octo-line);
+}
+
+.tbx-octo .tbx-octo__twig {
+  stroke: var(--tbx-octo-soft);
 }
 
 .tbx-octo__eye {
@@ -900,7 +923,7 @@ body {
 }
 
 .tbx-octo__pupil {
-  fill: var(--tbx-coral-deep);
+  fill: var(--tbx-octo-deep);
 }
 
 .tbx-octo__hollow {
@@ -916,7 +939,7 @@ body {
 }
 
 .tbx-octo__sucker {
-  fill: var(--tbx-coral-soft);
+  fill: var(--tbx-octo-soft);
 }
 
 /* Picked, the suckers swell and shrink in turn up the arm (delays set in GrowthScene), in place of
@@ -1037,4 +1060,240 @@ body {
   .tbx-node--held .tbx-node__name {
     display: none;
   }
+}
+
+/* ---- Party dress (event days) ---------------------------------------------------------------- */
+
+/* Suckers become a string of party bulbs, red and blue in turn, twinkling out of step; picked, they
+ * also swell in turn up the arm and the twinkle follows the same wave. */
+.tbx-octo__bulb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tbx-twinkle 1.4s ease-in-out infinite;
+}
+
+.tbx-octo__bulb--red {
+  fill: var(--tbx-party-red);
+}
+
+.tbx-octo__bulb--blue {
+  fill: var(--tbx-party-blue);
+  animation-delay: -0.7s;
+}
+
+.tbx-octo__arm.is-on .tbx-octo__bulb {
+  animation:
+    tbx-suck 1.8s ease-in-out infinite,
+    tbx-twinkle 1.8s ease-in-out infinite;
+}
+
+@keyframes tbx-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.tbx-hat__cone {
+  fill: var(--tbx-party-gold);
+}
+
+.tbx-hat__band--red {
+  fill: var(--tbx-party-red);
+}
+
+.tbx-hat__band--blue {
+  fill: var(--tbx-party-blue);
+}
+
+.tbx-hat__pompom {
+  fill: var(--tbx-foam);
+}
+
+/* The smile replaces the open eyes while it blows (a tap remounts the eyes as .is-happy). */
+.tbx-octo__smile {
+  fill: none;
+  stroke: var(--tbx-foam);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.tbx-octo__eyes.is-happy .tbx-octo__smile {
+  animation: tbx-happy 1.1s var(--tbx-ease);
+}
+
+.tbx-octo__eyes.is-happy :is(.tbx-octo__eye, .tbx-octo__pupil) {
+  animation: tbx-unhappy 1.1s var(--tbx-ease);
+}
+
+@keyframes tbx-unhappy {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  8%,
+  88% {
+    opacity: 0;
+  }
+}
+
+@keyframes tbx-happy {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  8%,
+  88% {
+    opacity: 1;
+  }
+}
+
+.tbx-horn__tube {
+  fill: none;
+  stroke: var(--tbx-party-red);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.tbx-horn__mouthpiece {
+  fill: none;
+  stroke: var(--tbx-party-gold);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+/* Blown: the curl hides, the straight tube shoots out from the mouthpiece, holds, and rolls back. */
+.tbx-horn__straight {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+.tbx-horn.is-blowing .tbx-horn__straight {
+  animation: tbx-blow 1.1s var(--tbx-ease);
+}
+
+.tbx-horn.is-blowing .tbx-horn__curl {
+  animation: tbx-unroll 1.1s var(--tbx-ease);
+}
+
+@keyframes tbx-blow {
+  0% {
+    opacity: 1;
+    scale: 0.15 1;
+  }
+  14%,
+  76% {
+    opacity: 1;
+    scale: 1 1;
+  }
+  92% {
+    opacity: 1;
+    scale: 0.15 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 0.15 1;
+  }
+}
+
+@keyframes tbx-unroll {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  6%,
+  90% {
+    opacity: 0;
+  }
+}
+
+.tbx-horn__confetti {
+  opacity: 0;
+}
+
+.tbx-horn__confetti--red {
+  fill: var(--tbx-party-red);
+}
+
+.tbx-horn__confetti--blue {
+  fill: var(--tbx-party-blue);
+}
+
+.tbx-horn__confetti--gold {
+  fill: var(--tbx-party-gold);
+}
+
+.tbx-horn.is-blowing .tbx-horn__confetti {
+  animation: tbx-confetti 1.1s var(--tbx-ease);
+}
+
+@keyframes tbx-confetti {
+  0%,
+  12% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    translate: 14px 0;
+  }
+}
+
+/* 「（活动特供！）」 under the held tool's name on event days, in ZCOOL KuaiLe (站酷快乐体, SIL OFL,
+ * licence in fonts/). The font is cut down to just the label's characters (zh and en), about 2 KB,
+ * and served with the site rather than from Google Fonts, which is often unreachable in China. */
+@font-face {
+  font-family: 'Tbx Party';
+  src: url('./fonts/zcool-kuaile-party.woff2') format('woff2');
+  font-display: swap;
+}
+
+.tbx-node--held .tbx-node__name {
+  position: relative;
+}
+
+.tbx-node__special {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 2px;
+  color: var(--tbx-octo-deep);
+  font-family: 'Tbx Party', var(--font-sans, system-ui), sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 var(--tbx-foam);
+  transform-origin: left center;
+  animation: tbx-sway 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes tbx-sway {
+  from {
+    rotate: -5deg;
+  }
+  to {
+    rotate: 3deg;
+  }
+}
+
+/* The tap target over the party octopus's head and horn. */
+.tbx-octo__poke {
+  position: absolute;
+  border: 0;
+  border-radius: 40%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* On a phone the head is small; keep a finger-sized target round it. */
+  min-width: 44px;
+  min-height: 44px;
 }

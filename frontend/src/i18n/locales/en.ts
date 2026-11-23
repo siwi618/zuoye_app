@@ -399,6 +399,10 @@ export const en = {
     },
     planned: 'Growing',
     openTool: 'Open {{name}}',
+    octopus: {
+      special: '(Event special!)',
+      blow: 'Make the octopus blow its party horn',
+    },
     grow: {
       hint: 'Tap a branch tip to see each tool.',
     },

@@ -398,6 +398,10 @@ export const zh: Translations = {
     },
     planned: '筹备中',
     openTool: '打开{{name}}',
+    octopus: {
+      special: '（活动特供！）',
+      blow: '让章鱼吹喇叭',
+    },
     grow: {
       hint: '点枝头，看看每个工具。',
     },

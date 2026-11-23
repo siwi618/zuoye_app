@@ -315,7 +315,7 @@ function off(t: number, dx: number, dy: number, lift: number): Seg {
 }
 // The side arm curls up at its end, arriving heading straight up like a tool's tip on the colony.
 const ARM_FORK: Seg = (() => {
-  const s = off(0.56, 56, -88, 30)
+  const s = off(0.56, 62, -60, 26)
   return { ...s, c2: { x: s.b.x - 4, y: s.b.y + 40 } }
 })()
 const ARM_FORK_WIDTH = [17, 7] as const
@@ -334,25 +334,67 @@ const SUCKERS = Array.from({ length: 7 }, (_, i) => {
   return { x: p.x + n.x * (w / 2 - r * 0.2), y: p.y + n.y * (w / 2 - r * 0.2), r }
 })
 
-function Octopus({ on, start }: { on: boolean; start: number }) {
+// Party dress for event days (`festive`). A party hat sits on the head, leaning right: a gold cone
+// with two stripes and a pompom. HAT gives its base corners and tip; the stripes are bands across it.
+const HAT = { l: { x: 121, y: 557 }, r: { x: 154, y: 552 }, tip: { x: 147, y: 513 } }
+function hatBand(t0: number, t1: number) {
+  const on = (p: Pt, t: number) => `${(p.x + (HAT.tip.x - p.x) * t).toFixed(1)} ${(p.y + (HAT.tip.y - p.y) * t).toFixed(1)}`
+  return `M${on(HAT.l, t0)} L${on(HAT.r, t0)} L${on(HAT.r, t1)} L${on(HAT.l, t1)} Z`
+}
+const HAT_D = `M${HAT.l.x} ${HAT.l.y} L${HAT.r.x} ${HAT.r.y} L${HAT.tip.x} ${HAT.tip.y} Z`
+
+// A party horn in the corner of the mouth, at the head's right edge just above the rock: a short
+// mouthpiece, then a paper tube rolled up into a curl. Blown, the curl hides and the tube shoots out
+// straight (drawn along +x inside a group turned to the horn's heading, so it can scale out from the
+// mouthpiece) with a puff of confetti at its end, then rolls back up.
+const HORN = { x: 168, y: 579, deg: -18, len: 70 }
+// The tap target over the head, hat and horn (the scene's svg takes no pointer events).
+const POKE = { x: 104, y: 508, w: 140, h: 86 }
+const HORN_CURL = 'M168 579 C176 576 186 575 190 568 C194 560 185 555 180 561 C177 566 184 569 186 565'
+const CONFETTI = [
+  { x: 6, y: -10, k: 'red' },
+  { x: 10, y: 0, k: 'gold' },
+  { x: 6, y: 10, k: 'blue' },
+]
+
+function Hat() {
   return (
-    <g className="tbx-octo">
-      <ellipse cx="136" cy="598" rx="44" ry="14" className="tbx-octo__hollow" />
-      <g className="tbx-octo__head">
-        <path d="M100 610 C98 576 114 550 136 550 C158 550 174 576 172 610 Z" className="tbx-octo__skin" />
-        <g className="tbx-octo__eyes">
-          {[126, 150].map((x) => (
-            <g key={x}>
-              <circle cx={x} cy="580" r="5.5" className="tbx-octo__eye" />
-              <circle cx={x - 1.2} cy="578.6" r="2.4" className="tbx-octo__pupil" />
-            </g>
+    <g className="tbx-hat">
+      <path d={HAT_D} className="tbx-hat__cone" />
+      <path d={hatBand(0.18, 0.33)} className="tbx-hat__band tbx-hat__band--red" />
+      <path d={hatBand(0.5, 0.63)} className="tbx-hat__band tbx-hat__band--blue" />
+      <circle cx={HAT.tip.x} cy={HAT.tip.y} r="5" className="tbx-hat__pompom" />
+    </g>
+  )
+}
+
+// `blows` counts taps; each new count remounts the horn (and the happy eyes) so their one-shot
+// animation plays again from the start.
+function Horn({ blows }: { blows: number }) {
+  return (
+    <g key={blows} className={`tbx-horn${blows ? ' is-blowing' : ''}`}>
+      <path d={HORN_CURL} className="tbx-horn__tube tbx-horn__curl" />
+      <g transform={`translate(${HORN.x} ${HORN.y}) rotate(${HORN.deg})`}>
+        <path d={`M0 0 H${HORN.len}`} className="tbx-horn__tube tbx-horn__straight" />
+        <g transform={`translate(${HORN.len} 0)`}>
+          {CONFETTI.map((c) => (
+            <circle key={c.k} cx={c.x} cy={c.y} r="3" className={`tbx-horn__confetti tbx-horn__confetti--${c.k}`} />
           ))}
         </g>
       </g>
-      <path d={ROCK} className="tbx-octo__rock" />
-      {ROCK_PITS.map(([x, y, r], i) => (
-        <circle key={i} cx={x} cy={y} r={r} className="tbx-octo__pit" />
-      ))}
+      <path d={`M157 583 L${HORN.x} ${HORN.y}`} className="tbx-horn__mouthpiece" />
+    </g>
+  )
+}
+
+// Picked, the arm has no lights running up it like the coral's branches: its suckers swell and
+// shrink in turn instead, base to tip, starting when the lights would (`start`, in seconds). On
+// event days (`party`) the suckers are red and blue party bulbs that twinkle.
+function Octopus({ on, start, party, blows }: { on: boolean; start: number; party: boolean; blows: number }) {
+  return (
+    <g className="tbx-octo">
+      <ellipse cx="136" cy="598" rx="44" ry="14" className="tbx-octo__hollow" />
+      {/* The arm rises from behind the head (and the rock). */}
       <g className={`tbx-octo__arm${on ? ' is-on' : ''}`} style={{ transformOrigin: `${ARM.a.x}px ${ARM.a.y}px` }}>
         <path d={d(ARM_TWIG)} className="tbx-grow__path tbx-grow__path--twig tbx-octo__twig" pathLength={1} />
         <circle cx={ARM_TWIG.b.x} cy={ARM_TWIG.b.y} r="5" className="tbx-grow__polyp" />
@@ -363,14 +405,34 @@ function Octopus({ on, start }: { on: boolean; start: number }) {
             key={`${on}-${i}`}
             cx={c.x}
             cy={c.y}
-            r={c.r}
-            className="tbx-octo__sucker"
+            // Bulbs are a little bigger than suckers, so they read as lights.
+            r={party ? c.r * 1.3 : c.r}
+            className={`tbx-octo__sucker${party ? ` tbx-octo__bulb tbx-octo__bulb--${i % 2 ? 'blue' : 'red'}` : ''}`}
             style={on ? { animationDelay: `${start + i * 0.12}s` } : undefined}
           />
         ))}
         <path d={taper(ARM, ...ARM_WIDTH)} className="tbx-octo__skin" />
       </g>
+      <g className="tbx-octo__head">
+        <path d="M100 610 C98 576 114 550 136 550 C158 550 174 576 172 610 Z" className="tbx-octo__skin" />
+        {party && <Hat />}
+        <g key={blows} className={`tbx-octo__eyes${blows ? ' is-happy' : ''}`}>
+          {[126, 150].map((x) => (
+            <g key={x}>
+              <circle cx={x} cy="580" r="5.5" className="tbx-octo__eye" />
+              <circle cx={x - 1.2} cy="578.6" r="2.4" className="tbx-octo__pupil" />
+              {/* Shut in a smile (^ ^) while it blows. */}
+              <path d={`M${x - 5} 581 Q${x} 574 ${x + 5} 581`} className="tbx-octo__smile" />
+            </g>
+          ))}
+        </g>
+      </g>
+      <path d={ROCK} className="tbx-octo__rock" />
+      {ROCK_PITS.map(([x, y, r], i) => (
+        <circle key={i} cx={x} cy={y} r={r} className="tbx-octo__pit" />
+      ))}
       <path d={ROCK_LIP} className="tbx-octo__rock" />
+      {party && <Horn blows={blows} />}
     </g>
   )
 }
@@ -405,7 +467,7 @@ function Deco({ c, i }: { c: Decor; i: number }) {
   )
 }
 
-export function GrowthScene({ subjects, held }: SceneProps) {
+export function GrowthScene({ subjects, held, festive }: SceneProps) {
   const { t } = useTranslation()
   const { segs, twigs, nodes, labels, stubs } = useMemo(() => {
     const l = layout(subjects)
@@ -421,12 +483,15 @@ export function GrowthScene({ subjects, held }: SceneProps) {
   // On opening, the light waits until the picked tip's icon is out (see the tbx-bud timings in
   // toolbox.css); once someone picks another tip it starts at once.
   const [moved, setMoved] = useState(false)
+  // Taps on the party octopus: each one blows the horn once.
+  const [blows, setBlows] = useState(0)
+  const party = !!held && !!festive
   const flowStart = moved ? 0 : FLOW_START
   const active = nodes.find((n) => n.tool.key === activeKey) ?? firstLive
   const chain = new Set(active?.chain ?? [])
 
   return (
-    <section ref={sceneRef} className="tbx-grow">
+    <section ref={sceneRef} className={`tbx-grow${party ? ' tbx-grow--party' : ''}`}>
       <div className="tbx-grow__school" aria-hidden="true">
         {Array.from({ length: FISH_COUNT }, (_, i) => (
           <div
@@ -471,7 +536,7 @@ export function GrowthScene({ subjects, held }: SceneProps) {
               <circle cx={st.b.x} cy={st.b.y} r="7" className="tbx-grow__polyp" />
             </g>
           ))}
-          {held && <Octopus on={chain.has(ARM.id)} start={flowStart} />}
+          {held && <Octopus on={chain.has(ARM.id)} start={flowStart} party={party} blows={blows} />}
           <path d={TRUNK_D} className="tbx-grow__trunk" />
           {TRUNK_POLYPS.map(([x, y], i) => (
             <circle key={i} cx={x} cy={y} r="5" className="tbx-grow__polyp" />
@@ -590,7 +655,11 @@ export function GrowthScene({ subjects, held }: SceneProps) {
                 {n.tool.icon && <img src={n.tool.icon} alt="" />}
                 {isHeld && <Grip />}
               </span>
-              <span className="tbx-node__name">{t(`tools.items.${n.tool.key}`)}</span>
+              <span className="tbx-node__name">
+                {t(`tools.items.${n.tool.key}`)}
+                {/* On event days the held tool says so, hand-lettered under its name. */}
+                {isHeld && party && <span className="tbx-node__special">{t('tools.octopus.special')}</span>}
+              </span>
             </>
           )
           // A live tool's tip opens the tool; hovering or focusing it still lights its branch.
@@ -613,6 +682,21 @@ export function GrowthScene({ subjects, held }: SceneProps) {
             </button>
           )
         })}
+
+        {party && (
+          <button
+            type="button"
+            className="tbx-octo__poke"
+            aria-label={t('tools.octopus.blow')}
+            onClick={() => setBlows((b) => b + 1)}
+            style={{
+              left: `${(POKE.x / W) * 100}%`,
+              top: `${(POKE.y / H) * 100}%`,
+              width: `${(POKE.w / W) * 100}%`,
+              height: `${(POKE.h / H) * 100}%`,
+            }}
+          />
+        )}
 
         <p className="tbx-grow__hint">{t('tools.grow.hint')}</p>
       </div>
