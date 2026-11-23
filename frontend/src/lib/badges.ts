@@ -59,11 +59,11 @@ export const BADGE_META: Record<
   { icon: ComponentType<{ className?: string }>; tier: Tier }
 > = {
   lead_reader: { icon: YuguoIcon, tier: 'legendary' },
-  council_president: { icon: CouncilIcon, tier: 'mythic' },
+  council_president: { icon: CouncilIcon, tier: 'legendary' },
   council_vice: { icon: CouncilIcon, tier: 'legendary' },
   council_president_past: { icon: CouncilIcon, tier: 'legendary' },
-  council_vice_past: { icon: CouncilIcon, tier: 'epic' },
-  council_member: { icon: CouncilIcon, tier: 'common' },
+  council_vice_past: { icon: CouncilIcon, tier: 'legendary' },
+  council_member: { icon: CouncilIcon, tier: 'legendary' },
   bee_10: { icon: BeeIcon, tier: 'common' },
   bee_25: { icon: BeeIcon, tier: 'epic' },
   bee_50: { icon: BeeIcon, tier: 'legendary' },
