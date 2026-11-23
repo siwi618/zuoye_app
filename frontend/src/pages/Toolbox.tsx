@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useCouncil, useGuideEvents } from '@/api/guide'
-import type { Subject } from '@/components/toolbox/types'
+import type { Subject, Tool } from '@/components/toolbox/types'
 import { GrowthScene } from '@/components/toolbox/GrowthScene'
 import '@/components/toolbox/toolbox.css'
 
@@ -25,25 +24,20 @@ const CATEGORIES: Subject[] = [
     key: 'humanities',
     tools: [
       { key: 'literature', status: 'live', icon: '/tools/literature.svg', to: '/tools/literature' },
-      // 「活动指南」 sits here until the coral gets a branch that suits it. Shown only to the
-      // student council, and to everyone on days an event is open (see Toolbox below).
-      { key: 'guide', status: 'live', icon: '/tools/guide.svg', to: '/tools/guide' },
     ],
   },
 ]
+
+// 「活动指南」 isn't one of the coral's own tools: it comes and goes with the student council's
+// events, so a green octopus hiding in a rock on the seabed holds it out on a tentacle. Shown only
+// to the council, and to everyone on days an event is open.
+const GUIDE: Tool = { key: 'guide', status: 'live', icon: '/tools/guide.svg', to: '/tools/guide' }
 
 export function Toolbox() {
   const { t } = useTranslation()
   const council = useCouncil()
   const open = useGuideEvents()
   const showGuide = !!council.data?.role || (open.data?.length ?? 0) > 0
-  const subjects = useMemo(
-    () =>
-      showGuide
-        ? CATEGORIES
-        : CATEGORIES.map((s) => ({ ...s, tools: s.tools.filter((x) => x.key !== 'guide') })),
-    [showGuide],
-  )
 
   return (
     <div className="tbx space-y-6">
@@ -51,7 +45,7 @@ export function Toolbox() {
         <h1 className="text-3xl font-bold tracking-tight">{t('tools.title')}</h1>
         <p className="text-muted-foreground">{t('tools.subtitle')}</p>
       </header>
-      <GrowthScene subjects={subjects} />
+      <GrowthScene subjects={CATEGORIES} held={showGuide ? GUIDE : undefined} />
     </div>
   )
 }

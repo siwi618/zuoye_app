@@ -404,6 +404,7 @@ export const zh: Translations = {
     categories: {
       science: '自然科学',
       humanities: '人文科学',
+      council: '学生会',
     },
     comingSoon: '还没有工具，敬请期待。',
     autoZeroTip: {

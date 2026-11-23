@@ -282,6 +282,112 @@ function flowDots(chain: Seg[]) {
   return dots
 }
 
+// The octopus at the bottom left, drawn the way the colony is (flat fills in the coral's own teal,
+// no outlines, the rock a lump of the same reef): it hides in a rock on the seabed and holds out a
+// tool that isn't one of the coral's own (活动指南, there only while the student council has
+// events). Its arm grows like a coral branch, tapering and forking, with a thin twig and a side arm
+// that end in polyps. It rises from the rock and arrives straight up under HOLD, behind the tool's
+// icon; the arm's tip wrapping round the icon is drawn on the icon itself (Grip), in front of it.
+const HOLD = { x: 100, y: 392 }
+const ARM: Seg = { id: 'arm', a: { x: 116, y: 622 }, c1: { x: 92, y: 530 }, c2: { x: HOLD.x, y: HOLD.y + 120 }, b: HOLD, level: 2 }
+const ARM_WIDTH = [30, 11] as const
+// The seabed corals (near and far) where the rock stands make way for it, so none pokes out from
+// behind it or the arm: the rock runs to 23% of the stage.
+const ROCK_CLEAR = 23
+const ROCK =
+  'M14 640 C10 604 26 572 56 566 C78 562 92 572 98 584 C112 596 156 598 166 584 C176 566 198 556 216 570 C232 584 234 616 228 640 Z'
+// The front lip of the rock's hollow, over the root of the arm.
+const ROCK_LIP = 'M64 640 L70 588 C92 606 156 606 170 590 L176 640 Z'
+const ROCK_PITS = [
+  [44, 604, 5],
+  [64, 586, 3.5],
+  [192, 590, 4.5],
+  [206, 616, 3],
+  [140, 622, 4],
+  [30, 628, 3],
+]
+// The side arm forks off halfway up towards the colony, rising and leaning out like a tool's branch
+// off a subject; the twig leaves the other side lower down, the way the colony's twigs do.
+function off(t: number, dx: number, dy: number, lift: number): Seg {
+  const a = at(ARM, t)
+  const b = { x: a.x + dx, y: a.y + dy }
+  return { id: `arm-${t}`, a, c1: { x: a.x + dx * 0.15, y: a.y - lift }, c2: { x: b.x - dx * 0.3, y: b.y + lift * 0.8 }, b, level: 2 }
+}
+// The side arm curls up at its end, arriving heading straight up like a tool's tip on the colony.
+const ARM_FORK: Seg = (() => {
+  const s = off(0.56, 56, -88, 30)
+  return { ...s, c2: { x: s.b.x - 4, y: s.b.y + 40 } }
+})()
+const ARM_FORK_WIDTH = [17, 7] as const
+const ARM_TWIG = off(0.3, -50, -16, -10)
+// Suckers seen side on: a row of small round bumps along the arm's outer edge above the twig, half
+// tucked behind the arm, shrinking towards the tip and stopping short of the held icon's glow.
+const SUCKERS = Array.from({ length: 7 }, (_, i) => {
+  const t = 0.37 + i * 0.07
+  const p = at(ARM, t)
+  const g = tangent(ARM, t)
+  const len = Math.hypot(g.x, g.y) || 1
+  const w = ARM_WIDTH[0] + (ARM_WIDTH[1] - ARM_WIDTH[0]) * t
+  // The normal on the arm's left as it climbs: the side facing away from the coral.
+  const n = { x: g.y / len, y: -g.x / len }
+  const r = w * 0.2
+  return { x: p.x + n.x * (w / 2 - r * 0.2), y: p.y + n.y * (w / 2 - r * 0.2), r }
+})
+
+function Octopus({ on, start }: { on: boolean; start: number }) {
+  return (
+    <g className="tbx-octo">
+      <ellipse cx="136" cy="598" rx="44" ry="14" className="tbx-octo__hollow" />
+      <g className="tbx-octo__head">
+        <path d="M100 610 C98 576 114 550 136 550 C158 550 174 576 172 610 Z" className="tbx-octo__skin" />
+        <g className="tbx-octo__eyes">
+          {[126, 150].map((x) => (
+            <g key={x}>
+              <circle cx={x} cy="580" r="5.5" className="tbx-octo__eye" />
+              <circle cx={x - 1.2} cy="578.6" r="2.4" className="tbx-octo__pupil" />
+            </g>
+          ))}
+        </g>
+      </g>
+      <path d={ROCK} className="tbx-octo__rock" />
+      {ROCK_PITS.map(([x, y, r], i) => (
+        <circle key={i} cx={x} cy={y} r={r} className="tbx-octo__pit" />
+      ))}
+      <g className={`tbx-octo__arm${on ? ' is-on' : ''}`} style={{ transformOrigin: `${ARM.a.x}px ${ARM.a.y}px` }}>
+        <path d={d(ARM_TWIG)} className="tbx-grow__path tbx-grow__path--twig tbx-octo__twig" pathLength={1} />
+        <circle cx={ARM_TWIG.b.x} cy={ARM_TWIG.b.y} r="5" className="tbx-grow__polyp" />
+        <path d={taper(ARM_FORK, ...ARM_FORK_WIDTH)} className="tbx-octo__fork" />
+        <circle cx={ARM_FORK.b.x} cy={ARM_FORK.b.y} r="5" className="tbx-grow__polyp" />
+        {SUCKERS.map((c, i) => (
+          <circle
+            key={`${on}-${i}`}
+            cx={c.x}
+            cy={c.y}
+            r={c.r}
+            className="tbx-octo__sucker"
+            style={on ? { animationDelay: `${start + i * 0.12}s` } : undefined}
+          />
+        ))}
+        <path d={taper(ARM, ...ARM_WIDTH)} className="tbx-octo__skin" />
+      </g>
+      <path d={ROCK_LIP} className="tbx-octo__rock" />
+    </g>
+  )
+}
+
+// The arm's tip on the held tool's icon, drawn round a 64 px icon (radius 32) and scaled with it.
+// It comes up under the icon where the arm meets it and cradles its lower left, about a fifth of the
+// way round, ending in a small curl: holding the tool up rather than wrapping it. Its stroke runs in container units so it is exactly as wide as the arm in the scene, which
+// scales with the stage while the icon doesn't.
+function Grip() {
+  return (
+    <svg className="tbx-node__grip" viewBox="-45 -45 90 90" aria-hidden="true">
+      <path d="M0 50 C0 44 1 39 0 37 A37 37 0 0 1 -30 21.7" className="tbx-node__grip-arm" />
+      <path d="M-30 21.7 A37 37 0 0 1 -36.4 6.4 C-37.4 0 -42.5 -1.5 -43 3" className="tbx-node__grip-tip" />
+    </svg>
+  )
+}
+
 function Deco({ c, i }: { c: Decor; i: number }) {
   return (
     <span
@@ -299,9 +405,13 @@ function Deco({ c, i }: { c: Decor; i: number }) {
   )
 }
 
-export function GrowthScene({ subjects }: SceneProps) {
+export function GrowthScene({ subjects, held }: SceneProps) {
   const { t } = useTranslation()
-  const { segs, twigs, nodes, labels, stubs } = useMemo(() => layout(subjects), [subjects])
+  const { segs, twigs, nodes, labels, stubs } = useMemo(() => {
+    const l = layout(subjects)
+    if (held) l.nodes.push({ tool: held, subject: 'council', at: HOLD, chain: [ARM.id] })
+    return l
+  }, [subjects, held])
   const sceneRef = useRef<HTMLElement>(null)
   const still = useReducedMotion()
   const fishRefs = useFish(sceneRef, still)
@@ -334,13 +444,13 @@ export function GrowthScene({ subjects }: SceneProps) {
       <div className="tbx-grow__stage">
         <div className="tbx-grow__seabed" aria-hidden="true">
           <Reef layer="back" />
-          {DECOR.filter((c) => c.far).map((c, i) => (
-            <Deco key={`f${i}`} c={c} i={i} />
-          ))}
+          {DECOR.filter((c) => c.far).map((c, i) =>
+            held && c.left < ROCK_CLEAR ? null : <Deco key={`f${i}`} c={c} i={i} />,
+          )}
           <Reef layer="front" />
-          {DECOR.filter((c) => !c.far).map((c, i) => (
-            <Deco key={`n${i}`} c={c} i={i + 7} />
-          ))}
+          {DECOR.filter((c) => !c.far).map((c, i) =>
+            held && c.left < ROCK_CLEAR ? null : <Deco key={`n${i}`} c={c} i={i + 7} />,
+          )}
         </div>
 
         <svg className="tbx-grow__svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
@@ -361,6 +471,7 @@ export function GrowthScene({ subjects }: SceneProps) {
               <circle cx={st.b.x} cy={st.b.y} r="7" className="tbx-grow__polyp" />
             </g>
           ))}
+          {held && <Octopus on={chain.has(ARM.id)} start={flowStart} />}
           <path d={TRUNK_D} className="tbx-grow__trunk" />
           {TRUNK_POLYPS.map(([x, y], i) => (
             <circle key={i} cx={x} cy={y} r="5" className="tbx-grow__polyp" />
@@ -465,15 +576,20 @@ export function GrowthScene({ subjects }: SceneProps) {
 
         {nodes.map((n, i) => {
           const on = n.tool.key === active?.tool.key
-          const cls = `tbx-node tbx-node--${n.tool.status}${on ? ' is-on' : ''}`
-          const style = { left: `${(n.at.x / W) * 100}%`, top: `${(n.at.y / H) * 100}%`, '--i': i } as CSSProperties
+          const isHeld = n.tool.key === held?.key
+          const cls = `tbx-node tbx-node--${n.tool.status}${isHeld ? ' tbx-node--held' : ''}${on ? ' is-on' : ''}`
+          // The held tool buds last, once the arm is out of the rock.
+          const style = { left: `${(n.at.x / W) * 100}%`, top: `${(n.at.y / H) * 100}%`, '--i': isHeld ? 7 : i } as CSSProperties
           const pick = () => {
             if (n.tool.key !== activeKey) setMoved(true)
             setActiveKey(n.tool.key)
           }
           const inner = (
             <>
-              <span className="tbx-node__dot">{n.tool.icon && <img src={n.tool.icon} alt="" />}</span>
+              <span className="tbx-node__dot">
+                {n.tool.icon && <img src={n.tool.icon} alt="" />}
+                {isHeld && <Grip />}
+              </span>
               <span className="tbx-node__name">{t(`tools.items.${n.tool.key}`)}</span>
             </>
           )

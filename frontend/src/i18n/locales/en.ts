@@ -405,6 +405,7 @@ export const en = {
     categories: {
       science: 'Natural sciences',
       humanities: 'Humanities',
+      council: 'Student council',
     },
     comingSoon: 'No tools yet — coming soon.',
     autoZeroTip: {

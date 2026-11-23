@@ -13,4 +13,6 @@ export type Subject = {
 
 export type SceneProps = {
   subjects: Subject[]
+  // A tool held out by the octopus on the seabed rather than grown on the coral (活动指南).
+  held?: Tool
 }

@@ -871,3 +871,170 @@ body {
     opacity: 1;
   }
 }
+
+/* The octopus on the seabed holding out 活动指南 (GrowthScene's Octopus and Grip), drawn like the
+ * colony: the coral's own teal, flat, no outlines, the arm a forking branch, the rock in the reef's
+ * colours. Its skin is the colour a resting branch shows (coral at 0.6 over the water), made solid
+ * so the arm hides the rock behind it; picked, it deepens to a picked branch's colour. */
+.tbx {
+  --tbx-octo: color-mix(in oklab, var(--tbx-coral) 60%, var(--tbx-sea-1));
+  --tbx-octo-deep: var(--tbx-coral-deep);
+}
+
+/* The arm's tip on the icon is stroked in container units (see Grip). */
+.tbx-grow__stage {
+  container-type: inline-size;
+}
+
+.tbx-octo__skin {
+  fill: var(--tbx-octo);
+}
+
+/* The head is the octopus's trunk: deep like the colony's, so it stands out from the pale rock. */
+.tbx-octo__head .tbx-octo__skin {
+  fill: var(--tbx-coral-deep);
+}
+
+.tbx-octo__eye {
+  fill: var(--tbx-foam);
+}
+
+.tbx-octo__pupil {
+  fill: var(--tbx-coral-deep);
+}
+
+.tbx-octo__hollow {
+  fill: color-mix(in oklab, var(--tbx-coral-deep) 55%, var(--tbx-sea-2));
+}
+
+.tbx-octo__rock {
+  fill: color-mix(in oklab, var(--tbx-coral-soft) 62%, var(--tbx-sea-2));
+}
+
+.tbx-octo__pit {
+  fill: color-mix(in oklab, var(--tbx-sea-1) 70%, transparent);
+}
+
+.tbx-octo__sucker {
+  fill: var(--tbx-coral-soft);
+}
+
+/* Picked, the suckers swell and shrink in turn up the arm (delays set in GrowthScene), in place of
+ * the lights that run up a picked coral branch. */
+.tbx-octo__arm.is-on .tbx-octo__sucker {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tbx-suck 1.8s ease-in-out infinite;
+}
+
+@keyframes tbx-suck {
+  0%,
+  60%,
+  100% {
+    scale: 1;
+  }
+  30% {
+    scale: 1.5;
+  }
+}
+
+/* The side arm stays pale like an unpicked branch; the twig draws itself in once the arm is out. */
+.tbx-octo__fork {
+  fill: var(--tbx-octo);
+}
+
+.tbx-octo__twig {
+  animation-delay: 2.3s;
+}
+
+.tbx-octo__arm {
+  transform-box: view-box;
+  animation: tbx-sprout 0.8s var(--tbx-ease) 1.7s both;
+}
+
+.tbx-octo__arm .tbx-octo__skin {
+  transition: fill var(--tbx-dur-short) var(--tbx-ease);
+}
+
+/* Picked, the arm deepens the way a picked branch does. */
+.tbx-octo__arm.is-on .tbx-octo__skin {
+  fill: var(--tbx-octo-deep);
+}
+
+/* The head comes up out of the hollow before the arm reaches out, and blinks now and then. */
+.tbx-octo__head {
+  animation: tbx-peek 0.6s var(--tbx-ease) 1.3s both;
+}
+
+@keyframes tbx-peek {
+  from {
+    translate: 0 26px;
+  }
+}
+
+.tbx-octo__eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tbx-blink 5.5s ease-in-out 3s infinite;
+}
+
+@keyframes tbx-blink {
+  0%,
+  94%,
+  100% {
+    scale: 1 1;
+  }
+  97% {
+    scale: 1 0.1;
+  }
+}
+
+/* The held tool's name sits beside its icon, leaving the space under it to the arm. */
+.tbx-node--held {
+  flex-direction: row;
+  transform: translate(-32px, -50%);
+}
+
+.tbx-node--held .tbx-node__dot {
+  position: relative;
+}
+
+.tbx-node__grip {
+  position: absolute;
+  top: -20.3125%;
+  left: -20.3125%;
+  width: 140.625%;
+  height: 140.625%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tbx-node__grip path {
+  fill: none;
+  stroke: var(--tbx-octo);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.tbx-node__grip-arm {
+  stroke-width: 1.1cqw;
+}
+
+.tbx-node__grip-tip {
+  stroke-width: 0.75cqw;
+}
+
+/* The grip deepens with the arm when the tool is picked. */
+.tbx-node--held.is-on .tbx-node__grip path {
+  stroke: var(--tbx-octo-deep);
+}
+
+@media (max-width: 40rem) {
+  .tbx-node--held {
+    transform: translate(-24px, -50%);
+  }
+  /* Beside the icon the name would run into the science chip; the card below names it anyway. */
+  .tbx-node--held .tbx-node__name {
+    display: none;
+  }
+}
