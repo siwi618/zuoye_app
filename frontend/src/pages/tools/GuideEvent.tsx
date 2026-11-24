@@ -24,7 +24,7 @@ import {
   type GuideScene,
   type LabelMode,
 } from '@/lib/guide/scene'
-import { ENTRIES, PALETTE, PLACES, PLAN } from '@/lib/guide/plan'
+import { ENTRIES, PALETTE, PLACES, PLAN, renamed } from '@/lib/guide/plan'
 import '@/lib/guide/guide.css'
 
 interface Draft {
@@ -38,11 +38,12 @@ interface Draft {
 const toDraft = (ev: GuideEventData): Draft => ({
   title: ev.title,
   subtitle: ev.subtitle,
+  // Rooms renamed since the event was saved are read under their new names (lib/guide/plan RENAMED).
   config: {
     start: ev.config.start ?? null,
-    sign: ev.config.sign ?? '',
-    activities: ev.config.activities ?? [],
-    labels: ev.config.labels ?? {},
+    sign: renamed(ev.config.sign ?? ''),
+    activities: (ev.config.activities ?? []).map((a) => ({ ...a, place: renamed(a.place) })),
+    labels: Object.fromEntries(Object.entries(ev.config.labels ?? {}).map(([k, v]) => [renamed(k), v])),
   },
   open_from: ev.open_from,
   open_to: ev.open_to,
