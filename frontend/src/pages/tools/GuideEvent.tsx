@@ -2,15 +2,19 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Download, Link2, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Download, Heart, Link2, Pencil, Star, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
   GUIDE_EVENTS_KEY,
+  GUIDE_STARS_KEY,
   deleteGuideEvent,
   guideEventKey,
+  starActivity,
+  toggleGuideLike,
+  unstarActivity,
   updateGuideEvent,
   useGuideEvent,
   type GuideEvent as GuideEventData,
@@ -309,23 +313,42 @@ export function GuideEvent() {
       </div>
       {(listOpen || narrow) &&
         (flat.length ? (
-          flat.map((a) => (
-            <button
-              key={a.i}
-              className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left hover:bg-muted"
-              onClick={() => sceneRef.current?.focusRoom(a.place)}
-            >
-              <span className="gd-badge mt-0.5" style={{ background: a.color }}>
-                {a.i}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{a.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {[PLAN[a.floor].tag, a.place, a.time].filter(Boolean).join(' · ')}
-                </span>
-              </span>
-            </button>
-          ))
+          flat.map((a) => {
+            const aid = draft?.config.activities[a.i - 1]?.id
+            const star = aid ? event.data?.stars[aid] : undefined
+            return (
+              <div key={a.i} className="flex items-start rounded-lg hover:bg-muted">
+                <button
+                  className="flex min-w-0 flex-1 items-start gap-2.5 p-2 text-left"
+                  onClick={() => sceneRef.current?.focusRoom(a.place)}
+                >
+                  <span className="gd-badge mt-0.5" style={{ background: a.color }}>
+                    {a.i}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1 text-sm font-semibold">
+                      <span className="truncate">{a.name}</span>
+                      {star && (
+                        <Star
+                          className="size-3.5 shrink-0 fill-amber-400 text-amber-500"
+                          aria-label={t(star.auto ? 'tools.guide.starAuto' : 'tools.guide.starred')}
+                        />
+                      )}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[PLAN[a.floor].tag, a.place, a.time].filter(Boolean).join(' · ')}
+                    </span>
+                    {star?.note && (
+                      <span className="mt-0.5 block text-xs text-amber-700 dark:text-amber-500">
+                        {star.note}
+                      </span>
+                    )}
+                  </span>
+                </button>
+                {aid && event.data && <Reactions event={event.data} activityId={aid} />}
+              </div>
+            )
+          })
         ) : (
           <p className="px-2 pb-2 text-xs text-muted-foreground">
             {canEdit ? t('tools.guide.noActivitiesPlanner') : t('tools.guide.noActivities')}
@@ -688,6 +711,97 @@ export function GuideEvent() {
         <div ref={panelRef} className="rounded-xl border bg-card p-3">
           {editing ? editor : listPanel}
         </div>
+      )}
+    </div>
+  )
+}
+
+// Beside an activity in the list: its likes (a heart to tap on the open days, the count after) and,
+// for the council once the event has ended, its star.
+function Reactions({ event, activityId }: { event: GuideEventData; activityId: string }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const key = guideEventKey(event.id)
+  const patch = (fn: (e: GuideEventData) => GuideEventData) =>
+    queryClient.setQueryData<GuideEventData>(key, (e) => (e ? fn(e) : e))
+  const count = event.likes[activityId] ?? 0
+  const liked = event.liked.includes(activityId)
+  const star = event.stars[activityId]
+
+  const like = useMutation({
+    mutationFn: () => toggleGuideLike(event.id, activityId),
+    onSuccess: (r) =>
+      patch((e) => ({
+        ...e,
+        likes: { ...e.likes, [activityId]: r.count },
+        liked: r.liked ? [...e.liked, activityId] : e.liked.filter((x) => x !== activityId),
+      })),
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const toggleStar = useMutation({
+    mutationFn: async () => {
+      if (!star) return starActivity(event.id, activityId)
+      await unstarActivity(star.id)
+      return null
+    },
+    onSuccess: (s) => {
+      patch((e) => {
+        const stars = { ...e.stars }
+        if (s) stars[activityId] = s
+        else delete stars[activityId]
+        return { ...e, stars }
+      })
+      void queryClient.invalidateQueries({ queryKey: GUIDE_STARS_KEY })
+      if (s) toast.success(t('tools.guide.starDone'))
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
+  return (
+    <div className="flex shrink-0 items-center py-1 pr-1">
+      {event.can_like ? (
+        <button
+          aria-pressed={liked}
+          aria-label={t('tools.guide.like')}
+          title={t('tools.guide.like')}
+          disabled={like.isPending}
+          className={cn(
+            'flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-md px-1.5 text-xs tabular-nums transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40',
+            liked ? 'text-rose-500' : 'text-muted-foreground',
+          )}
+          onClick={() => like.mutate()}
+        >
+          <Heart className={cn('size-4', liked && 'fill-current')} />
+          <span className="min-w-5 text-left">{count > 0 && count}</span>
+        </button>
+      ) : (
+        count > 0 && (
+          <span
+            className="flex min-h-9 items-center gap-1 px-1.5 text-xs text-muted-foreground tabular-nums"
+            title={t('tools.guide.likes', { count })}
+          >
+            <Heart className="size-3.5" />
+            <span className="min-w-5 text-left">{count}</span>
+          </span>
+        )
+      )}
+      {event.can_star && (
+        <button
+          aria-pressed={!!star}
+          aria-label={t(star ? 'tools.guide.unstar' : 'tools.guide.star')}
+          title={t(star ? 'tools.guide.unstar' : 'tools.guide.star')}
+          disabled={toggleStar.isPending}
+          className={cn(
+            'flex size-9 items-center justify-center rounded-md transition-colors hover:bg-amber-50 dark:hover:bg-amber-950/40',
+            star ? 'text-amber-500' : 'text-muted-foreground',
+          )}
+          onClick={() =>
+            (!star || confirm(t(star.auto ? 'tools.guide.unstarAutoConfirm' : 'tools.guide.unstarConfirm'))) &&
+            toggleStar.mutate()
+          }
+        >
+          <Star className={cn('size-4', star && 'fill-amber-400')} />
+        </button>
       )}
     </div>
   )

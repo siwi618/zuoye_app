@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, Plus, Search, X } from 'lucide-react'
+import { Heart, LogOut, Pencil, Plus, Search, Star, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -13,6 +13,7 @@ import { MY_BADGES_KEY } from '@/api/profile'
 import {
   COUNCIL_KEY,
   GUIDE_EVENTS_KEY,
+  GUIDE_STARS_KEY,
   beijingToday,
   addMember,
   createGuideEvent,
@@ -20,11 +21,15 @@ import {
   removeMember,
   removeVice,
   searchCouncilUsers,
+  unstarActivity,
+  updateStarNote,
   useCouncil,
   useGuideEvents,
+  useGuideStars,
   type CouncilPerson,
   type CouncilStatus,
   type GuideEventSummary,
+  type StarredActivity,
 } from '@/api/guide'
 
 // 「学生会」 (in the navigation after 排行榜, only for the council — migration 0034): the events of
@@ -82,6 +87,8 @@ export function Council() {
       </header>
 
       <EventsSection leader={leader} events={events.data} loading={events.isPending} />
+
+      <StarsSection />
 
       <MembersSection council={c} />
     </div>
@@ -178,6 +185,173 @@ function EventsSection({
         </div>
       )}
     </section>
+  )
+}
+
+// 星标活动: the activities that went well — starred by the council once their event ended, or by
+// themselves for the most likes — newest event first, each with a note anyone on the council
+// may write. They stay here after their event is deleted.
+const NOTE_MAX = 200
+
+function StarsSection() {
+  const { t } = useTranslation()
+  const stars = useGuideStars()
+
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="flex items-center gap-2 text-xl font-semibold">
+          <Star className="size-5 fill-amber-400 text-amber-500" />
+          {t('council.stars.title')}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t('council.stars.hint')}</p>
+      </div>
+      {stars.isPending ? (
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+      ) : stars.isError ? (
+        <p className="text-sm text-destructive">{stars.error.message}</p>
+      ) : !stars.data.length ? (
+        <p className="text-sm text-muted-foreground">{t('council.stars.empty')}</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {stars.data.map((s) => (
+            <StarCard key={s.id} star={s} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function StarCard({ star: s }: { star: StarredActivity }) {
+  const { t, i18n } = useTranslation()
+  const queryClient = useQueryClient()
+  const [draft, setDraft] = useState<string | null>(null) // the note being written; null = not editing
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: GUIDE_STARS_KEY })
+    if (s.event_id) void queryClient.invalidateQueries({ queryKey: ['guide-event', s.event_id] })
+  }
+  const save = useMutation({
+    mutationFn: (note: string) => updateStarNote(s.id, note),
+    onSuccess: () => {
+      setDraft(null)
+      refresh()
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: () => unstarActivity(s.id),
+    onSuccess: refresh,
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const day = s.event_day
+    ? new Date(`${s.event_day}T00:00:00`).toLocaleDateString(i18n.language, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : null
+  const title = (
+    <>
+      <p className="truncate text-lg font-semibold">{s.name || t('council.stars.unnamed')}</p>
+      <p className="truncate text-sm text-muted-foreground">
+        {[s.event_title, day, s.place].filter(Boolean).join(' · ')}
+      </p>
+    </>
+  )
+
+  return (
+    <Card className="h-full gap-2 p-5">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          {s.event_id ? (
+            <Link to={`/tools/guide/${s.event_id}`} className="block hover:text-primary">
+              {title}
+            </Link>
+          ) : (
+            title
+          )}
+        </div>
+        <button
+          aria-label={t('tools.guide.unstar')}
+          title={t('tools.guide.unstar')}
+          disabled={remove.isPending}
+          className="-mt-1 -mr-2 grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          onClick={() =>
+            confirm(t(s.auto ? 'tools.guide.unstarAutoConfirm' : 'tools.guide.unstarConfirm')) &&
+            remove.mutate()
+          }
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium',
+            s.auto
+              ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200'
+              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+          )}
+        >
+          <Star className="size-3 fill-current" />
+          {t(s.auto ? 'council.stars.auto' : 'council.stars.council')}
+        </span>
+        <span className="inline-flex items-center gap-1 text-muted-foreground tabular-nums">
+          <Heart className="size-3.5" />
+          {t('tools.guide.likes', { count: s.likes })}
+        </span>
+      </div>
+      {draft === null ? (
+        <div className="flex items-start gap-1">
+          <p
+            className={cn(
+              'min-w-0 flex-1 text-sm whitespace-pre-wrap',
+              !s.note && 'text-muted-foreground',
+            )}
+          >
+            {s.note || t('council.stars.noNote')}
+          </p>
+          <button
+            aria-label={t('council.stars.editNote')}
+            title={t('council.stars.editNote')}
+            className="-mr-2 grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setDraft(s.note)}
+          >
+            <Pencil className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            save.mutate(draft.trim())
+          }}
+        >
+          <textarea
+            autoFocus
+            rows={3}
+            maxLength={NOTE_MAX}
+            value={draft}
+            placeholder={t('council.stars.notePlaceholder')}
+            onChange={(e) => setDraft(e.target.value)}
+            className="w-full resize-y rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <span className="mr-auto text-xs text-muted-foreground tabular-nums">
+              {draft.length}/{NOTE_MAX}
+            </span>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setDraft(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={save.isPending}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Card>
   )
 }
 

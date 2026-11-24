@@ -13,7 +13,8 @@ import {
 } from './plan'
 
 export interface CustomStart { name: string; floor: number; pos: Pt }
-export interface GuideActivity { place: string; name: string; time: string; color?: string | null }
+// id: kept by the backend for likes and stars (none until the event is saved with it).
+export interface GuideActivity { id?: string | null; place: string; name: string; time: string; color?: string | null }
 export interface GuideConfig {
   title: string
   subtitle: string

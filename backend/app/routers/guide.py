@@ -5,13 +5,18 @@ from fastapi import APIRouter, Query
 
 from app.deps import CurrentUserDep
 from app.schemas.guide import (
+    ActivityId,
+    ActivityStar,
     CodeRequest,
     CouncilPerson,
     CouncilStatus,
     GuideEventRead,
     GuideEventSummary,
     GuideEventWrite,
+    LikeState,
     MemberAdd,
+    StarredActivity,
+    StarWrite,
 )
 from app.services import guide as svc
 
@@ -50,6 +55,39 @@ def update_event(
 def delete_event(user: CurrentUserDep, event_id: UUID) -> None:
     """President or vice president only."""
     svc.delete_event(user.id, str(event_id))
+
+
+# ---- likes and stars ---------------------------------------------------------------------------
+@router.post("/events/{event_id}/likes/{activity_id}", response_model=LikeState)
+def toggle_like(user: CurrentUserDep, event_id: UUID, activity_id: ActivityId) -> LikeState:
+    """Likes or unlikes an activity; only on the event's open days (403 guide_not_open)."""
+    return svc.toggle_like(user.id, str(event_id), activity_id)
+
+
+@router.post("/events/{event_id}/stars/{activity_id}", response_model=ActivityStar)
+def star(
+    user: CurrentUserDep, event_id: UUID, activity_id: ActivityId, payload: StarWrite
+) -> ActivityStar:
+    """The council stars an activity of an event that has ended (409 guide_not_ended)."""
+    return svc.star(user.id, str(event_id), activity_id, payload.note)
+
+
+@router.get("/stars", response_model=list[StarredActivity])
+def list_stars(user: CurrentUserDep) -> list[StarredActivity]:
+    """星标活动, newest event first. The council only."""
+    return svc.list_stars(user.id)
+
+
+@router.patch("/stars/{star_id}", response_model=ActivityStar)
+def update_star(user: CurrentUserDep, star_id: int, payload: StarWrite) -> ActivityStar:
+    """The council changes a star's note."""
+    return svc.update_star(user.id, star_id, payload.note)
+
+
+@router.delete("/stars/{star_id}", status_code=204)
+def unstar(user: CurrentUserDep, star_id: int) -> None:
+    """The council takes a star away."""
+    svc.unstar(user.id, star_id)
 
 
 # ---- student council ---------------------------------------------------------------------------

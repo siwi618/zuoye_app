@@ -31,6 +31,34 @@ export interface GuideEvent {
   open_to: string | null
   can_edit: boolean // anyone on the student council
   can_manage: boolean // the president or vice president: may also create and delete
+  // Likes per activity id, and the caller's own; anyone may like on the open days (can_like).
+  likes: Record<string, number>
+  liked: string[]
+  can_like: boolean
+  // Starred activities by id; the council may star once the event has ended (can_star).
+  stars: Record<string, ActivityStar>
+  can_star: boolean
+}
+
+export interface ActivityStar {
+  id: number
+  note: string
+  auto: boolean // for the most likes, not starred by the council
+}
+
+// One entry of 星标活动 on the 学生会 page; event_id is null once the event has been deleted.
+export interface StarredActivity {
+  id: number
+  event_id: string | null
+  activity_id: string
+  event_title: string
+  event_day: string | null
+  name: string
+  place: string
+  note: string
+  auto: boolean
+  likes: number
+  created_at: string
 }
 
 export interface GuideEventWrite {
@@ -71,6 +99,7 @@ export interface CouncilStatus {
 export const GUIDE_EVENTS_KEY = ['guide-events'] as const
 export const guideEventKey = (id: string) => ['guide-event', id] as const
 export const COUNCIL_KEY = ['guide-council'] as const
+export const GUIDE_STARS_KEY = ['guide-stars'] as const
 
 // Every event for the student council; for everyone else only those open today.
 export function listGuideEvents(): Promise<GuideEventSummary[]> {
@@ -99,6 +128,41 @@ export function useGuideEvents(enabled = true) {
 
 export function useGuideEvent(id: string) {
   return useQuery({ queryKey: guideEventKey(id), queryFn: () => getGuideEvent(id), retry: false })
+}
+
+// Likes or unlikes an activity (on the event's open days); the new state and count come back.
+export function toggleGuideLike(
+  eventId: string,
+  activityId: string,
+): Promise<{ liked: boolean; count: number }> {
+  return apiFetch(`/guide/events/${eventId}/likes/${activityId}`, { method: 'POST' })
+}
+
+// The council stars an activity of an event that has ended (again = change the note).
+export function starActivity(eventId: string, activityId: string, note = ''): Promise<ActivityStar> {
+  return apiFetch<ActivityStar>(`/guide/events/${eventId}/stars/${activityId}`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export function updateStarNote(starId: number, note: string): Promise<ActivityStar> {
+  return apiFetch<ActivityStar>(`/guide/stars/${starId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export function unstarActivity(starId: number): Promise<void> {
+  return apiFetch<void>(`/guide/stars/${starId}`, { method: 'DELETE' })
+}
+
+export function listGuideStars(): Promise<StarredActivity[]> {
+  return apiFetch<StarredActivity[]>('/guide/stars')
+}
+
+export function useGuideStars(enabled = true) {
+  return useQuery({ queryKey: GUIDE_STARS_KEY, queryFn: listGuideStars, enabled })
 }
 
 export function getCouncil(): Promise<CouncilStatus> {

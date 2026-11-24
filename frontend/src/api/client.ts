@@ -20,6 +20,8 @@ const KNOWN_ERRORS: Record<string, string> = {
   council_required: 'tools.guide.councilRequired',
   council_too_early: 'council.tooEarly',
   council_already: 'council.members.already',
+  guide_not_open: 'tools.guide.likeClosed',
+  guide_not_ended: 'tools.guide.starTooEarly',
   invalid_badge_code: 'profile.badgeCodeInvalid',
   badge_already_have: 'profile.badgeAlreadyHave',
   badge_too_many_attempts: 'profile.badgeTooMany',

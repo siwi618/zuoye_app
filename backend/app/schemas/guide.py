@@ -17,6 +17,10 @@ MAX_ACTIVITIES = 30
 MAX_LABELS = 40
 LabelKey = Annotated[str, StringConstraints(min_length=1, max_length=24)]
 LabelOffset = Annotated[float, Field(ge=-200, le=200)]
+# An activity's id inside the event (likes and stars point at it); the backend gives one to every
+# activity it saves without one.
+ActivityId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,16}$")]
+StarNoteStr = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
 
 
 class CustomStart(BaseModel):
@@ -28,6 +32,7 @@ class CustomStart(BaseModel):
 
 
 class GuideActivity(BaseModel):
+    id: ActivityId | None = None
     place: PlaceStr
     name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] = ""
     time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=30)] = ""
@@ -82,6 +87,12 @@ class GuideEventSummary(BaseModel):
     open_to: date | None = None
 
 
+class ActivityStar(BaseModel):
+    id: int
+    note: str = ""
+    auto: bool = False  # for the most likes, not starred by the council
+
+
 class GuideEventRead(BaseModel):
     id: str
     title: str
@@ -94,6 +105,38 @@ class GuideEventRead(BaseModel):
     can_edit: bool = False
     # … and delete it (the president or vice president).
     can_manage: bool = False
+    # Likes per activity id, and the ones the caller gave; they may like on the open days.
+    likes: dict[str, int] = {}
+    liked: list[str] = []
+    can_like: bool = False
+    # Starred activities by id; the council may star once the event has ended.
+    stars: dict[str, ActivityStar] = {}
+    can_star: bool = False
+
+
+class StarWrite(BaseModel):
+    note: StarNoteStr = ""
+
+
+class StarredActivity(BaseModel):
+    """One entry of 星标活动 (the event may have been deleted since: event_id is then None)."""
+
+    id: int
+    event_id: str | None = None
+    activity_id: str
+    event_title: str
+    event_day: date | None = None
+    name: str
+    place: str
+    note: str
+    auto: bool
+    likes: int
+    created_at: datetime
+
+
+class LikeState(BaseModel):
+    liked: bool
+    count: int
 
 
 CouncilRole = Literal["president", "vice", "member"]
