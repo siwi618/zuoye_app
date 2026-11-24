@@ -315,7 +315,7 @@ export function GuideEvent() {
         (flat.length ? (
           flat.map((a) => {
             const aid = draft?.config.activities[a.i - 1]?.id
-            const star = aid ? event.data?.stars[aid] : undefined
+            const star = aid ? event.data?.stars?.[aid] : undefined
             return (
               <div key={a.i} className="flex items-start rounded-lg hover:bg-muted">
                 <button
@@ -724,9 +724,10 @@ function Reactions({ event, activityId }: { event: GuideEventData; activityId: s
   const key = guideEventKey(event.id)
   const patch = (fn: (e: GuideEventData) => GuideEventData) =>
     queryClient.setQueryData<GuideEventData>(key, (e) => (e ? fn(e) : e))
-  const count = event.likes[activityId] ?? 0
-  const liked = event.liked.includes(activityId)
-  const star = event.stars[activityId]
+  // The fields can be missing for a moment while an older backend is still serving.
+  const count = event.likes?.[activityId] ?? 0
+  const liked = !!event.liked?.includes(activityId)
+  const star = event.stars?.[activityId]
 
   const like = useMutation({
     mutationFn: () => toggleGuideLike(event.id, activityId),
@@ -734,7 +735,7 @@ function Reactions({ event, activityId }: { event: GuideEventData; activityId: s
       patch((e) => ({
         ...e,
         likes: { ...e.likes, [activityId]: r.count },
-        liked: r.liked ? [...e.liked, activityId] : e.liked.filter((x) => x !== activityId),
+        liked: r.liked ? [...(e.liked ?? []), activityId] : (e.liked ?? []).filter((x) => x !== activityId),
       })),
     onError: (e: Error) => toast.error(e.message),
   })
