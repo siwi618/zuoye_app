@@ -288,7 +288,7 @@ const nameShown = (it: any) => (it.kind !== 'room' && it.kind !== 'mark') || lab
 const FADED_OPACITY = 0.3;
 // 拖动过的标注。偏移量用地图单位（沿屏幕横 / 竖方向），按当前镜头换算成像素，所以缩放、
 // 旋转地图后标注还跟着它指的房间走。编辑时拖动会写进配置（保存后所有人看到同样的布局）；
-// 不在编辑时拖动只在这次打开里有效。null = 双击复原到自动位置。
+// 不在编辑时拖动先记在这里，只在这次打开里有效，进入编辑时会带进配置。null = 点 ↺ 放回自动位置。
 type Off = [number, number];
 let localOffsets: Record<string, Off | null> = {};
 const offsetOf = (key: string): Off | null => (key in localOffsets ? localOffsets[key] : cfg.labels?.[key] ?? null);
@@ -961,7 +961,13 @@ return {
   getFloorMode: () => floorMode,
   setLabelMode(mode: LabelMode) { labelMode = mode; applyRoomFade(); occDirty = true; },
   focusRoom(name: string) { focusRoom(roomByName[name]); },
-  setEditMode(on: boolean) { editMode = on; if (on) localOffsets = {}; if (!on) setPicking(false); },
+  // 进入编辑时，刚才查看时拖过（或放回原位）的标注一并交给编辑内容，不弹回去；配置回来后
+  // setConfig 会清掉这些临时位置。
+  setEditMode(on: boolean) {
+    editMode = on;
+    if (on) Object.entries(localOffsets).forEach(([k, v]) => hooks.onLabelMove?.(k, v));
+    else setPicking(false);
+  },
   setPicking,
   refit() { fitView(true); },
   exportImage,
