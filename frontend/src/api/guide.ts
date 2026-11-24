@@ -92,6 +92,7 @@ export interface CouncilStatus {
   handover_from: string | null // the president may make a 传承码 from then
   president_code: CouncilCode | null
   vice_code: CouncilCode | null
+  president?: CouncilPerson | null // missing from older backends
   vice: CouncilPerson | null
   members: CouncilPerson[]
 }

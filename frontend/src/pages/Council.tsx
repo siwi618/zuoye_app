@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Heart, LogOut, Pencil, Plus, Search, Star, X } from 'lucide-react'
@@ -32,6 +32,19 @@ import {
   type StarredActivity,
 } from '@/api/guide'
 
+// The page's tabs, like 我的接单's: the events, the starred activities and everyone on the council
+// (?tab=stars / ?tab=members; the events have no parameter).
+const TABS = ['events', 'stars', 'members'] as const
+
+// Everyone on the council, president first, then the vice and the members.
+function roster(c: CouncilStatus): { person: CouncilPerson; role: 'president' | 'vice' | 'member' }[] {
+  return [
+    ...(c.president ? [{ person: c.president, role: 'president' as const }] : []),
+    ...(c.vice ? [{ person: c.vice, role: 'vice' as const }] : []),
+    ...c.members.map((person) => ({ person, role: 'member' as const })),
+  ]
+}
+
 // 「学生会」 (in the navigation after 排行榜, only for the council — migration 0034): the events of
 // 「活动指南」, which only the council sees outside their open days, and the vice and members (the
 // president adds and removes members here; their codes are on the badge wall).
@@ -52,6 +65,8 @@ export function Council() {
   })
   const c = council.data
   const events = useGuideEvents(!!c?.role)
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.find((x) => x === params.get('tab')) ?? 'events'
   const date = (iso: string) => new Date(iso).toLocaleDateString(i18n.language)
 
   if (council.isPending) return <p className="text-muted-foreground">{t('common.loading')}</p>
@@ -86,11 +101,32 @@ export function Council() {
         )}
       </header>
 
-      <EventsSection leader={leader} events={events.data} loading={events.isPending} />
+      <div className="rounded-2xl border border-border/60 bg-card/70 p-3 shadow-soft backdrop-blur">
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={tab === key}
+              onClick={() => setParams(key === 'events' ? {} : { tab: key }, { replace: true })}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                tab === key
+                  ? 'bg-brand-100 text-brand-700'
+                  : 'text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {t(`council.tabs.${key}`, { count: roster(c).length })}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <StarsSection />
-
-      <MembersSection council={c} />
+      {tab === 'events' && (
+        <EventsSection leader={leader} events={events.data} loading={events.isPending} />
+      )}
+      {tab === 'stars' && <StarsSection />}
+      {tab === 'members' && <MembersSection council={c} />}
     </div>
   )
 }
@@ -136,11 +172,8 @@ function EventsSection({
 
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">{t('council.events.title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('council.events.hint')}</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{t('council.events.hint')}</p>
         {leader && (
           <Button onClick={() => create.mutate()} disabled={create.isPending}>
             <Plus className="size-4" />
@@ -199,13 +232,7 @@ function StarsSection() {
 
   return (
     <section className="space-y-3">
-      <div className="space-y-1">
-        <h2 className="flex items-center gap-2 text-xl font-semibold">
-          <Star className="size-5 fill-amber-400 text-amber-500" />
-          {t('council.stars.title')}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t('council.stars.hint')}</p>
-      </div>
+      <p className="text-sm text-muted-foreground">{t('council.stars.hint')}</p>
       {stars.isPending ? (
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       ) : stars.isError ? (
@@ -404,69 +431,62 @@ function MembersSection({ council: c }: { council: CouncilStatus }) {
 
   return (
     <section className="space-y-3">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">
-          {t('council.members.title', { count: c.members.length })}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {t(president ? 'council.members.hintPresident' : 'council.members.hint')}
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {t(president ? 'council.members.hintPresident' : 'council.members.hint')}
+      </p>
       <Card className="gap-4 p-5">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">{t('council.vice.title')}</span>
-          {c.vice ? (
-            <>
-              <span className="font-medium">{c.vice.display_name}</span>
-              {president && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  disabled={busy}
-                  onClick={() =>
-                    confirm(
-                      t('council.vice.removeConfirm', { name: c.vice?.display_name, term: c.term }),
-                    ) && dismiss.mutate()
-                  }
-                >
-                  {t('council.vice.remove')}
-                </Button>
-              )}
-            </>
-          ) : (
-            <span className="text-muted-foreground">{t('council.vice.none')}</span>
-          )}
-        </div>
-        {c.members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('council.members.none')}</p>
-        ) : (
-          <ul className="flex flex-wrap gap-1.5">
-            {c.members.map((m) => (
+        <ul className="flex flex-wrap gap-1.5">
+          {roster(c).map(({ person: m, role }) => {
+            const removable = president && role !== 'president'
+            return (
               <li
                 key={m.id}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full border bg-muted/60 py-1 text-sm',
-                  president ? 'pr-1 pl-3' : 'px-3',
+                  'inline-flex items-center gap-1.5 rounded-full border bg-muted/60 py-1 text-sm',
+                  removable ? 'pr-1 pl-3' : 'px-3',
                 )}
               >
                 {m.display_name}
-                {president && (
+                {role !== 'member' && (
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 text-xs font-medium',
+                      role === 'president'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200',
+                    )}
+                  >
+                    {t(`council.roles.${role}`)}
+                  </span>
+                )}
+                {removable && (
                   <button
                     className="rounded-full p-0.5 text-muted-foreground hover:text-destructive"
-                    aria-label={t('council.members.remove', { name: m.display_name })}
+                    aria-label={
+                      role === 'vice'
+                        ? t('council.vice.remove')
+                        : t('council.members.remove', { name: m.display_name })
+                    }
                     disabled={busy}
                     onClick={() =>
-                      confirm(t('council.members.removeConfirm', { name: m.display_name })) &&
-                      drop.mutate(m)
+                      role === 'vice'
+                        ? confirm(
+                            t('council.vice.removeConfirm', { name: m.display_name, term: c.term }),
+                          ) && dismiss.mutate()
+                        : confirm(t('council.members.removeConfirm', { name: m.display_name })) &&
+                          drop.mutate(m)
                     }
                   >
                     <X className="size-3.5" />
                   </button>
                 )}
               </li>
-            ))}
-          </ul>
+            )
+          })}
+        </ul>
+        {!c.vice && <p className="text-xs text-muted-foreground">{t('council.vice.none')}</p>}
+        {!c.members.length && (
+          <p className="text-xs text-muted-foreground">{t('council.members.none')}</p>
         )}
         {president && (
           <div className="space-y-2 border-t pt-4">

@@ -154,8 +154,8 @@ class CouncilCode(BaseModel):
 
 
 class CouncilStatus(BaseModel):
-    """The caller's place on the student council, with the vice and members; the president also
-    sees their 传承码 and 副会长码."""
+    """The caller's place on the student council, with the president, vice and members; the
+    president also sees their 传承码 and 副会长码."""
 
     role: CouncilRole | None = None
     term: int | None = None
@@ -166,6 +166,7 @@ class CouncilStatus(BaseModel):
     handover_from: datetime | None = None
     president_code: CouncilCode | None = None
     vice_code: CouncilCode | None = None
+    president: CouncilPerson | None = None
     vice: CouncilPerson | None = None
     members: list[CouncilPerson] = []
 

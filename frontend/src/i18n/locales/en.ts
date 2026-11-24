@@ -30,8 +30,16 @@ export const en = {
     leave: 'Leave the council',
     leaveConfirm: 'Are you sure? You will no longer be able to edit event guides and the “Council Member” badge goes; to come back, ask the president to add you again.',
     left: 'You left the council',
+    tabs: {
+      events: 'Event guides',
+      stars: 'Starred activities',
+      members: 'Members ({{count}})',
+    },
+    roles: {
+      president: 'President',
+      vice: 'Vice president',
+    },
     events: {
-      title: 'Event guides',
       hint: 'Only the council sees these events, except on their open days, when everyone can open them from the Toolbox.',
       notOpen: 'No open days set',
       opens: 'Opens {{range}}',
@@ -39,7 +47,6 @@ export const en = {
       ended: 'Ended · {{range}}',
     },
     stars: {
-      title: 'Starred activities',
       hint: 'Activities that went well and people liked. Once an event has ended the council can star its activities on the event page; the most-liked activity of the open days gets a star by itself. Add a few words to each, for planning future events.',
       empty: 'No starred activities yet. Once an event has ended, tap ☆ next to an activity in its list.',
       auto: 'Most liked',
@@ -65,10 +72,9 @@ export const en = {
       expires: 'Valid until {{date}}, once',
     },
     members: {
-      title: 'Members ({{count}})',
-      hint: 'Members added by the president can edit every event (not create or delete one).',
-      hintPresident: 'Add council members by name, once a year when the council forms. Members can edit every event (not create or delete one) and stay across terms until they leave or you remove them. The vice president and handover codes are under “Council President” on your badge wall.',
-      none: 'No members yet.',
+      hint: 'Everyone on the council: the president, the vice president and the members. The president and vice president create, edit and delete events; members edit every event (not create or delete one).',
+      hintPresident: 'Everyone on the council: you, the vice president and the members. Add members by name, once a year when the council forms. Members can edit every event (not create or delete one) and stay across terms until they leave or you remove them. The vice president and handover codes are under “Council President” on your badge wall.',
+      none: 'No other members yet.',
       search: 'Search classmates by name to add',
       noMatch: 'No one called “{{query}}”',
       add: 'Add',
@@ -79,8 +85,7 @@ export const en = {
       removed: 'Removed {{name}}',
     },
     vice: {
-      title: 'Vice president',
-      none: 'None yet',
+      none: 'No vice president yet.',
       remove: 'Remove',
       removeConfirm: 'Remove {{name}} as vice president? They will keep the “Vice President, term {{term}}” badge and go back to being a member.',
       removed: 'Vice president removed',

@@ -118,7 +118,9 @@ def council_status(user_id: str) -> CouncilStatus:
     if president:
         out.expires_at = _add_months(datetime.fromisoformat(president["started_at"]), _TERM_MONTHS)
     others = [t for t in terms if t["role"] != "president" and t["user_id"]]
-    found = _people([t["user_id"] for t in others])
+    found = _people([t["user_id"] for t in terms if t["user_id"]])
+    if president and president["user_id"] in found:
+        out.president = found[president["user_id"]]
     out.members = [
         found[t["user_id"]] for t in others if t["role"] == "member" and t["user_id"] in found
     ]
